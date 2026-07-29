@@ -16,12 +16,24 @@ const catOf = (e) => (CATS[e?.category] ? e.category : DEFAULT_CAT);
 
 /* ---------- Standaard spaarpotjes ---------- */
 const DEFAULT_POTS = [
-  { id: "algemeen", label: "Algemeen", startBalance: 0, goal: 0 },
-  { id: "vakantie", label: "Vakantie", startBalance: 0, goal: 0 },
-  { id: "auto", label: "Auto", startBalance: 0, goal: 0 },
+  { id: "algemeen", label: "Algemeen", startBalance: 0, goal: 0, icon: "🐷" },
+  { id: "vakantie", label: "Vakantie", startBalance: 0, goal: 0, icon: "🏖️" },
+  { id: "auto", label: "Auto", startBalance: 0, goal: 0, icon: "🚗" },
 ];
 const POT_COLORS = ["#1B4D3E", "#2E8B6B", "#57B894", "#8FD3B6", "#3AA57D"];
 const INV_COLORS = ["#3E7CB1", "#B4482E", "#C99A2E", "#7A5CC0", "#D96BA0"];
+
+function guessIcon(label) {
+  const l = (label || "").toLowerCase();
+  if (/vakantie|reis|trip|holiday|vlieg/.test(l)) return "🏖️";
+  if (/auto|car|wagen|scooter|fiets/.test(l)) return "🚗";
+  if (/huis|home|hypotheek|wonen|verbouw|keuken|meubel/.test(l)) return "🏠";
+  if (/baby|kind|kids|luier/.test(l)) return "🍼";
+  if (/nood|buffer|reserve/.test(l)) return "🛟";
+  if (/beleg|invest|aandeel|etf/.test(l)) return "📈";
+  if (/cadeau|gift|kerst|sint/.test(l)) return "🎁";
+  return "🐷";
+}
 
 /* ---------- Formatters ---------- */
 const eur = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
@@ -80,7 +92,7 @@ function loadState() {
       if (typeof parsed.startBalance === "number") merged.pots[0].startBalance = parsed.startBalance;
     }
     if (!Array.isArray(merged.pots) || merged.pots.length === 0) merged.pots = DEFAULT_POTS.map((p) => ({ ...p }));
-    merged.pots = merged.pots.map((p) => ({ goal: 0, ...p }));
+    merged.pots = merged.pots.map((p) => ({ goal: 0, icon: guessIcon(p.label), ...p }));
     if (!Array.isArray(merged.recentLabels)) merged.recentLabels = [];
     return merged;
   } catch {
@@ -201,6 +213,23 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+/* ---------- Bedrag met count-up ---------- */
+const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const _amtCache = new WeakMap();
+function setAmount(el, value) {
+  const prev = _amtCache.get(el);
+  _amtCache.set(el, value);
+  if (REDUCE_MOTION || prev === undefined || prev === value) { el.textContent = eur.format(value); return; }
+  const from = prev, to = value, dur = 450, t0 = performance.now();
+  function step(t) {
+    const k = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    el.textContent = eur.format(from + (to - from) * e);
+    if (k < 1) requestAnimationFrame(step); else el.textContent = eur.format(to);
+  }
+  requestAnimationFrame(step);
+}
+
 /* ============================================================
    Render
    ============================================================ */
@@ -217,9 +246,10 @@ function isEmptyState() {
 /* ---------- Overzicht ---------- */
 function renderOverview() {
   els.emptyHint.hidden = !isEmptyState();
-  els.ovNow.textContent = eur.format(liquidNow());
-  els.ovNow.classList.toggle("is-neg", liquidNow() < 0);
-  els.ovWorth.textContent = eur.format(liquidNow() + investTotal());
+  const now = liquidNow();
+  setAmount(els.ovNow, now);
+  els.ovNow.classList.toggle("is-neg", now < 0);
+  els.ovWorth.textContent = eur.format(now + investTotal());
   renderWarnings();
   renderChart();
   renderMonthList();
@@ -299,7 +329,7 @@ function renderMonth() {
   els.heroEyebrow.textContent = potLabel ? `Saldo einde maand · ${potLabel}` : "Verwacht saldo einde maand";
 
   els.begin.textContent = eur.format(beginBalance(viewMonth, pf));
-  els.end.textContent = eur.format(end);
+  setAmount(els.end, end);
   els.end.classList.toggle("is-neg", end < 0);
 
   const sign = net > 0 ? "+" : net < 0 ? "−" : "±";
@@ -323,6 +353,11 @@ function renderPots() {
     b.className = "pot-card" + (on ? " is-on" : "");
     b.setAttribute("role", "tab");
     b.setAttribute("aria-selected", String(on));
+    if (pot && pot.icon) {
+      const ic = document.createElement("span");
+      ic.className = "pc-icon"; ic.textContent = pot.icon; ic.setAttribute("aria-hidden", "true");
+      b.appendChild(ic);
+    }
     const n = document.createElement("span");
     n.className = "pc-name"; n.textContent = label;
     const a = document.createElement("span");
@@ -455,6 +490,20 @@ function renderChart(pf) {
   const danger = min < 0 ? `<rect class="c-danger" x="${padX}" y="${Y(0).toFixed(1)}" width="${(W - padX * 2).toFixed(1)}" height="${(baseY - Y(0)).toFixed(1)}"/>` : "";
   const zero = (min < 0 && max > 0) ? `<line class="c-zero" x1="${padX}" y1="${Y(0).toFixed(1)}" x2="${(W - padX).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>` : "";
 
+  let grid = "";
+  const gN = 3;
+  for (let g = 1; g <= gN; g++) {
+    const gy = (padTop + (g / (gN + 1)) * (H - padTop - padBot)).toFixed(1);
+    grid += `<line class="c-grid" x1="${padX}" y1="${gy}" x2="${(W - padX).toFixed(1)}" y2="${gy}"/>`;
+  }
+
+  let todayMark = "";
+  const nowM = monthStart.find((m) => m.key === nowKey);
+  if (nowM) {
+    const tx = X(nowM.index + Math.min(todayDay(), daysInMonth(nowKey)) - 1).toFixed(1);
+    todayMark = `<line class="c-today" x1="${tx}" y1="${padTop}" x2="${tx}" y2="${baseY}"/><text class="c-today-lbl" x="${tx}" y="${padTop - 5}" text-anchor="middle">nu</text>`;
+  }
+
   els.chartSub.textContent = "sleep om te bekijken";
   els.chartScroll.innerHTML = `
     <svg class="chart-svg" width="${W.toFixed(0)}" height="${H}" viewBox="0 0 ${W.toFixed(0)} ${H}" xmlns="http://www.w3.org/2000/svg">
@@ -462,10 +511,10 @@ function renderChart(pf) {
         <stop offset="0" stop-color="var(--accent)" stop-opacity="0.30"/>
         <stop offset="1" stop-color="var(--accent)" stop-opacity="0.02"/>
       </linearGradient></defs>
-      ${danger}${zero}
+      ${grid}${danger}${zero}
       <path class="c-area" d="${area}"/>
       <path class="c-line" d="${line.trim()}"/>
-      ${ticks}
+      ${todayMark}${ticks}
       <line class="c-guide" id="c-guide" x1="0" y1="${padTop}" x2="0" y2="${baseY}"/>
       <circle class="c-focus" id="c-focus" r="5" cx="-10" cy="-10"/>
     </svg>`;
@@ -515,7 +564,7 @@ function renderVermogen() {
   const cash = liquidNow(), inv = investTotal(), total = cash + inv;
   els.worthCash.textContent = eur.format(cash);
   els.worthInvest.textContent = eur.format(inv);
-  els.worthTotal.textContent = eur.format(total);
+  setAmount(els.worthTotal, total);
   els.worthTotal.classList.toggle("is-neg", total < 0);
   renderAllocation();
   renderInvestList();
@@ -593,6 +642,13 @@ const tabs = {
   maand: $("#tab-maand"),
   vermogen: $("#tab-vermogen"),
 };
+const tabInd = $("#tab-ind");
+function positionTabInd(name) {
+  const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  if (!btn || !tabInd) return;
+  tabInd.style.left = btn.offsetLeft + "px";
+  tabInd.style.width = btn.offsetWidth + "px";
+}
 function switchTab(name) {
   activeTab = name;
   for (const k of Object.keys(tabs)) tabs[k].hidden = k !== name;
@@ -601,9 +657,13 @@ function switchTab(name) {
     b.classList.toggle("is-active", on);
     if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
+  positionTabInd(name);
+  const shown = tabs[name];
+  if (shown) { shown.classList.remove("tab-enter"); void shown.offsetWidth; shown.classList.add("tab-enter"); }
   els.brandName.textContent = TAB_LABEL[name] || "Budget";
   window.scrollTo({ top: 0, behavior: "auto" });
 }
+window.addEventListener("resize", () => positionTabInd(activeTab));
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => { haptic(6); switchTab(btn.dataset.tab); });
 });
@@ -679,7 +739,8 @@ function buildPotChips() {
   for (const p of state.pots) {
     const chip = document.createElement("button");
     chip.type = "button"; chip.className = "cat-chip"; chip.dataset.pot = p.id; chip.setAttribute("role", "radio");
-    chip.style.setProperty("--c", "var(--accent)"); chip.textContent = p.label;
+    chip.style.setProperty("--c", "var(--accent)");
+    chip.textContent = (p.icon ? p.icon + " " : "") + p.label;
     chip.addEventListener("click", () => setPot(p.id));
     potRow.appendChild(chip);
   }
@@ -908,6 +969,9 @@ function renderPotManage() {
     const card = document.createElement("div"); card.className = "pot-edit";
 
     const top = document.createElement("div"); top.className = "pe-top";
+    const icon = document.createElement("input");
+    icon.className = "pe-icon"; icon.value = p.icon || ""; icon.maxLength = 2; icon.setAttribute("aria-label", "Icoon (emoji)");
+    icon.addEventListener("change", () => { p.icon = icon.value.trim() || guessIcon(p.label); saveState(); render(); });
     const name = document.createElement("input");
     name.className = "pe-name"; name.value = p.label; name.setAttribute("aria-label", "Naam potje");
     name.addEventListener("change", () => { p.label = name.value.trim() || `Potje ${idx + 1}`; saveState(); render(); });
@@ -919,7 +983,7 @@ function renderPotManage() {
       haptic(18); saveState(); renderPotManage(); render();
       toast("Potje verwijderd", () => { state.pots.splice(idx, 0, removed); saveState(); renderPotManage(); render(); });
     });
-    top.append(name, del);
+    top.append(icon, name, del);
 
     const cols = document.createElement("div"); cols.className = "pe-cols";
     const col1 = document.createElement("label"); col1.className = "pe-col";
@@ -934,7 +998,7 @@ function renderPotManage() {
     potManage.appendChild(card);
   });
 }
-$("#pot-add").addEventListener("click", () => { state.pots.push({ id: uid(), label: "Nieuw potje", startBalance: 0, goal: 0 }); haptic(10); saveState(); renderPotManage(); render(); });
+$("#pot-add").addEventListener("click", () => { state.pots.push({ id: uid(), label: "Nieuw potje", startBalance: 0, goal: 0, icon: "🐷" }); haptic(10); saveState(); renderPotManage(); render(); });
 
 function openSettings() { renderPotManage(); sStartMonth.value = state.startMonth; openOverlay(settingsOverlay); }
 $("#btn-settings").addEventListener("click", openSettings);
@@ -964,7 +1028,7 @@ importFile.addEventListener("change", async () => {
     if (typeof data !== "object" || !data) throw new Error("ongeldig");
     state = { ...defaultState(), ...data };
     if (!Array.isArray(state.pots) || state.pots.length === 0) state.pots = DEFAULT_POTS.map((p) => ({ ...p }));
-    state.pots = state.pots.map((p) => ({ goal: 0, ...p }));
+    state.pots = state.pots.map((p) => ({ goal: 0, icon: guessIcon(p.label), ...p }));
     if (!Array.isArray(state.recentLabels)) state.recentLabels = [];
     selectedPot = "all"; viewMonth = clampToStart(currentMonthKey());
     saveState(); render(); renderPotManage(); closeOverlay(settingsOverlay); toast("Back-up geïmporteerd");

@@ -69,14 +69,14 @@ await page.fill("#f-amount", "2500");
 await page.fill("#f-day", "15");
 await page.click("#entry-submit");
 
-await page.waitForTimeout(300);
+await page.waitForTimeout(700);
 const endBalance = await page.textContent("#end-balance");
 const totalOut = await page.textContent("#total-out");
 await page.screenshot({ path: path.join(root, "scripts", "shot-maand.png"), fullPage: true });
 
 // Overzicht-tab
 await page.click('.tab-btn[data-tab="overzicht"]');
-await page.waitForTimeout(300);
+await page.waitForTimeout(700);
 const ovNow = await page.textContent("#ov-now");
 const monthRows = await page.locator("#month-list .month-row").count();
 await page.screenshot({ path: path.join(root, "scripts", "shot-overzicht.png"), fullPage: true });
@@ -87,7 +87,7 @@ await page.click("#add-invest");
 await page.fill("#i-label", "Meesman");
 await page.fill("#i-value", "15000");
 await page.click("#invest-form button[type=submit]");
-await page.waitForTimeout(200);
+await page.waitForTimeout(700);
 const worthTotal = await page.textContent("#worth-total");
 await page.screenshot({ path: path.join(root, "scripts", "shot-vermogen.png"), fullPage: true });
 
