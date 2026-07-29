@@ -1,5 +1,5 @@
 // Service worker · offline app-shell voor Budget PWA
-const CACHE = "budget-glass-v7";
+const CACHE = "budget-glass-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -31,21 +31,36 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
-  // Navigatie: netwerk-eerst, val terug op gecachte shell (offline)
-  if (request.mode === "navigate") {
+  const url = new URL(request.url);
+  const sameOrigin = url.origin === self.location.origin;
+
+  // App-shell (HTML/CSS/JS/manifest): NETWERK-EERST.
+  // Zo komen updates altijd als één consistent geheel binnen (geen
+  // mismatch tussen nieuwe HTML en oude CSS). Offline → cache-fallback.
+  const isShell =
+    request.mode === "navigate" ||
+    (sameOrigin && /\.(?:css|js|webmanifest)$/.test(url.pathname));
+
+  if (isShell) {
     event.respondWith(
-      fetch(request).catch(() => caches.match("./index.html"))
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(request).then((r) => r || caches.match("./index.html")))
     );
     return;
   }
 
-  // Overig: cache-eerst, vul cache aan bij misser
+  // Iconen/afbeeldingen: cache-eerst (veranderen zelden).
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
+        caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
         return res;
       });
     })
