@@ -9,6 +9,12 @@
   --brand-a: #2E6B54;
   --brand-b: #1B4D3E;
 
+  /* Hero-gradient (eigen tokens zodat licht/donker apart te tunen is) */
+  --hero-a: #2f7159;
+  --hero-b: #1B4D3E;
+  --hero-c: #143c30;
+  --hero-glow: rgba(16, 54, 40, 0.62);
+
   /* Light theme — wit met dennengroen */
   --bg-0: #ffffff;
   --bg-1: #f5f8f7;
@@ -42,25 +48,36 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-0: #0b1512;
-    --bg-1: #10211b;
-    --text: #eef5f1;
-    --text-2: rgba(238, 245, 241, 0.68);
-    --text-3: rgba(238, 245, 241, 0.44);
+    /* Donkerder, neutralere basis zodat kaarten er duidelijk bovenop liggen */
+    --bg-0: #08120f;
+    --bg-1: #0d1a16;
+    --text: #f0f6f3;
+    --text-2: rgba(240, 246, 243, 0.72);
+    --text-3: rgba(240, 246, 243, 0.50);
 
-    --glass: rgba(22, 40, 34, 0.52);
-    --glass-strong: rgba(28, 50, 42, 0.68);
-    --glass-border: rgba(255, 255, 255, 0.12);
-    --glass-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.6),
-                    0 2px 8px -2px rgba(0, 0, 0, 0.5);
-    --hairline: rgba(255, 255, 255, 0.09);
+    /* Lichtere kaarten + duidelijkere randen: in het donker leest elevatie
+       via lichtheid en rand, niet via schaduw. */
+    --glass: rgba(37, 60, 52, 0.78);
+    --glass-strong: rgba(48, 74, 64, 0.92);
+    --glass-border: rgba(255, 255, 255, 0.16);
+    --glass-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.75),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --hairline: rgba(255, 255, 255, 0.14);
 
-    --accent: #5fce9f;
-    --accent-2: #7fdcb5;
-    --pos: #46d9a0;
-    --pos-soft: rgba(70, 217, 160, 0.16);
-    --neg: #ff8a6b;
-    --neg-soft: rgba(255, 138, 107, 0.16);
+    /* Hero in het donker iets luminanter, anders valt hij weg in de bg */
+    --brand-a: #37876a;
+    --brand-b: #1f5946;
+    --hero-a: #3d9375;
+    --hero-b: #256853;
+    --hero-c: #17493a;
+    --hero-glow: rgba(0, 0, 0, 0.70);
+
+    --accent: #6fd9ac;
+    --accent-2: #8ee5c1;
+    --pos: #54dfa8;
+    --pos-soft: rgba(84, 223, 168, 0.18);
+    --neg: #ff9077;
+    --neg-soft: rgba(255, 144, 119, 0.18);
   }
 }
 
@@ -237,11 +254,11 @@ button { font: inherit; }
   border: none;
   border-radius: var(--radius-l);
   color: #fff;
-  background: linear-gradient(155deg, #2f7159 0%, var(--brand-b) 62%, #143c30 100%);
+  background: linear-gradient(155deg, var(--hero-a) 0%, var(--hero-b) 62%, var(--hero-c) 100%);
   box-shadow:
-    0 22px 46px -20px rgba(16, 54, 40, 0.62),
-    0 6px 16px -8px rgba(16, 54, 40, 0.40),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    0 22px 46px -20px var(--hero-glow),
+    0 6px 16px -8px rgba(10, 30, 22, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 .hero::before {
   content: "";
@@ -303,7 +320,8 @@ button { font: inherit; }
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
-.net-badge.is-neg { background: rgba(255, 138, 107, 0.30); color: #ffe2d8; }
+/* Donkere scrim i.p.v. oranje-op-groen (dat mengt tot bruin) */
+.net-badge.is-neg { background: rgba(22, 11, 8, 0.42); color: #ffcdbd; }
 
 /* ---------- Stat kaarten ---------- */
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -702,7 +720,7 @@ button { font: inherit; }
   z-index: 40;
   width: min(var(--maxw), calc(100vw - 28px));
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding: 6px;
   border-radius: 20px;
@@ -740,6 +758,14 @@ button { font: inherit; }
 }
 .tab-btn.is-active { color: var(--accent); }
 .tab-btn:active { transform: scale(0.96); }
+.tab-btn span {
+  white-space: nowrap;
+  font-size: 0.7rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 360px) { .tab-btn span { font-size: 0.64rem; } }
 
 /* ============================================================
    Categorieën
@@ -1300,6 +1326,57 @@ input[type="month"], input[type="number"] { min-width: 0; width: 100%; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ============================================================
+   Donkere modus — afsluitende verfijning
+   (staat achteraan zodat het de polish-regels hierboven overschrijft)
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  /* Iets meer sfeer, maar niet modderig */
+  .blob { opacity: 0.30; }
+  .blob-c { opacity: 0.18; }
+
+  /* Kaarten duidelijk van de achtergrond scheiden */
+  .glass, .list, .month-row {
+    box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  /* Statkaarten: subtiele tint over een neutrale ondergrond, anders
+     mengt oranje met het groen van de kaart tot bruin */
+  .stat-in {
+    background: linear-gradient(rgba(84, 223, 168, 0.12), rgba(84, 223, 168, 0.12)), rgba(26, 40, 36, 0.86);
+  }
+  .stat-out {
+    background: linear-gradient(rgba(255, 144, 119, 0.12), rgba(255, 144, 119, 0.12)), rgba(34, 30, 30, 0.86);
+  }
+
+  .net-badge { background: rgba(0, 0, 0, 0.26); }
+
+  /* Waarschuwing: neutrale ondergrond, dan tinten */
+  .warn-card {
+    background: linear-gradient(rgba(255, 144, 119, 0.14), rgba(255, 144, 119, 0.14)), rgba(34, 30, 30, 0.88);
+  }
+
+  /* Actieve elementen wat prominenter */
+  .pot-card.is-on { background: color-mix(in srgb, var(--accent) 18%, var(--glass)); }
+  .tab-ind { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+  .seg-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 20%, var(--glass-strong)); }
+
+  /* Grafiek beter leesbaar op donkere kaart */
+  .chart-svg .c-line { stroke-width: 2.8; }
+  .chart-svg .c-grid { opacity: 0.35; }
+  .chart-svg .c-tick { fill: var(--text-3); }
+  .chart-svg .c-danger { opacity: 0.16; }
+
+  /* Invoervelden een tikje lichter dan de kaart eronder */
+  .field > input, .amount-input, .pe-money, .pe-name, .pe-icon, .mp-cell {
+    background: rgba(60, 88, 77, 0.88);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  /* Groene merkknoppen: witte tekst blijft leesbaar */
+  .btn-primary, .fab, .brand-mark, .mr-now-pill { color: #fff; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

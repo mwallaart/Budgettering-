@@ -91,8 +91,35 @@ await page.waitForTimeout(700);
 const worthTotal = await page.textContent("#worth-total");
 await page.screenshot({ path: path.join(root, "scripts", "shot-vermogen.png"), fullPage: true });
 
+// --- Nav bar: moet één rij zijn (3 tabs naast elkaar) en de FAB niet raken ---
+const navCheck = await page.evaluate(() => {
+  const bar = document.querySelector(".tabbar");
+  const btns = [...document.querySelectorAll(".tab-btn")];
+  const tops = new Set(btns.map((b) => Math.round(b.getBoundingClientRect().top)));
+  const fab = document.querySelector(".fab").getBoundingClientRect();
+  const barR = bar.getBoundingClientRect();
+  return {
+    rows: tops.size,
+    tabs: btns.length,
+    barHeight: Math.round(barR.height),
+    fabGap: Math.round(barR.top - fab.bottom),
+    overlap: fab.bottom > barR.top,
+  };
+});
+
+// --- Donkere modus ---
+await page.emulateMedia({ colorScheme: "dark" });
+await page.click('.tab-btn[data-tab="overzicht"]');
+await page.waitForTimeout(700);
+await page.screenshot({ path: path.join(root, "scripts", "shot-dark.png"), fullPage: true });
+await page.click('.tab-btn[data-tab="maand"]');
+await page.waitForTimeout(500);
+await page.screenshot({ path: path.join(root, "scripts", "shot-dark-maand.png"), fullPage: true });
+
 await browser.close();
 server.close();
+
+console.log("Nav:", JSON.stringify(navCheck));
 
 console.log("Maand eindsaldo:", endBalance, "| aankopen:", totalOut);
 console.log("Overzicht spaargeld nu:", ovNow, "| maandrijen:", monthRows);
