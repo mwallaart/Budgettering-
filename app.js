@@ -259,23 +259,25 @@ function renderMonthList() {
     b.type = "button";
     b.className = "month-row" + (isNow ? " is-now" : "");
 
-    const name = document.createElement("span");
-    name.className = "mr-name";
-    name.textContent = monthName(key);
+    const total = inc + out;
+    const bar = total > 0
+      ? `<div class="mr-bar"><span class="in" style="flex:${inc}"></span><span class="out" style="flex:${out}"></span></div>`
+      : `<div class="mr-bar"></div>`;
 
-    const endEl = document.createElement("span");
-    endEl.className = "mr-end tnum" + (end < 0 ? " is-neg" : "");
-    endEl.textContent = eur.format(end);
+    b.innerHTML = `
+      <div class="mr-main">
+        <div class="mr-top">
+          <span class="mr-name">${escapeHtml(monthName(key))}</span>
+          ${isNow ? '<span class="mr-now-pill">Nu</span>' : ""}
+        </div>
+        ${bar}
+        <div class="mr-flow"><span class="in">+ ${eur.format(inc)}</span><span class="out">− ${eur.format(out)}</span></div>
+      </div>
+      <div class="mr-right">
+        <span class="mr-end tnum${end < 0 ? " is-neg" : ""}">${eur.format(end)}</span>
+        <span class="mr-lbl">eindsaldo</span>
+      </div>`;
 
-    const flow = document.createElement("span");
-    flow.className = "mr-flow";
-    flow.innerHTML = `<span class="in">+ ${eur.format(inc)}</span><span class="out">− ${eur.format(out)}</span>`;
-
-    const right = document.createElement("span");
-    right.className = "mr-now-tag";
-    right.textContent = isNow ? "Nu" : "";
-
-    b.append(name, endEl, flow, right);
     b.addEventListener("click", () => { viewMonth = key; selectedPot = "all"; haptic(6); switchTab("maand"); render(); });
     li.appendChild(b);
     els.monthList.appendChild(li);
@@ -605,6 +607,7 @@ function switchTab(name) {
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => { haptic(6); switchTab(btn.dataset.tab); });
 });
+$("#back-overzicht").addEventListener("click", () => { haptic(6); switchTab("overzicht"); });
 
 /* ============================================================
    Maandnavigatie + maandkiezer

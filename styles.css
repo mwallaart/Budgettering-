@@ -166,7 +166,7 @@ body {
 .app {
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: 6px var(--pad) calc(120px + env(safe-area-inset-bottom));
+  padding: 6px var(--pad) calc(150px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -228,44 +228,82 @@ button { font: inherit; }
 }
 .pill-ghost:hover { text-decoration: underline; }
 
-/* ---------- Hero ---------- */
-.hero { padding: 22px var(--pad) 20px; text-align: center; }
+/* ---------- Hero (feature-kaart) ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 26px var(--pad) 24px;
+  text-align: center;
+  border: none;
+  border-radius: var(--radius-l);
+  color: #fff;
+  background: linear-gradient(155deg, #2f7159 0%, var(--brand-b) 62%, #143c30 100%);
+  box-shadow:
+    0 22px 46px -20px rgba(16, 54, 40, 0.62),
+    0 6px 16px -8px rgba(16, 54, 40, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 82% -20%, rgba(255, 255, 255, 0.26), transparent 55%),
+    radial-gradient(90% 70% at 0% 120%, rgba(143, 216, 182, 0.24), transparent 60%);
+}
+.hero > * { position: relative; }
+.hero-deco {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 62%;
+  max-width: 260px;
+  height: auto;
+  opacity: 0.5;
+  color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
 .hero-eyebrow {
-  margin: 0 0 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-2);
+  margin: 0 0 8px;
+  font-size: 0.74rem;
+  font-weight: 640;
+  color: rgba(255, 255, 255, 0.72);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
 }
 .hero-amount {
   margin: 0;
-  font-size: clamp(2.5rem, 12vw, 3.4rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.02;
+  font-size: clamp(2.6rem, 12.5vw, 3.5rem);
+  font-weight: 760;
+  letter-spacing: -0.035em;
+  line-height: 1.0;
+  color: #fff;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.14);
 }
-.hero-amount.is-neg { color: var(--neg); }
+.hero-amount.is-neg { color: #ffd7c7; }
 .hero-flow {
-  margin-top: 14px;
+  margin-top: 16px;
   display: inline-flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
   font-size: 0.9rem;
-  color: var(--text-2);
+  color: rgba(255, 255, 255, 0.82);
 }
-.hero-flow b { color: var(--text); font-weight: 640; }
-.hero-arrow { opacity: 0.5; }
+.hero-flow b { color: #fff; font-weight: 680; }
+.hero-arrow { opacity: 0.55; }
 .net-badge {
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
-  font-weight: 650;
-  background: var(--pos-soft);
-  color: var(--pos);
+  font-weight: 680;
+  background: rgba(255, 255, 255, 0.20);
+  color: #fff;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
-.net-badge.is-neg { background: var(--neg-soft); color: var(--neg); }
+.net-badge.is-neg { background: rgba(255, 138, 107, 0.30); color: #ffe2d8; }
 
 /* ---------- Stat kaarten ---------- */
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -1072,12 +1110,12 @@ button { font: inherit; }
    ============================================================ */
 .month-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .month-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 4px 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   width: 100%;
   text-align: left;
-  padding: 14px 16px;
+  padding: 15px 16px;
   border-radius: var(--radius-m);
   border: 1px solid var(--glass-border);
   background: var(--glass);
@@ -1086,26 +1124,37 @@ button { font: inherit; }
   box-shadow: var(--glass-shadow);
   color: inherit;
   cursor: pointer;
-  transition: transform 0.14s var(--ease);
+  transition: transform 0.14s var(--ease), box-shadow 0.14s var(--ease);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+.month-row:hover { box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-border); }
 .month-row:active { transform: scale(0.99); }
-.month-row.is-now { border-color: var(--accent); }
-.mr-name { font-weight: 640; font-size: 1rem; text-transform: capitalize; }
-.mr-end { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.02em; justify-self: end; }
-.mr-end.is-neg { color: var(--neg); }
-.mr-flow { font-size: 0.82rem; color: var(--text-2); display: flex; gap: 12px; }
-.mr-flow .in { color: var(--pos); font-weight: 600; }
-.mr-flow .out { color: var(--neg); font-weight: 600; }
-.mr-chev { justify-self: end; color: var(--text-3); }
-.mr-now-tag {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--accent);
+.month-row.is-now { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.mr-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.mr-top { display: flex; align-items: center; gap: 8px; }
+.mr-name { font-weight: 650; font-size: 1.02rem; text-transform: capitalize; letter-spacing: -0.01em; }
+.mr-now-pill {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: #fff;
+  background: linear-gradient(150deg, var(--brand-a), var(--brand-b));
+  padding: 2px 8px;
+  border-radius: 999px;
 }
+.mr-bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; background: var(--hairline); }
+.mr-bar > span { display: block; height: 100%; }
+.mr-bar .in { background: var(--pos); }
+.mr-bar .out { background: var(--neg); }
+.mr-flow { display: flex; gap: 14px; font-size: 0.8rem; }
+.mr-flow .in { color: var(--pos); font-weight: 640; }
+.mr-flow .out { color: var(--neg); font-weight: 640; }
+.mr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex: none; }
+.mr-end { font-weight: 740; font-size: 1.12rem; letter-spacing: -0.025em; }
+.mr-end.is-neg { color: var(--neg); }
+.mr-lbl { font-size: 0.66rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* ============================================================
    Maandkiezer
@@ -1146,6 +1195,65 @@ button { font: inherit; }
 }
 .mp-cell.is-on { background: var(--pos-soft); border-color: var(--accent); color: var(--accent); }
 .mp-cell:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ============================================================
+   Extra polish
+   ============================================================ */
+.app { gap: 18px; }
+
+/* Statkaarten: subtiele kleurcodering + meer aanwezigheid */
+.stat { padding: 16px 16px 15px; }
+.stat-in { background: color-mix(in srgb, var(--pos) 7%, var(--glass)); }
+.stat-out { background: color-mix(in srgb, var(--neg) 7%, var(--glass)); }
+.stat-label { font-weight: 600; }
+.stat-amount { font-size: 1.42rem; letter-spacing: -0.02em; }
+
+/* Sectiekoppen */
+.group-head h2 { font-size: 1.06rem; font-weight: 660; }
+
+/* Potje-kaart actief: accentring */
+.pot-card { min-width: 128px; }
+.pot-card.is-on { box-shadow: var(--glass-shadow), 0 0 0 1.5px var(--accent); }
+
+/* Segmented control */
+.seg-opt[aria-selected="true"] { color: var(--accent); }
+
+/* Tab-bar actief */
+.tab-btn.is-active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent); }
+
+/* Chart-kaart wat meer lucht */
+.chart-card { padding: 16px 8px 12px; }
+
+/* Iets meer sfeer in de achtergrond */
+.blob { opacity: 0.16; }
+.blob-c { opacity: 0.10; }
+
+/* Terugknop (Maand → Overzicht) */
+.back-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-weight: 660;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 6px 10px 6px 4px;
+  border-radius: 10px;
+  margin: -2px 0 -6px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.back-btn:hover { background: var(--pos-soft); }
+.back-btn:active { transform: translateX(-2px); }
+
+/* Voorkom dat native velden overlopen / over elkaar vallen */
+.field input, .amount-input, .pe-money { max-width: 100%; }
+input[type="month"], input[type="number"] { min-width: 0; width: 100%; }
+.field-2col { align-items: end; }
+.field-2col .field { flex: 1 1 0; }
 
 /* ---------- Animaties ---------- */
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }

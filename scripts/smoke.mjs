@@ -36,6 +36,8 @@ const bal = pot1.locator(".pe-col").nth(0).locator(".pe-money input");
 const goal = pot1.locator(".pe-col").nth(1).locator(".pe-money input");
 await bal.fill("5000"); await bal.blur();
 await goal.fill("10000"); await goal.blur();
+await page.waitForTimeout(150);
+await page.screenshot({ path: path.join(root, "scripts", "shot-settings.png") });
 await page.click("#settings-overlay [data-close]");
 
 // Naar Maand-tab om posten toe te voegen
@@ -43,6 +45,8 @@ await page.click('.tab-btn[data-tab="maand"]');
 
 // Terugkerend spaarbedrag (25e)
 await page.click('[data-add="in"]');
+await page.waitForTimeout(150);
+await page.screenshot({ path: path.join(root, "scripts", "shot-sheet.png") });
 await page.fill("#f-label", "Maandelijks sparen");
 await page.fill("#f-amount", "800");
 await page.fill("#f-day", "25");

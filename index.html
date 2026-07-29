@@ -49,6 +49,7 @@
       </div>
 
       <section class="hero glass" aria-labelledby="ov-title">
+        <svg class="hero-deco" viewBox="0 0 200 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 72 L42 62 L74 68 L112 40 L150 50 L198 12" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="198" cy="12" r="5.5" fill="currentColor"/></svg>
         <p class="hero-eyebrow" id="ov-title">Spaargeld nu</p>
         <p class="hero-amount tnum" id="ov-now">€ 0,00</p>
         <div class="hero-flow">
@@ -84,6 +85,11 @@
 
     <!-- ==================== TAB: MAAND (detail) ==================== -->
     <section id="tab-maand" class="tab" aria-label="Maanddetail" hidden>
+      <button type="button" class="back-btn" id="back-overzicht">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        Overzicht
+      </button>
+
       <nav class="month-nav glass" aria-label="Maand kiezen">
         <button id="prev-month" class="icon-btn" type="button" aria-label="Vorige maand">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
@@ -100,6 +106,7 @@
       <div class="pots-strip" id="pots-strip" role="tablist" aria-label="Spaarpotje kiezen"></div>
 
       <section class="hero glass" aria-labelledby="hero-title">
+        <svg class="hero-deco" viewBox="0 0 200 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 72 L42 62 L74 68 L112 40 L150 50 L198 12" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="198" cy="12" r="5.5" fill="currentColor"/></svg>
         <p class="hero-eyebrow" id="hero-title">Verwacht saldo einde maand</p>
         <p class="hero-amount tnum" id="end-balance">€ 0,00</p>
         <div class="hero-flow">
@@ -141,6 +148,7 @@
     <!-- ==================== TAB: VERMOGEN ==================== -->
     <section id="tab-vermogen" class="tab" aria-label="Vermogen" hidden>
       <section class="hero glass" aria-labelledby="worth-title">
+        <svg class="hero-deco" viewBox="0 0 200 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 72 L42 62 L74 68 L112 40 L150 50 L198 12" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="198" cy="12" r="5.5" fill="currentColor"/></svg>
         <p class="hero-eyebrow" id="worth-title">Totaal vermogen</p>
         <p class="hero-amount tnum" id="worth-total">€ 0,00</p>
         <div class="hero-flow">
@@ -205,16 +213,27 @@
         <button type="button" class="seg-opt" data-kind="out" role="tab">Aankoop</button>
       </div>
 
-      <div class="field-2col">
-        <label class="field">
-          <span>Maand</span>
-          <input id="f-month" type="month" />
-        </label>
-        <label class="field">
-          <span>Dag</span>
-          <input id="f-day" type="number" inputmode="numeric" min="1" max="31" step="1"
-                 enterkeyhint="next" placeholder="bijv. 25" />
-        </label>
+      <div class="field">
+        <span>Bedrag</span>
+        <div class="amount-input">
+          <span class="cur">€</span>
+          <input id="f-amount" type="text" inputmode="decimal" autocomplete="off"
+                 enterkeyhint="next" placeholder="0,00" required />
+        </div>
+        <div class="qa-row" id="qa-row">
+          <button type="button" class="qa-chip" data-amt="25">€ 25</button>
+          <button type="button" class="qa-chip" data-amt="50">€ 50</button>
+          <button type="button" class="qa-chip" data-amt="100">€ 100</button>
+          <button type="button" class="qa-chip" data-amt="250">€ 250</button>
+          <button type="button" class="qa-chip" data-amt="500">€ 500</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Omschrijving</span>
+        <div class="suggest-row" id="suggest-row"></div>
+        <input id="f-label" type="text" autocomplete="off" enterkeyhint="next"
+               placeholder="bijv. Salaris, Wieg, Bank…" required />
       </div>
 
       <div class="field">
@@ -227,27 +246,16 @@
         <div class="cats" id="cat-row" role="radiogroup" aria-label="Categorie"></div>
       </div>
 
-      <div class="field">
-        <span>Omschrijving</span>
-        <div class="suggest-row" id="suggest-row"></div>
-        <input id="f-label" type="text" autocomplete="off" enterkeyhint="next"
-               placeholder="bijv. Salaris, Wieg, Bank…" required />
-      </div>
-
-      <div class="field">
-        <span>Bedrag</span>
-        <div class="amount-input">
-          <span class="cur">€</span>
-          <input id="f-amount" type="text" inputmode="decimal" autocomplete="off"
-                 enterkeyhint="done" placeholder="0,00" required />
-        </div>
-        <div class="qa-row" id="qa-row">
-          <button type="button" class="qa-chip" data-amt="25">€ 25</button>
-          <button type="button" class="qa-chip" data-amt="50">€ 50</button>
-          <button type="button" class="qa-chip" data-amt="100">€ 100</button>
-          <button type="button" class="qa-chip" data-amt="250">€ 250</button>
-          <button type="button" class="qa-chip" data-amt="500">€ 500</button>
-        </div>
+      <div class="field-2col">
+        <label class="field">
+          <span>Maand</span>
+          <input id="f-month" type="month" />
+        </label>
+        <label class="field">
+          <span>Dag</span>
+          <input id="f-day" type="number" inputmode="numeric" min="1" max="31" step="1"
+                 enterkeyhint="done" placeholder="bijv. 25" />
+        </label>
       </div>
 
       <label class="switch">
