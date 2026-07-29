@@ -1,0 +1,852 @@
+// ============================================================
+//  Budget · state, berekeningen en UI
+// ============================================================
+
+const STORAGE_KEY = "budget-glass-v1";
+
+/* ---------- Categorieën (voor aankopen) ---------- */
+const CATS = {
+  baby:   { label: "Baby",   color: "#e86aa6", icon: "🍼" },
+  huis:   { label: "Huis",   color: "#4f6bed", icon: "🏠" },
+  overig: { label: "Overig", color: "#12996b", icon: "🏷️" },
+};
+const CAT_KEYS = Object.keys(CATS);
+const DEFAULT_CAT = "overig";
+const catOf = (e) => (CATS[e?.category] ? e.category : DEFAULT_CAT);
+
+/* ---------- Formatters ---------- */
+const eur = new Intl.NumberFormat("nl-NL", {
+  style: "currency",
+  currency: "EUR",
+  minimumFractionDigits: 2,
+});
+const eur0 = new Intl.NumberFormat("nl-NL", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+const monthFmt = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" });
+const monthShortFmt = new Intl.DateTimeFormat("nl-NL", { month: "short" });
+
+/* ---------- Maand-helpers (sleutel = "YYYY-MM") ---------- */
+function monthKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function keyToDate(key) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1);
+}
+function addMonths(key, n) {
+  const d = keyToDate(key);
+  d.setMonth(d.getMonth() + n);
+  return monthKey(d);
+}
+function monthName(key) {
+  return monthFmt.format(keyToDate(key));
+}
+function currentMonthKey() {
+  return monthKey(new Date());
+}
+
+/* ---------- Bedrag parsen ("1.234,56" / "1234.56" / "1234,56") ---------- */
+function parseAmount(raw) {
+  if (typeof raw !== "string") return NaN;
+  let s = raw.trim().replace(/[€\s]/g, "");
+  if (s === "") return NaN;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+function defaultState() {
+  return {
+    version: 2,
+    startMonth: currentMonthKey(),
+    startBalance: 0,
+    recurring: [],   // {id, kind, label, amount, category?, fromMonth}
+    months: {},      // key -> { entries:[{id,kind,label,amount,category?}], skip:[recurringId] }
+    investments: [], // {id, label, value}
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    return { ...defaultState(), ...JSON.parse(raw) };
+  } catch {
+    return defaultState();
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* storage vol of geblokkeerd */
+  }
+}
+
+let state = loadState();
+let viewMonth = clampToStart(currentMonthKey());
+let activeTab = "budget";
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/* ============================================================
+   Berekeningen
+   ============================================================ */
+function monthData(key) {
+  return state.months[key] || { entries: [], skip: [] };
+}
+
+function entriesForMonth(key) {
+  const md = monthData(key);
+  const skip = md.skip || [];
+  const oneOff = (md.entries || []).map((e) => ({ ...e, recurring: false }));
+  const recurring = state.recurring
+    .filter((r) => r.fromMonth <= key && !skip.includes(r.id))
+    .map((r) => ({ ...r, recurring: true }));
+  return [...recurring, ...oneOff];
+}
+
+function totalsForMonth(key) {
+  let inc = 0;
+  let out = 0;
+  for (const e of entriesForMonth(key)) {
+    if (e.kind === "in") inc += e.amount;
+    else out += e.amount;
+  }
+  return { inc, out, net: inc - out };
+}
+
+function beginBalance(key) {
+  let bal = state.startBalance;
+  let cursor = state.startMonth;
+  while (cursor < key) {
+    bal += totalsForMonth(cursor).net;
+    cursor = addMonths(cursor, 1);
+  }
+  return bal;
+}
+
+function endBalance(key) {
+  return beginBalance(key) + totalsForMonth(key).net;
+}
+
+function clampToStart(key) {
+  return key < state.startMonth ? state.startMonth : key;
+}
+
+// Liquide spaargeld "nu" = verwacht eindsaldo van de huidige (echte) maand
+function liquidNow() {
+  return endBalance(clampToStart(currentMonthKey()));
+}
+function investTotal() {
+  return state.investments.reduce((s, i) => s + (Number(i.value) || 0), 0);
+}
+
+/* ============================================================
+   DOM refs
+   ============================================================ */
+const $ = (sel) => document.querySelector(sel);
+const els = {
+  monthName: $("#month-name"),
+  prev: $("#prev-month"),
+  next: $("#next-month"),
+  today: $("#today-btn"),
+  end: $("#end-balance"),
+  begin: $("#begin-balance"),
+  net: $("#net-badge"),
+  totalIn: $("#total-in"),
+  totalOut: $("#total-out"),
+  listIn: $("#list-in"),
+  listOut: $("#list-out"),
+  catSummary: $("#cat-summary"),
+  projection: $("#projection"),
+  // vermogen
+  worthTotal: $("#worth-total"),
+  worthCash: $("#worth-cash"),
+  worthInvest: $("#worth-invest"),
+  alloc: $("#alloc"),
+  listInvest: $("#list-invest"),
+};
+
+/* ============================================================
+   Render — Budget
+   ============================================================ */
+function render() {
+  renderBudget();
+  renderVermogen();
+}
+
+function renderBudget() {
+  els.monthName.textContent = monthName(viewMonth);
+  els.prev.disabled = viewMonth <= state.startMonth;
+
+  const { inc, out, net } = totalsForMonth(viewMonth);
+  const end = endBalance(viewMonth);
+
+  els.begin.textContent = eur.format(beginBalance(viewMonth));
+  els.end.textContent = eur.format(end);
+  els.end.classList.toggle("is-neg", end < 0);
+
+  const sign = net > 0 ? "+" : net < 0 ? "−" : "±";
+  els.net.textContent = `${sign} ${eur.format(Math.abs(net))}`;
+  els.net.classList.toggle("is-neg", net < 0);
+
+  els.totalIn.textContent = eur.format(inc);
+  els.totalOut.textContent = eur.format(out);
+
+  renderCatSummary();
+  renderList("in", els.listIn);
+  renderList("out", els.listOut);
+  renderProjection();
+}
+
+function renderCatSummary() {
+  const totals = { baby: 0, huis: 0, overig: 0 };
+  for (const e of entriesForMonth(viewMonth)) {
+    if (e.kind === "out") totals[catOf(e)] += e.amount;
+  }
+  const grand = totals.baby + totals.huis + totals.overig;
+  els.catSummary.innerHTML = "";
+  if (grand <= 0) return;
+
+  for (const key of CAT_KEYS) {
+    const val = totals[key];
+    if (val <= 0) continue;
+    const cat = CATS[key];
+    const chip = document.createElement("div");
+    chip.className = "cat-stat";
+    chip.innerHTML = `
+      <span class="cat-dot" style="background:${cat.color}" aria-hidden="true"></span>
+      <span class="cat-name">${cat.label}</span>
+      <span class="cat-val tnum">${eur.format(val)}</span>`;
+    els.catSummary.appendChild(chip);
+  }
+}
+
+function renderList(kind, ul) {
+  const items = entriesForMonth(viewMonth).filter((e) => e.kind === kind);
+  ul.innerHTML = "";
+
+  if (items.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = kind === "in"
+      ? "Nog geen inkomsten deze maand."
+      : "Nog geen aankopen deze maand.";
+    ul.appendChild(li);
+    return;
+  }
+
+  for (const e of items) {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "row";
+    btn.addEventListener("click", () => openEntrySheet(e));
+
+    const dot = document.createElement("span");
+    if (kind === "out") {
+      const c = CATS[catOf(e)];
+      dot.className = "row-dot";
+      dot.style.background = c.color + "22";
+      dot.textContent = c.icon;
+    } else {
+      dot.className = "row-dot in";
+      dot.textContent = "↓";
+    }
+    dot.setAttribute("aria-hidden", "true");
+
+    const main = document.createElement("span");
+    main.className = "row-main";
+    const label = document.createElement("span");
+    label.className = "row-label";
+    label.textContent = e.label;
+    main.appendChild(label);
+
+    const tags = document.createElement("span");
+    tags.className = "row-tag";
+    const bits = [];
+    if (kind === "out") bits.push(CATS[catOf(e)].label);
+    if (e.recurring) bits.push("↻ elke maand");
+    tags.textContent = bits.join(" · ");
+    if (bits.length) main.appendChild(tags);
+
+    const amount = document.createElement("span");
+    amount.className = `row-amount tnum ${kind}`;
+    amount.textContent = (kind === "in" ? "+ " : "− ") + eur.format(e.amount);
+
+    btn.append(dot, main, amount);
+    li.appendChild(btn);
+    ul.appendChild(li);
+  }
+}
+
+function renderProjection() {
+  const rows = [];
+  let maxAbs = 1;
+  for (let i = 0; i < 6; i++) {
+    const key = addMonths(viewMonth, i);
+    const val = endBalance(key);
+    rows.push({ key, val });
+    maxAbs = Math.max(maxAbs, Math.abs(val));
+  }
+
+  els.projection.innerHTML = "";
+  for (const { key, val } of rows) {
+    const row = document.createElement("div");
+    row.className = "proj-row";
+
+    const m = document.createElement("span");
+    m.className = "proj-month";
+    m.textContent = monthShortFmt.format(keyToDate(key));
+
+    const track = document.createElement("div");
+    track.className = "proj-track";
+    const fill = document.createElement("div");
+    fill.className = "proj-fill" + (val < 0 ? " is-neg" : "");
+    fill.style.width = `${Math.max(2, (Math.abs(val) / maxAbs) * 100)}%`;
+    track.appendChild(fill);
+
+    const v = document.createElement("span");
+    v.className = "proj-val tnum" + (val < 0 ? " is-neg" : "");
+    v.textContent = eur.format(val);
+
+    row.append(m, track, v);
+    els.projection.appendChild(row);
+  }
+}
+
+/* ============================================================
+   Render — Vermogen
+   ============================================================ */
+function renderVermogen() {
+  const cash = liquidNow();
+  const inv = investTotal();
+  const total = cash + inv;
+
+  els.worthCash.textContent = eur.format(cash);
+  els.worthInvest.textContent = eur.format(inv);
+  els.worthTotal.textContent = eur.format(total);
+  els.worthTotal.classList.toggle("is-neg", total < 0);
+
+  renderAllocation(cash, inv, total);
+  renderInvestList();
+}
+
+function renderAllocation(cash, inv, total) {
+  els.alloc.innerHTML = "";
+  const parts = [
+    { label: "Spaargeld", value: Math.max(0, cash), color: "#4f6bed" },
+    ...state.investments.map((i, idx) => ({
+      label: i.label,
+      value: Math.max(0, Number(i.value) || 0),
+      color: ["#12996b", "#e86aa6", "#f0a030", "#6d5cf0", "#3ba7f0"][idx % 5],
+    })),
+  ].filter((p) => p.value > 0);
+
+  const sum = parts.reduce((s, p) => s + p.value, 0);
+  if (sum <= 0) {
+    els.alloc.innerHTML = `<p class="empty" style="padding:8px 4px">Nog niets om te verdelen. Voeg spaargeld of een belegging toe.</p>`;
+    return;
+  }
+
+  const bar = document.createElement("div");
+  bar.className = "alloc-bar";
+  for (const p of parts) {
+    const seg = document.createElement("span");
+    seg.className = "alloc-seg";
+    seg.style.width = `${(p.value / sum) * 100}%`;
+    seg.style.background = p.color;
+    seg.title = `${p.label}: ${eur.format(p.value)}`;
+    bar.appendChild(seg);
+  }
+  els.alloc.appendChild(bar);
+
+  const legend = document.createElement("div");
+  legend.className = "alloc-legend";
+  for (const p of parts) {
+    const pct = Math.round((p.value / sum) * 100);
+    const row = document.createElement("div");
+    row.className = "alloc-item";
+    row.innerHTML = `
+      <span class="cat-dot" style="background:${p.color}" aria-hidden="true"></span>
+      <span class="alloc-label">${escapeHtml(p.label)}</span>
+      <span class="alloc-pct tnum">${pct}%</span>
+      <span class="alloc-amt tnum">${eur.format(p.value)}</span>`;
+    legend.appendChild(row);
+  }
+  els.alloc.appendChild(legend);
+}
+
+function renderInvestList() {
+  const ul = els.listInvest;
+  ul.innerHTML = "";
+  if (state.investments.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "Nog geen beleggingen. Voeg je eerste rekening toe.";
+    ul.appendChild(li);
+    return;
+  }
+  for (const inv of state.investments) {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "row";
+    btn.addEventListener("click", () => openInvestSheet(inv));
+
+    const dot = document.createElement("span");
+    dot.className = "row-dot";
+    dot.style.background = "rgba(109,92,240,0.16)";
+    dot.textContent = "📈";
+    dot.setAttribute("aria-hidden", "true");
+
+    const main = document.createElement("span");
+    main.className = "row-main";
+    const label = document.createElement("span");
+    label.className = "row-label";
+    label.textContent = inv.label;
+    main.appendChild(label);
+
+    const amount = document.createElement("span");
+    amount.className = "row-amount tnum";
+    amount.textContent = eur.format(Number(inv.value) || 0);
+
+    btn.append(dot, main, amount);
+    li.appendChild(btn);
+    ul.appendChild(li);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+const tabBudget = $("#tab-budget");
+const tabVermogen = $("#tab-vermogen");
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    activeTab = btn.dataset.tab;
+    const isBudget = activeTab === "budget";
+    tabBudget.hidden = !isBudget;
+    tabVermogen.hidden = isBudget;
+    document.querySelectorAll(".tab-btn").forEach((b) => {
+      const on = b === btn;
+      b.classList.toggle("is-active", on);
+      if (on) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
+    window.scrollTo({ top: 0, behavior: "auto" });
+  });
+});
+
+/* ============================================================
+   Maandnavigatie
+   ============================================================ */
+els.prev.addEventListener("click", () => { viewMonth = clampToStart(addMonths(viewMonth, -1)); renderBudget(); });
+els.next.addEventListener("click", () => { viewMonth = addMonths(viewMonth, 1); renderBudget(); });
+els.today.addEventListener("click", () => { viewMonth = clampToStart(currentMonthKey()); renderBudget(); });
+
+/* ============================================================
+   Entry-sheet (toevoegen / bewerken)
+   ============================================================ */
+const entryOverlay = $("#entry-overlay");
+const entryForm = $("#entry-form");
+const fLabel = $("#f-label");
+const fAmount = $("#f-amount");
+const fRecurring = $("#f-recurring");
+const entryTitle = $("#entry-title");
+const entryError = $("#entry-error");
+const segOpts = [...document.querySelectorAll(".seg-opt")];
+const catField = $("#cat-field");
+const catRow = $("#cat-row");
+
+let editing = null;
+let formKind = "in";
+let formCat = DEFAULT_CAT;
+
+// bouw categorie-chips
+for (const key of CAT_KEYS) {
+  const c = CATS[key];
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "cat-chip";
+  chip.dataset.cat = key;
+  chip.setAttribute("role", "radio");
+  chip.style.setProperty("--c", c.color);
+  chip.innerHTML = `<span aria-hidden="true">${c.icon}</span> ${c.label}`;
+  chip.addEventListener("click", () => setCat(key));
+  catRow.appendChild(chip);
+}
+
+function setCat(key) {
+  formCat = CATS[key] ? key : DEFAULT_CAT;
+  catRow.querySelectorAll(".cat-chip").forEach((ch) => {
+    const on = ch.dataset.cat === formCat;
+    ch.classList.toggle("is-on", on);
+    ch.setAttribute("aria-checked", String(on));
+  });
+}
+
+function setKind(kind) {
+  formKind = kind;
+  for (const opt of segOpts) opt.setAttribute("aria-selected", String(opt.dataset.kind === kind));
+  catField.hidden = kind !== "out";
+}
+segOpts.forEach((opt) => {
+  opt.setAttribute("role", "tab");
+  opt.addEventListener("click", () => setKind(opt.dataset.kind));
+});
+
+function openEntrySheet(entry, presetKind) {
+  entryError.hidden = true;
+  if (entry) {
+    editing = { id: entry.id, recurring: entry.recurring, kind: entry.kind };
+    entryTitle.textContent = "Bewerken";
+    setKind(entry.kind);
+    setCat(catOf(entry));
+    fLabel.value = entry.label;
+    fAmount.value = String(entry.amount).replace(".", ",");
+    fRecurring.checked = !!entry.recurring;
+  } else {
+    editing = null;
+    entryTitle.textContent = "Toevoegen";
+    setKind(presetKind || "in");
+    setCat(DEFAULT_CAT);
+    fLabel.value = "";
+    fAmount.value = "";
+    fRecurring.checked = false;
+  }
+  deleteBtn.style.display = entry ? "block" : "none";
+  openOverlay(entryOverlay);
+  if (!isTouch()) setTimeout(() => fLabel.focus(), 60);
+}
+
+entryForm.addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const label = fLabel.value.trim();
+  const amount = parseAmount(fAmount.value);
+  if (!label) return showError(entryError, "Vul een omschrijving in.");
+  if (!Number.isFinite(amount) || amount <= 0) return showError(entryError, "Vul een geldig bedrag in.");
+
+  const recurring = fRecurring.checked;
+  const rec = { kind: formKind, label, amount };
+  if (formKind === "out") rec.category = formCat;
+
+  if (editing) removeEntry(editing.id, editing.recurring, viewMonth, true);
+
+  if (recurring) {
+    state.recurring.push({ id: uid(), fromMonth: viewMonth, ...rec });
+  } else {
+    ensureMonth(viewMonth).entries.push({ id: uid(), ...rec });
+  }
+
+  saveState();
+  closeOverlay(entryOverlay);
+  render();
+});
+
+function showError(el, msg) { el.textContent = msg; el.hidden = false; }
+
+function ensureMonth(key) {
+  if (!state.months[key]) state.months[key] = { entries: [], skip: [] };
+  if (!state.months[key].skip) state.months[key].skip = [];
+  if (!state.months[key].entries) state.months[key].entries = [];
+  return state.months[key];
+}
+
+/* ---------- Verwijderen ---------- */
+function removeEntry(id, recurring, key, silent) {
+  if (recurring) {
+    const idx = state.recurring.findIndex((r) => r.id === id);
+    const removed = idx >= 0 ? state.recurring.splice(idx, 1)[0] : null;
+    if (!silent && removed) {
+      saveState(); render();
+      toast("Terugkerende post verwijderd", () => { state.recurring.push(removed); saveState(); render(); });
+    }
+  } else {
+    const md = ensureMonth(key);
+    const idx = md.entries.findIndex((e) => e.id === id);
+    const removed = idx >= 0 ? md.entries.splice(idx, 1)[0] : null;
+    if (!silent && removed) {
+      saveState(); render();
+      toast("Post verwijderd", () => { ensureMonth(key).entries.push(removed); saveState(); render(); });
+    }
+  }
+}
+
+function skipRecurringThisMonth(id, key) {
+  const md = ensureMonth(key);
+  if (!md.skip.includes(id)) md.skip.push(id);
+  saveState(); render();
+  toast("Overgeslagen deze maand", () => {
+    const m = ensureMonth(key);
+    m.skip = m.skip.filter((s) => s !== id);
+    saveState(); render();
+  });
+}
+
+/* ---------- Verwijderknop in bewerk-sheet ---------- */
+const entryActions = entryForm.querySelector(".sheet-actions");
+const deleteBtn = document.createElement("button");
+deleteBtn.type = "button";
+deleteBtn.className = "btn-danger";
+deleteBtn.textContent = "Verwijderen";
+deleteBtn.style.display = "none";
+deleteBtn.addEventListener("click", () => {
+  if (!editing) return;
+  closeOverlay(entryOverlay);
+  if (editing.recurring) askDeleteRecurring({ id: editing.id, label: fLabel.value.trim() || "deze post" });
+  else removeEntry(editing.id, false, viewMonth);
+});
+entryActions.parentNode.insertBefore(deleteBtn, entryActions);
+
+/* ============================================================
+   Belegging-sheet
+   ============================================================ */
+const investOverlay = $("#invest-overlay");
+const investForm = $("#invest-form");
+const iLabel = $("#i-label");
+const iValue = $("#i-value");
+const investTitle = $("#invest-title");
+const investError = $("#invest-error");
+let editingInvest = null;
+
+const investActions = investForm.querySelector(".sheet-actions");
+const investDelete = document.createElement("button");
+investDelete.type = "button";
+investDelete.className = "btn-danger";
+investDelete.textContent = "Verwijderen";
+investDelete.style.display = "none";
+investDelete.addEventListener("click", () => {
+  if (!editingInvest) return;
+  const idx = state.investments.findIndex((i) => i.id === editingInvest);
+  const removed = idx >= 0 ? state.investments.splice(idx, 1)[0] : null;
+  closeOverlay(investOverlay);
+  if (removed) {
+    saveState(); render();
+    toast("Belegging verwijderd", () => { state.investments.splice(idx, 0, removed); saveState(); render(); });
+  }
+});
+investActions.parentNode.insertBefore(investDelete, investActions);
+
+function openInvestSheet(inv) {
+  investError.hidden = true;
+  if (inv) {
+    editingInvest = inv.id;
+    investTitle.textContent = "Belegging bewerken";
+    iLabel.value = inv.label;
+    iValue.value = String(inv.value).replace(".", ",");
+    investDelete.style.display = "block";
+  } else {
+    editingInvest = null;
+    investTitle.textContent = "Belegging toevoegen";
+    iLabel.value = "";
+    iValue.value = "";
+    investDelete.style.display = "none";
+  }
+  openOverlay(investOverlay);
+  if (!isTouch()) setTimeout(() => iLabel.focus(), 60);
+}
+
+$("#add-invest").addEventListener("click", () => openInvestSheet(null));
+
+investForm.addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const label = iLabel.value.trim();
+  const value = parseAmount(iValue.value);
+  if (!label) return showError(investError, "Vul een naam in.");
+  if (!Number.isFinite(value) || value < 0) return showError(investError, "Vul een geldige waarde in.");
+
+  if (editingInvest) {
+    const inv = state.investments.find((i) => i.id === editingInvest);
+    if (inv) { inv.label = label; inv.value = value; }
+  } else {
+    state.investments.push({ id: uid(), label, value });
+  }
+  saveState();
+  closeOverlay(investOverlay);
+  render();
+});
+
+/* ============================================================
+   Choice-sheet (terugkerende post verwijderen)
+   ============================================================ */
+const choiceOverlay = $("#choice-overlay");
+const choiceText = $("#choice-text");
+const choiceA = $("#choice-a");
+const choiceB = $("#choice-b");
+
+function askDeleteRecurring(entry) {
+  choiceText.textContent = `“${entry.label}” is een terugkerende post. Wat wil je doen?`;
+  choiceA.textContent = "Alleen deze maand overslaan";
+  choiceB.textContent = "Elke maand verwijderen";
+  const onA = () => { cleanup(); closeOverlay(choiceOverlay); skipRecurringThisMonth(entry.id, viewMonth); };
+  const onB = () => { cleanup(); closeOverlay(choiceOverlay); removeEntry(entry.id, true, viewMonth); };
+  function cleanup() {
+    choiceA.removeEventListener("click", onA);
+    choiceB.removeEventListener("click", onB);
+  }
+  choiceA.addEventListener("click", onA);
+  choiceB.addEventListener("click", onB);
+  openOverlay(choiceOverlay);
+}
+
+/* ============================================================
+   Overlays helper
+   ============================================================ */
+let lastFocus = null;
+function openOverlay(overlay) {
+  lastFocus = document.activeElement;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeOverlay(overlay) {
+  overlay.hidden = true;
+  document.body.style.overflow = "";
+  if (lastFocus && lastFocus.focus) lastFocus.focus();
+}
+document.querySelectorAll("[data-close]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const ov = btn.closest(".sheet-overlay");
+    if (ov) closeOverlay(ov);
+  });
+});
+document.querySelectorAll(".sheet-overlay").forEach((ov) => {
+  ov.addEventListener("click", (e) => { if (e.target === ov) closeOverlay(ov); });
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const open = [...document.querySelectorAll(".sheet-overlay")].find((o) => !o.hidden);
+    if (open) closeOverlay(open);
+  }
+});
+document.querySelectorAll("[data-add]").forEach((btn) => {
+  btn.addEventListener("click", () => openEntrySheet(null, btn.dataset.add));
+});
+
+/* ============================================================
+   Instellingen
+   ============================================================ */
+const settingsOverlay = $("#settings-overlay");
+const sStartBalance = $("#s-start-balance");
+const sStartMonth = $("#s-start-month");
+
+$("#btn-settings").addEventListener("click", () => {
+  sStartBalance.value = state.startBalance ? String(state.startBalance).replace(".", ",") : "";
+  sStartMonth.value = state.startMonth;
+  openOverlay(settingsOverlay);
+});
+
+function commitSettings() {
+  const bal = parseAmount(sStartBalance.value);
+  state.startBalance = Number.isFinite(bal) ? bal : 0;
+  if (/^\d{4}-\d{2}$/.test(sStartMonth.value)) {
+    state.startMonth = sStartMonth.value;
+    viewMonth = clampToStart(viewMonth);
+  }
+  saveState();
+  render();
+}
+sStartBalance.addEventListener("change", commitSettings);
+sStartMonth.addEventListener("change", commitSettings);
+settingsOverlay.querySelector("[data-close]").addEventListener("click", commitSettings);
+
+/* ---------- Export / import / reset ---------- */
+$("#btn-export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `budget-backup-${currentMonthKey()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+const importFile = $("#import-file");
+$("#btn-import").addEventListener("click", () => importFile.click());
+importFile.addEventListener("change", async () => {
+  const file = importFile.files?.[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (typeof data !== "object" || !data) throw new Error("ongeldig");
+    state = { ...defaultState(), ...data };
+    viewMonth = clampToStart(currentMonthKey());
+    saveState();
+    render();
+    closeOverlay(settingsOverlay);
+    toast("Back-up geïmporteerd");
+  } catch {
+    toast("Kon dit bestand niet lezen");
+  } finally {
+    importFile.value = "";
+  }
+});
+
+$("#btn-reset").addEventListener("click", () => {
+  const snapshot = JSON.stringify(state);
+  state = defaultState();
+  viewMonth = currentMonthKey();
+  saveState();
+  render();
+  closeOverlay(settingsOverlay);
+  toast("Alles gewist", () => {
+    state = JSON.parse(snapshot);
+    viewMonth = clampToStart(currentMonthKey());
+    saveState();
+    render();
+  });
+});
+
+/* ============================================================
+   Toast met undo
+   ============================================================ */
+const toastEl = $("#toast");
+const toastText = $("#toast-text");
+const toastAction = $("#toast-action");
+let toastTimer = null;
+
+function toast(msg, onUndo) {
+  clearTimeout(toastTimer);
+  toastText.textContent = msg;
+  if (onUndo) {
+    toastAction.textContent = "Ongedaan maken";
+    toastAction.style.display = "";
+    toastAction.onclick = () => { clearTimeout(toastTimer); toastEl.hidden = true; onUndo(); };
+  } else {
+    toastAction.style.display = "none";
+    toastAction.onclick = null;
+  }
+  toastEl.hidden = false;
+  toastTimer = setTimeout(() => (toastEl.hidden = true), 5000);
+}
+
+/* ---------- utils ---------- */
+function isTouch() {
+  return window.matchMedia("(pointer: coarse)").matches;
+}
+
+/* ============================================================
+   Init + service worker
+   ============================================================ */
+render();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
