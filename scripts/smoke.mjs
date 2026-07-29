@@ -33,9 +33,11 @@ page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 
 await page.goto(base, { waitUntil: "networkidle" });
 
-// Seed via UI: open settings, set beginsaldo
+// Seed via UI: open settings, set beginsaldo van het eerste potje (Algemeen)
 await page.click("#btn-settings");
-await page.fill("#s-start-balance", "5000");
+const firstBal = page.locator("#pot-manage .pot-edit").first().locator(".pe-bal");
+await firstBal.fill("5000");
+await firstBal.blur();
 await page.click("#settings-overlay [data-close]");
 
 // Voeg terugkerend spaarbedrag toe

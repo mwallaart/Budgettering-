@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Budget · Saldo & vermogen</title>
-  <meta name="description" content="Persoonlijke budgetteer-app: spaargeld, aankopen per categorie, saldo per maand en totaal vermogen. Offline en installeerbaar." />
+  <title>Budget · Saldo &amp; vermogen</title>
+  <meta name="description" content="Persoonlijke budgetteer-app: spaarpotjes, aankopen per categorie, saldo per maand en totaal vermogen. Offline en installeerbaar." />
 
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#0e1424" media="(prefers-color-scheme: dark)" />
-  <meta name="theme-color" content="#eaf0fb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1512" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Budget" />
@@ -18,7 +18,6 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Decoratieve glass-achtergrond -->
   <div class="bg" aria-hidden="true">
     <span class="blob blob-a"></span>
     <span class="blob blob-b"></span>
@@ -43,7 +42,6 @@
   <main id="hoofd" class="app">
     <!-- ==================== TAB: BUDGET ==================== -->
     <section id="tab-budget" class="tab" aria-label="Budget">
-      <!-- Maandnavigatie -->
       <nav class="month-nav glass" aria-label="Maand kiezen">
         <button id="prev-month" class="icon-btn" type="button" aria-label="Vorige maand">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
@@ -57,6 +55,9 @@
         </button>
       </nav>
 
+      <!-- Spaarpotjes -->
+      <div class="pots-strip" id="pots-strip" role="tablist" aria-label="Spaarpotje kiezen"></div>
+
       <!-- Hero: eindsaldo -->
       <section class="hero glass" aria-labelledby="hero-title">
         <p class="hero-eyebrow" id="hero-title">Verwacht saldo einde maand</p>
@@ -68,7 +69,6 @@
         </div>
       </section>
 
-      <!-- Inkomsten / Uitgaven totalen -->
       <section class="stats">
         <div class="stat glass stat-in">
           <span class="stat-label">Erbij gespaard</span>
@@ -80,7 +80,6 @@
         </div>
       </section>
 
-      <!-- Inkomsten lijst -->
       <section class="group" aria-labelledby="in-title">
         <div class="group-head">
           <h2 id="in-title">Inkomsten &amp; sparen</h2>
@@ -89,7 +88,6 @@
         <ul class="list" id="list-in"></ul>
       </section>
 
-      <!-- Aankopen lijst -->
       <section class="group" aria-labelledby="out-title">
         <div class="group-head">
           <h2 id="out-title">Aankopen</h2>
@@ -99,11 +97,10 @@
         <ul class="list" id="list-out"></ul>
       </section>
 
-      <!-- Saldoverloop -->
       <section class="group" aria-labelledby="proj-title">
         <div class="group-head">
           <h2 id="proj-title">Saldoverloop</h2>
-          <span class="group-sub">komende 6 maanden</span>
+          <span class="group-sub" id="proj-sub">komende 6 maanden</span>
         </div>
         <div class="projection glass" id="projection"></div>
       </section>
@@ -121,13 +118,11 @@
         </div>
       </section>
 
-      <!-- Verdeling -->
       <section class="group" aria-labelledby="alloc-title">
         <div class="group-head"><h2 id="alloc-title">Verdeling</h2></div>
         <div class="alloc glass" id="alloc"></div>
       </section>
 
-      <!-- Beleggingen -->
       <section class="group" aria-labelledby="inv-title">
         <div class="group-head">
           <h2 id="inv-title">Beleggingen</h2>
@@ -136,11 +131,20 @@
         <ul class="list" id="list-invest"></ul>
       </section>
 
-      <p class="foot">Spaargeld = je verwachte saldo van de huidige maand uit het budget.</p>
+      <p class="foot">Spaargeld = het totaal van je potjes (verwacht saldo huidige maand).</p>
     </section>
 
     <footer class="foot">Alles wordt lokaal op dit apparaat bewaard.</footer>
   </main>
+
+  <!-- ==================== Zwevende +-knop ==================== -->
+  <div class="fab-wrap">
+    <div class="fab-inner">
+      <button type="button" class="fab" id="fab" aria-label="Toevoegen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+  </div>
 
   <!-- ==================== Tab-bar ==================== -->
   <nav class="tabbar glass" aria-label="Weergave">
@@ -163,6 +167,11 @@
       <div class="seg" role="tablist" aria-label="Type">
         <button type="button" class="seg-opt" data-kind="in" role="tab">Sparen / inkomst</button>
         <button type="button" class="seg-opt" data-kind="out" role="tab">Aankoop</button>
+      </div>
+
+      <div class="field">
+        <span id="pot-field-label">Potje</span>
+        <div class="cats" id="pot-row" role="radiogroup" aria-labelledby="pot-field-label"></div>
       </div>
 
       <div class="field cat-field" id="cat-field" hidden>
@@ -239,13 +248,11 @@
       <div class="sheet-grip" aria-hidden="true"></div>
       <h2 class="sheet-title" id="set-title">Instellingen</h2>
 
-      <label class="field">
-        <span>Huidig spaargeld (beginsaldo)</span>
-        <div class="amount-input">
-          <span class="cur">€</span>
-          <input id="s-start-balance" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" />
-        </div>
-      </label>
+      <div class="field">
+        <span>Spaarpotjes &amp; beginsaldo</span>
+        <div class="pot-manage" id="pot-manage"></div>
+        <button type="button" class="pot-add" id="pot-add"><span aria-hidden="true">+</span> Potje toevoegen</button>
+      </div>
 
       <label class="field">
         <span>Startmaand</span>

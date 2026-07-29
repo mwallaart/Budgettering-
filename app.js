@@ -6,24 +6,28 @@ const STORAGE_KEY = "budget-glass-v1";
 
 /* ---------- Categorieën (voor aankopen) ---------- */
 const CATS = {
-  baby:   { label: "Baby",   color: "#e86aa6", icon: "🍼" },
-  huis:   { label: "Huis",   color: "#4f6bed", icon: "🏠" },
-  overig: { label: "Overig", color: "#12996b", icon: "🏷️" },
+  baby:   { label: "Baby",   color: "#D96BA0", icon: "🍼" },
+  huis:   { label: "Huis",   color: "#3E7CB1", icon: "🏠" },
+  overig: { label: "Overig", color: "#C99A2E", icon: "🏷️" },
 };
 const CAT_KEYS = Object.keys(CATS);
 const DEFAULT_CAT = "overig";
 const catOf = (e) => (CATS[e?.category] ? e.category : DEFAULT_CAT);
+
+/* ---------- Standaard spaarpotjes ---------- */
+const DEFAULT_POTS = [
+  { id: "algemeen", label: "Algemeen", startBalance: 0 },
+  { id: "vakantie", label: "Vakantie", startBalance: 0 },
+  { id: "auto", label: "Auto", startBalance: 0 },
+];
+const POT_COLORS = ["#1B4D3E", "#2E8B6B", "#57B894", "#8FD3B6", "#3AA57D"];
+const INV_COLORS = ["#3E7CB1", "#B4482E", "#C99A2E", "#7A5CC0", "#D96BA0"];
 
 /* ---------- Formatters ---------- */
 const eur = new Intl.NumberFormat("nl-NL", {
   style: "currency",
   currency: "EUR",
   minimumFractionDigits: 2,
-});
-const eur0 = new Intl.NumberFormat("nl-NL", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
 });
 const monthFmt = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" });
 const monthShortFmt = new Intl.DateTimeFormat("nl-NL", { month: "short" });
@@ -58,16 +62,21 @@ function parseAmount(raw) {
   return Number.isFinite(n) ? n : NaN;
 }
 
+/* ---------- Haptische feedback (waar ondersteund) ---------- */
+function haptic(ms) {
+  try { if (navigator.vibrate) navigator.vibrate(ms || 12); } catch { /* niet ondersteund */ }
+}
+
 /* ============================================================
    State
    ============================================================ */
 function defaultState() {
   return {
-    version: 2,
+    version: 3,
     startMonth: currentMonthKey(),
-    startBalance: 0,
-    recurring: [],   // {id, kind, label, amount, category?, fromMonth}
-    months: {},      // key -> { entries:[{id,kind,label,amount,category?}], skip:[recurringId] }
+    pots: DEFAULT_POTS.map((p) => ({ ...p })),
+    recurring: [],   // {id, kind, label, amount, category?, potId, fromMonth}
+    months: {},      // key -> { entries:[{id,kind,label,amount,category?,potId}], skip:[recurringId] }
     investments: [], // {id, label, value}
   };
 }
@@ -76,7 +85,17 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
-    return { ...defaultState(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    const merged = { ...defaultState(), ...parsed };
+    // Migratie v2 → v3: enkel beginsaldo werd één potje
+    if (parsed && parsed.pots === undefined) {
+      merged.pots = DEFAULT_POTS.map((p) => ({ ...p }));
+      if (typeof parsed.startBalance === "number") merged.pots[0].startBalance = parsed.startBalance;
+    }
+    if (!Array.isArray(merged.pots) || merged.pots.length === 0) {
+      merged.pots = DEFAULT_POTS.map((p) => ({ ...p }));
+    }
+    return merged;
   } catch {
     return defaultState();
   }
@@ -85,17 +104,27 @@ function loadState() {
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    /* storage vol of geblokkeerd */
-  }
+  } catch { /* storage vol of geblokkeerd */ }
 }
 
 let state = loadState();
 let viewMonth = clampToStart(currentMonthKey());
+let selectedPot = "all"; // 'all' of pot-id
 let activeTab = "budget";
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/* ---------- Potjes-helpers ---------- */
+function firstPotId() {
+  return state.pots[0] ? state.pots[0].id : "algemeen";
+}
+function getPot(id) {
+  return state.pots.find((p) => p.id === id) || null;
+}
+function potOf(e) {
+  return getPot(e?.potId) ? e.potId : firstPotId();
 }
 
 /* ============================================================
@@ -115,37 +144,43 @@ function entriesForMonth(key) {
   return [...recurring, ...oneOff];
 }
 
-function totalsForMonth(key) {
+// potId undefined => alle potjes samen
+function monthNet(key, potId) {
   let inc = 0;
   let out = 0;
   for (const e of entriesForMonth(key)) {
+    if (potId && potOf(e) !== potId) continue;
     if (e.kind === "in") inc += e.amount;
     else out += e.amount;
   }
   return { inc, out, net: inc - out };
 }
 
-function beginBalance(key) {
-  let bal = state.startBalance;
+function startSum(potId) {
+  if (potId) return getPot(potId)?.startBalance || 0;
+  return state.pots.reduce((s, p) => s + (p.startBalance || 0), 0);
+}
+
+function beginBalance(key, potId) {
+  let bal = startSum(potId);
   let cursor = state.startMonth;
   while (cursor < key) {
-    bal += totalsForMonth(cursor).net;
+    bal += monthNet(cursor, potId).net;
     cursor = addMonths(cursor, 1);
   }
   return bal;
 }
 
-function endBalance(key) {
-  return beginBalance(key) + totalsForMonth(key).net;
+function endBalance(key, potId) {
+  return beginBalance(key, potId) + monthNet(key, potId).net;
 }
 
 function clampToStart(key) {
   return key < state.startMonth ? state.startMonth : key;
 }
 
-// Liquide spaargeld "nu" = verwacht eindsaldo van de huidige (echte) maand
 function liquidNow() {
-  return endBalance(clampToStart(currentMonthKey()));
+  return endBalance(clampToStart(currentMonthKey())); // totaal alle potjes
 }
 function investTotal() {
   return state.investments.reduce((s, i) => s + (Number(i.value) || 0), 0);
@@ -160,6 +195,8 @@ const els = {
   prev: $("#prev-month"),
   next: $("#next-month"),
   today: $("#today-btn"),
+  potsStrip: $("#pots-strip"),
+  heroEyebrow: $("#hero-title"),
   end: $("#end-balance"),
   begin: $("#begin-balance"),
   net: $("#net-badge"),
@@ -169,7 +206,7 @@ const els = {
   listOut: $("#list-out"),
   catSummary: $("#cat-summary"),
   projection: $("#projection"),
-  // vermogen
+  projSub: $("#proj-sub"),
   worthTotal: $("#worth-total"),
   worthCash: $("#worth-cash"),
   worthInvest: $("#worth-invest"),
@@ -178,7 +215,7 @@ const els = {
 };
 
 /* ============================================================
-   Render — Budget
+   Render
    ============================================================ */
 function render() {
   renderBudget();
@@ -186,13 +223,21 @@ function render() {
 }
 
 function renderBudget() {
+  if (selectedPot !== "all" && !getPot(selectedPot)) selectedPot = "all";
+  const pf = selectedPot === "all" ? undefined : selectedPot;
+
   els.monthName.textContent = monthName(viewMonth);
   els.prev.disabled = viewMonth <= state.startMonth;
 
-  const { inc, out, net } = totalsForMonth(viewMonth);
-  const end = endBalance(viewMonth);
+  const { inc, out, net } = monthNet(viewMonth, pf);
+  const end = endBalance(viewMonth, pf);
 
-  els.begin.textContent = eur.format(beginBalance(viewMonth));
+  const potLabel = pf ? getPot(pf).label : null;
+  els.heroEyebrow.textContent = potLabel
+    ? `Saldo einde maand · ${potLabel}`
+    : "Verwacht saldo einde maand";
+
+  els.begin.textContent = eur.format(beginBalance(viewMonth, pf));
   els.end.textContent = eur.format(end);
   els.end.classList.toggle("is-neg", end < 0);
 
@@ -203,21 +248,51 @@ function renderBudget() {
   els.totalIn.textContent = eur.format(inc);
   els.totalOut.textContent = eur.format(out);
 
-  renderCatSummary();
-  renderList("in", els.listIn);
-  renderList("out", els.listOut);
-  renderProjection();
+  renderPots();
+  renderCatSummary(pf);
+  renderList("in", els.listIn, pf);
+  renderList("out", els.listOut, pf);
+  renderProjection(pf);
 }
 
-function renderCatSummary() {
+function renderPots() {
+  els.potsStrip.innerHTML = "";
+  const make = (id, label, amount, on) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pot-card" + (on ? " is-on" : "");
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(on));
+    const n = document.createElement("span");
+    n.className = "pc-name";
+    n.textContent = label;
+    const a = document.createElement("span");
+    a.className = "pc-amt tnum" + (amount < 0 ? " is-neg" : "");
+    a.textContent = eur.format(amount);
+    b.append(n, a);
+    b.addEventListener("click", () => {
+      selectedPot = id;
+      haptic(8);
+      renderBudget();
+    });
+    return b;
+  };
+  els.potsStrip.appendChild(make("all", "Alle potjes", endBalance(viewMonth), selectedPot === "all"));
+  for (const p of state.pots) {
+    els.potsStrip.appendChild(make(p.id, p.label, endBalance(viewMonth, p.id), selectedPot === p.id));
+  }
+}
+
+function renderCatSummary(pf) {
   const totals = { baby: 0, huis: 0, overig: 0 };
   for (const e of entriesForMonth(viewMonth)) {
-    if (e.kind === "out") totals[catOf(e)] += e.amount;
+    if (e.kind !== "out") continue;
+    if (pf && potOf(e) !== pf) continue;
+    totals[catOf(e)] += e.amount;
   }
   const grand = totals.baby + totals.huis + totals.overig;
   els.catSummary.innerHTML = "";
   if (grand <= 0) return;
-
   for (const key of CAT_KEYS) {
     const val = totals[key];
     if (val <= 0) continue;
@@ -232,16 +307,16 @@ function renderCatSummary() {
   }
 }
 
-function renderList(kind, ul) {
-  const items = entriesForMonth(viewMonth).filter((e) => e.kind === kind);
+function renderList(kind, ul, pf) {
+  const items = entriesForMonth(viewMonth).filter(
+    (e) => e.kind === kind && (!pf || potOf(e) === pf)
+  );
   ul.innerHTML = "";
 
   if (items.length === 0) {
     const li = document.createElement("li");
     li.className = "empty";
-    li.textContent = kind === "in"
-      ? "Nog geen inkomsten deze maand."
-      : "Nog geen aankopen deze maand.";
+    li.textContent = kind === "in" ? "Nog geen inkomsten deze maand." : "Nog geen aankopen deze maand.";
     ul.appendChild(li);
     return;
   }
@@ -272,13 +347,16 @@ function renderList(kind, ul) {
     label.textContent = e.label;
     main.appendChild(label);
 
-    const tags = document.createElement("span");
-    tags.className = "row-tag";
     const bits = [];
+    if (selectedPot === "all") bits.push(getPot(potOf(e)).label);
     if (kind === "out") bits.push(CATS[catOf(e)].label);
-    if (e.recurring) bits.push("↻ elke maand");
-    tags.textContent = bits.join(" · ");
-    if (bits.length) main.appendChild(tags);
+    if (e.recurring) bits.push("↻ maandelijks");
+    if (bits.length) {
+      const tag = document.createElement("span");
+      tag.className = "row-tag";
+      tag.textContent = bits.join(" · ");
+      main.appendChild(tag);
+    }
 
     const amount = document.createElement("span");
     amount.className = `row-amount tnum ${kind}`;
@@ -290,36 +368,33 @@ function renderList(kind, ul) {
   }
 }
 
-function renderProjection() {
+function renderProjection(pf) {
   const rows = [];
   let maxAbs = 1;
   for (let i = 0; i < 6; i++) {
     const key = addMonths(viewMonth, i);
-    const val = endBalance(key);
+    const val = endBalance(key, pf);
     rows.push({ key, val });
     maxAbs = Math.max(maxAbs, Math.abs(val));
   }
+  els.projSub.textContent = pf ? `${getPot(pf).label} · 6 maanden` : "komende 6 maanden";
 
   els.projection.innerHTML = "";
   for (const { key, val } of rows) {
     const row = document.createElement("div");
     row.className = "proj-row";
-
     const m = document.createElement("span");
     m.className = "proj-month";
     m.textContent = monthShortFmt.format(keyToDate(key));
-
     const track = document.createElement("div");
     track.className = "proj-track";
     const fill = document.createElement("div");
     fill.className = "proj-fill" + (val < 0 ? " is-neg" : "");
     fill.style.width = `${Math.max(2, (Math.abs(val) / maxAbs) * 100)}%`;
     track.appendChild(fill);
-
     const v = document.createElement("span");
     v.className = "proj-val tnum" + (val < 0 ? " is-neg" : "");
     v.textContent = eur.format(val);
-
     row.append(m, track, v);
     els.projection.appendChild(row);
   }
@@ -332,30 +407,33 @@ function renderVermogen() {
   const cash = liquidNow();
   const inv = investTotal();
   const total = cash + inv;
-
   els.worthCash.textContent = eur.format(cash);
   els.worthInvest.textContent = eur.format(inv);
   els.worthTotal.textContent = eur.format(total);
   els.worthTotal.classList.toggle("is-neg", total < 0);
-
-  renderAllocation(cash, inv, total);
+  renderAllocation();
   renderInvestList();
 }
 
-function renderAllocation(cash, inv, total) {
-  els.alloc.innerHTML = "";
+function renderAllocation() {
+  const cur = clampToStart(currentMonthKey());
   const parts = [
-    { label: "Spaargeld", value: Math.max(0, cash), color: "#4f6bed" },
-    ...state.investments.map((i, idx) => ({
-      label: i.label,
-      value: Math.max(0, Number(i.value) || 0),
-      color: ["#12996b", "#e86aa6", "#f0a030", "#6d5cf0", "#3ba7f0"][idx % 5],
+    ...state.pots.map((p, i) => ({
+      label: p.label,
+      value: Math.max(0, endBalance(cur, p.id)),
+      color: POT_COLORS[i % POT_COLORS.length],
+    })),
+    ...state.investments.map((iv, i) => ({
+      label: iv.label,
+      value: Math.max(0, Number(iv.value) || 0),
+      color: INV_COLORS[i % INV_COLORS.length],
     })),
   ].filter((p) => p.value > 0);
 
+  els.alloc.innerHTML = "";
   const sum = parts.reduce((s, p) => s + p.value, 0);
   if (sum <= 0) {
-    els.alloc.innerHTML = `<p class="empty" style="padding:8px 4px">Nog niets om te verdelen. Voeg spaargeld of een belegging toe.</p>`;
+    els.alloc.innerHTML = `<p class="empty" style="padding:8px 4px">Nog niets om te verdelen. Vul een beginsaldo of belegging in.</p>`;
     return;
   }
 
@@ -406,7 +484,7 @@ function renderInvestList() {
 
     const dot = document.createElement("span");
     dot.className = "row-dot";
-    dot.style.background = "rgba(109,92,240,0.16)";
+    dot.style.background = "rgba(62,124,177,0.16)";
     dot.textContent = "📈";
     dot.setAttribute("aria-hidden", "true");
 
@@ -440,6 +518,7 @@ const tabVermogen = $("#tab-vermogen");
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     activeTab = btn.dataset.tab;
+    haptic(6);
     const isBudget = activeTab === "budget";
     tabBudget.hidden = !isBudget;
     tabVermogen.hidden = isBudget;
@@ -473,12 +552,14 @@ const entryError = $("#entry-error");
 const segOpts = [...document.querySelectorAll(".seg-opt")];
 const catField = $("#cat-field");
 const catRow = $("#cat-row");
+const potRow = $("#pot-row");
 
 let editing = null;
 let formKind = "in";
 let formCat = DEFAULT_CAT;
+let formPot = firstPotId();
 
-// bouw categorie-chips
+// categorie-chips
 for (const key of CAT_KEYS) {
   const c = CATS[key];
   const chip = document.createElement("button");
@@ -501,6 +582,30 @@ function setCat(key) {
   });
 }
 
+// potje-chips (herbouwen zodat wijzigingen meteen zichtbaar zijn)
+function buildPotChips() {
+  potRow.innerHTML = "";
+  for (const p of state.pots) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "cat-chip";
+    chip.dataset.pot = p.id;
+    chip.setAttribute("role", "radio");
+    chip.style.setProperty("--c", "var(--accent)");
+    chip.textContent = p.label;
+    chip.addEventListener("click", () => setPot(p.id));
+    potRow.appendChild(chip);
+  }
+}
+function setPot(id) {
+  formPot = getPot(id) ? id : firstPotId();
+  potRow.querySelectorAll(".cat-chip").forEach((ch) => {
+    const on = ch.dataset.pot === formPot;
+    ch.classList.toggle("is-on", on);
+    ch.setAttribute("aria-checked", String(on));
+  });
+}
+
 function setKind(kind) {
   formKind = kind;
   for (const opt of segOpts) opt.setAttribute("aria-selected", String(opt.dataset.kind === kind));
@@ -513,11 +618,13 @@ segOpts.forEach((opt) => {
 
 function openEntrySheet(entry, presetKind) {
   entryError.hidden = true;
+  buildPotChips();
   if (entry) {
     editing = { id: entry.id, recurring: entry.recurring, kind: entry.kind };
     entryTitle.textContent = "Bewerken";
     setKind(entry.kind);
     setCat(catOf(entry));
+    setPot(potOf(entry));
     fLabel.value = entry.label;
     fAmount.value = String(entry.amount).replace(".", ",");
     fRecurring.checked = !!entry.recurring;
@@ -526,6 +633,7 @@ function openEntrySheet(entry, presetKind) {
     entryTitle.textContent = "Toevoegen";
     setKind(presetKind || "in");
     setCat(DEFAULT_CAT);
+    setPot(selectedPot !== "all" ? selectedPot : firstPotId());
     fLabel.value = "";
     fAmount.value = "";
     fRecurring.checked = false;
@@ -543,17 +651,15 @@ entryForm.addEventListener("submit", (ev) => {
   if (!Number.isFinite(amount) || amount <= 0) return showError(entryError, "Vul een geldig bedrag in.");
 
   const recurring = fRecurring.checked;
-  const rec = { kind: formKind, label, amount };
+  const rec = { kind: formKind, label, amount, potId: formPot };
   if (formKind === "out") rec.category = formCat;
 
   if (editing) removeEntry(editing.id, editing.recurring, viewMonth, true);
 
-  if (recurring) {
-    state.recurring.push({ id: uid(), fromMonth: viewMonth, ...rec });
-  } else {
-    ensureMonth(viewMonth).entries.push({ id: uid(), ...rec });
-  }
+  if (recurring) state.recurring.push({ id: uid(), fromMonth: viewMonth, ...rec });
+  else ensureMonth(viewMonth).entries.push({ id: uid(), ...rec });
 
+  haptic(12);
   saveState();
   closeOverlay(entryOverlay);
   render();
@@ -574,7 +680,7 @@ function removeEntry(id, recurring, key, silent) {
     const idx = state.recurring.findIndex((r) => r.id === id);
     const removed = idx >= 0 ? state.recurring.splice(idx, 1)[0] : null;
     if (!silent && removed) {
-      saveState(); render();
+      haptic(18); saveState(); render();
       toast("Terugkerende post verwijderd", () => { state.recurring.push(removed); saveState(); render(); });
     }
   } else {
@@ -582,7 +688,7 @@ function removeEntry(id, recurring, key, silent) {
     const idx = md.entries.findIndex((e) => e.id === id);
     const removed = idx >= 0 ? md.entries.splice(idx, 1)[0] : null;
     if (!silent && removed) {
-      saveState(); render();
+      haptic(18); saveState(); render();
       toast("Post verwijderd", () => { ensureMonth(key).entries.push(removed); saveState(); render(); });
     }
   }
@@ -637,7 +743,7 @@ investDelete.addEventListener("click", () => {
   const removed = idx >= 0 ? state.investments.splice(idx, 1)[0] : null;
   closeOverlay(investOverlay);
   if (removed) {
-    saveState(); render();
+    haptic(18); saveState(); render();
     toast("Belegging verwijderd", () => { state.investments.splice(idx, 0, removed); saveState(); render(); });
   }
 });
@@ -677,6 +783,7 @@ investForm.addEventListener("submit", (ev) => {
   } else {
     state.investments.push({ id: uid(), label, value });
   }
+  haptic(12);
   saveState();
   closeOverlay(investOverlay);
   render();
@@ -738,22 +845,85 @@ document.querySelectorAll("[data-add]").forEach((btn) => {
   btn.addEventListener("click", () => openEntrySheet(null, btn.dataset.add));
 });
 
+/* ---------- Zwevende +-knop ---------- */
+$("#fab").addEventListener("click", () => {
+  haptic(10);
+  if (activeTab === "vermogen") openInvestSheet(null);
+  else openEntrySheet(null, "out");
+});
+
 /* ============================================================
-   Instellingen
+   Instellingen — potjes, startmaand, back-up
    ============================================================ */
 const settingsOverlay = $("#settings-overlay");
-const sStartBalance = $("#s-start-balance");
 const sStartMonth = $("#s-start-month");
+const potManage = $("#pot-manage");
+
+function renderPotManage() {
+  potManage.innerHTML = "";
+  state.pots.forEach((p, idx) => {
+    const row = document.createElement("div");
+    row.className = "pot-edit";
+
+    const name = document.createElement("input");
+    name.className = "pe-name";
+    name.value = p.label;
+    name.setAttribute("aria-label", "Naam potje");
+    name.addEventListener("change", () => {
+      p.label = name.value.trim() || `Potje ${idx + 1}`;
+      saveState(); render();
+    });
+
+    const balWrap = document.createElement("div");
+    balWrap.className = "pe-bal-wrap";
+    const cur = document.createElement("span");
+    cur.className = "cur";
+    cur.textContent = "€";
+    const bal = document.createElement("input");
+    bal.className = "pe-bal";
+    bal.inputMode = "decimal";
+    bal.placeholder = "0,00";
+    bal.value = p.startBalance ? String(p.startBalance).replace(".", ",") : "";
+    bal.setAttribute("aria-label", "Beginsaldo potje");
+    bal.addEventListener("change", () => {
+      const v = parseAmount(bal.value);
+      p.startBalance = Number.isFinite(v) ? v : 0;
+      saveState(); render();
+    });
+    balWrap.append(cur, bal);
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "pot-del";
+    del.setAttribute("aria-label", `Potje ${p.label} verwijderen`);
+    del.textContent = "×";
+    del.addEventListener("click", () => {
+      if (state.pots.length <= 1) return toast("Je hebt minstens één potje nodig");
+      const removed = state.pots.splice(idx, 1)[0];
+      haptic(18); saveState(); renderPotManage(); render();
+      toast("Potje verwijderd", () => {
+        state.pots.splice(idx, 0, removed);
+        saveState(); renderPotManage(); render();
+      });
+    });
+
+    row.append(name, balWrap, del);
+    potManage.appendChild(row);
+  });
+}
+
+$("#pot-add").addEventListener("click", () => {
+  state.pots.push({ id: uid(), label: "Nieuw potje", startBalance: 0 });
+  haptic(10); saveState(); renderPotManage(); render();
+});
 
 $("#btn-settings").addEventListener("click", () => {
-  sStartBalance.value = state.startBalance ? String(state.startBalance).replace(".", ",") : "";
+  renderPotManage();
   sStartMonth.value = state.startMonth;
   openOverlay(settingsOverlay);
 });
 
 function commitSettings() {
-  const bal = parseAmount(sStartBalance.value);
-  state.startBalance = Number.isFinite(bal) ? bal : 0;
   if (/^\d{4}-\d{2}$/.test(sStartMonth.value)) {
     state.startMonth = sStartMonth.value;
     viewMonth = clampToStart(viewMonth);
@@ -761,7 +931,6 @@ function commitSettings() {
   saveState();
   render();
 }
-sStartBalance.addEventListener("change", commitSettings);
 sStartMonth.addEventListener("change", commitSettings);
 settingsOverlay.querySelector("[data-close]").addEventListener("click", commitSettings);
 
@@ -785,9 +954,12 @@ importFile.addEventListener("change", async () => {
     const data = JSON.parse(await file.text());
     if (typeof data !== "object" || !data) throw new Error("ongeldig");
     state = { ...defaultState(), ...data };
+    if (!Array.isArray(state.pots) || state.pots.length === 0) state.pots = DEFAULT_POTS.map((p) => ({ ...p }));
+    selectedPot = "all";
     viewMonth = clampToStart(currentMonthKey());
     saveState();
     render();
+    renderPotManage();
     closeOverlay(settingsOverlay);
     toast("Back-up geïmporteerd");
   } catch {
@@ -800,12 +972,14 @@ importFile.addEventListener("change", async () => {
 $("#btn-reset").addEventListener("click", () => {
   const snapshot = JSON.stringify(state);
   state = defaultState();
+  selectedPot = "all";
   viewMonth = currentMonthKey();
   saveState();
   render();
   closeOverlay(settingsOverlay);
   toast("Alles gewist", () => {
     state = JSON.parse(snapshot);
+    selectedPot = "all";
     viewMonth = clampToStart(currentMonthKey());
     saveState();
     render();

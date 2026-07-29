@@ -5,26 +5,30 @@
 :root {
   color-scheme: light dark;
 
-  /* Light theme */
-  --bg-0: #eaf0fb;
-  --bg-1: #dfe8f7;
-  --text: #10182a;
-  --text-2: rgba(16, 24, 42, 0.62);
-  --text-3: rgba(16, 24, 42, 0.40);
+  /* Solide "merk"-groen — altijd witte tekst erop, in beide thema's */
+  --brand-a: #2E6B54;
+  --brand-b: #1B4D3E;
 
-  --glass: rgba(255, 255, 255, 0.55);
-  --glass-strong: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.7);
-  --glass-shadow: 0 10px 30px -12px rgba(21, 40, 84, 0.35),
-                  0 2px 6px -2px rgba(21, 40, 84, 0.18);
-  --hairline: rgba(16, 24, 42, 0.08);
+  /* Light theme — wit met dennengroen */
+  --bg-0: #ffffff;
+  --bg-1: #eef4f0;
+  --text: #12241d;
+  --text-2: rgba(18, 36, 29, 0.64);
+  --text-3: rgba(18, 36, 29, 0.42);
 
-  --accent: #4f6bed;
-  --accent-2: #6d5cf0;
-  --pos: #12996b;
-  --pos-soft: rgba(18, 153, 107, 0.14);
-  --neg: #e0563f;
-  --neg-soft: rgba(224, 86, 63, 0.14);
+  --glass: rgba(255, 255, 255, 0.62);
+  --glass-strong: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(27, 77, 62, 0.10);
+  --glass-shadow: 0 10px 30px -12px rgba(20, 50, 40, 0.22),
+                  0 2px 6px -2px rgba(20, 50, 40, 0.12);
+  --hairline: rgba(18, 36, 29, 0.08);
+
+  --accent: #1B4D3E;       /* links, iconen, actieve tab */
+  --accent-2: #2E6B54;
+  --pos: #15653D;          /* inkomsten */
+  --pos-soft: rgba(21, 101, 61, 0.12);
+  --neg: #B4482E;          /* uitgaven — terracotta */
+  --neg-soft: rgba(180, 72, 46, 0.12);
 
   --radius-l: 26px;
   --radius-m: 18px;
@@ -38,25 +42,25 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-0: #0b0f1c;
-    --bg-1: #131a30;
-    --text: #f2f5fc;
-    --text-2: rgba(242, 245, 252, 0.66);
-    --text-3: rgba(242, 245, 252, 0.42);
+    --bg-0: #0b1512;
+    --bg-1: #10211b;
+    --text: #eef5f1;
+    --text-2: rgba(238, 245, 241, 0.68);
+    --text-3: rgba(238, 245, 241, 0.44);
 
-    --glass: rgba(30, 41, 66, 0.52);
-    --glass-strong: rgba(38, 50, 79, 0.66);
-    --glass-border: rgba(255, 255, 255, 0.14);
+    --glass: rgba(22, 40, 34, 0.52);
+    --glass-strong: rgba(28, 50, 42, 0.68);
+    --glass-border: rgba(255, 255, 255, 0.12);
     --glass-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.6),
                     0 2px 8px -2px rgba(0, 0, 0, 0.5);
     --hairline: rgba(255, 255, 255, 0.09);
 
-    --accent: #8aa0ff;
-    --accent-2: #a99bff;
-    --pos: #34d99e;
-    --pos-soft: rgba(52, 217, 158, 0.16);
-    --neg: #ff7a63;
-    --neg-soft: rgba(255, 122, 99, 0.16);
+    --accent: #5fce9f;
+    --accent-2: #7fdcb5;
+    --pos: #46d9a0;
+    --pos-soft: rgba(70, 217, 160, 0.16);
+    --neg: #ff8a6b;
+    --neg-soft: rgba(255, 138, 107, 0.16);
   }
 }
 
@@ -98,9 +102,11 @@ body {
   filter: blur(70px);
   opacity: 0.6;
 }
-.blob-a { top: -20vmax; left: -14vmax; background: radial-gradient(circle, #6d5cf0, transparent 68%); }
-.blob-b { bottom: -24vmax; right: -18vmax; background: radial-gradient(circle, #3ba7f0, transparent 68%); }
-.blob-c { top: 34%; right: -22vmax; background: radial-gradient(circle, #35d0a5, transparent 70%); opacity: 0.4; }
+.blob { opacity: 0.30; }
+.blob-a { top: -20vmax; left: -14vmax; background: radial-gradient(circle, #2E6B54, transparent 68%); }
+.blob-b { bottom: -24vmax; right: -18vmax; background: radial-gradient(circle, #3AA57D, transparent 68%); }
+.blob-c { top: 34%; right: -22vmax; background: radial-gradient(circle, #8FD8B8, transparent 70%); opacity: 0.22; }
+@media (prefers-color-scheme: dark) { .blob { opacity: 0.42; } .blob-c { opacity: 0.3; } }
 
 /* ---------- Glass basis ---------- */
 .glass {
@@ -151,8 +157,8 @@ body {
   border-radius: 11px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(150deg, var(--accent-2), var(--accent));
-  box-shadow: 0 6px 16px -6px var(--accent);
+  background: linear-gradient(150deg, var(--brand-a), var(--brand-b));
+  box-shadow: 0 6px 16px -6px var(--brand-b);
 }
 .brand-name { font-size: 1.15rem; font-weight: 650; letter-spacing: -0.01em; }
 
@@ -160,7 +166,7 @@ body {
 .app {
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: 6px var(--pad) calc(96px + env(safe-area-inset-bottom));
+  padding: 6px var(--pad) calc(120px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -172,9 +178,9 @@ body {
 .icon-btn {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   border: 1px solid var(--glass-border);
   border-radius: 50%;
   background: var(--glass);
@@ -295,14 +301,16 @@ button { font: inherit; }
 .group-sub { font-size: 0.78rem; color: var(--text-3); }
 .add-btn {
   border: none;
-  background: none;
+  background: var(--pos-soft);
   color: var(--accent);
-  font-weight: 620;
+  font-weight: 640;
   font-size: 0.88rem;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 9px;
+  padding: 9px 13px;
+  min-height: 40px;
+  border-radius: 999px;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .add-btn span { font-size: 1.05em; }
 .add-btn:hover { text-decoration: underline; }
@@ -590,8 +598,8 @@ button { font: inherit; }
 }
 .btn-primary {
   color: #fff;
-  background: linear-gradient(150deg, var(--accent-2), var(--accent));
-  box-shadow: 0 8px 20px -8px var(--accent);
+  background: linear-gradient(150deg, var(--brand-a), var(--brand-b));
+  box-shadow: 0 8px 20px -8px var(--brand-b);
 }
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary:active { transform: scale(0.97); }
@@ -767,6 +775,152 @@ button { font: inherit; }
 }
 .alloc-pct { color: var(--text-3); font-size: 0.82rem; }
 .alloc-amt { font-weight: 640; letter-spacing: -0.01em; }
+
+/* ============================================================
+   Zwevende actieknop (FAB)
+   ============================================================ */
+.fab-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 45;
+  pointer-events: none;
+}
+.fab-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--pad);
+  display: flex;
+  justify-content: flex-end;
+}
+.fab {
+  pointer-events: auto;
+  width: 58px;
+  height: 58px;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(150deg, var(--brand-a), var(--brand-b));
+  box-shadow: 0 12px 28px -8px var(--brand-b), 0 3px 8px -2px rgba(0, 0, 0, 0.25);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.16s var(--ease), filter 0.16s var(--ease);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab:hover { filter: brightness(1.08); }
+.fab:active { transform: scale(0.9); }
+.fab svg { width: 26px; height: 26px; }
+
+/* ============================================================
+   Spaarpotjes-strip
+   ============================================================ */
+.pots-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.pots-strip::-webkit-scrollbar { display: none; }
+.pot-card {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  min-width: 122px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1.5px solid var(--glass-border);
+  background: var(--glass);
+  color: inherit;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.pot-card .pc-name {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pot-card .pc-amt { font-weight: 680; letter-spacing: -0.01em; font-size: 1.02rem; }
+.pot-card .pc-amt.is-neg { color: var(--neg); }
+.pot-card.is-on {
+  border-color: var(--accent);
+  background: var(--pos-soft);
+}
+
+/* Potjesbeheer in instellingen */
+.pot-manage { display: flex; flex-direction: column; gap: 8px; }
+.pot-edit {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pot-edit .pe-name {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 12px;
+  font-size: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--glass-strong);
+  color: var(--text);
+}
+.pot-edit .pe-bal-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 10px;
+  width: 118px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--glass-strong);
+}
+.pot-edit .pe-bal-wrap .cur { color: var(--text-2); font-weight: 600; }
+.pot-edit .pe-bal {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 11px 10px 11px 2px;
+  font-size: 16px;
+  color: inherit;
+  outline: none;
+}
+.pot-del {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: var(--neg-soft);
+  color: var(--neg);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  touch-action: manipulation;
+}
+.pot-add {
+  align-self: flex-start;
+  border: none;
+  background: var(--pos-soft);
+  color: var(--accent);
+  font-weight: 640;
+  padding: 9px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
 
 /* ---------- Animaties ---------- */
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }

@@ -7,6 +7,8 @@ Geen account, geen server — alle gegevens blijven lokaal op je apparaat
 
 ## Wat kan het?
 
+- **Spaarpotjes** — verdeel je spaargeld over potjes (Algemeen, Vakantie, Auto, of eigen potjes),
+  elk met een eigen beginsaldo en doorlopend saldo. Filter het hele overzicht per potje.
 - **Spaargeld per maand** — voer in wat er maandelijks bijkomt (los of terugkerend).
 - **Aankopen plannen** in een specifieke maand, met categorieën **Baby · Huis · Overig**.
 - **Saldo op elk moment** — beginsaldo → eindsaldo per maand, met doorlopende
