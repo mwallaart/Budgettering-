@@ -507,6 +507,9 @@ button { font: inherit; }
 
 /* Velden */
 .field { display: flex; flex-direction: column; gap: 6px; }
+.field-2col { display: flex; gap: 10px; }
+.field-2col .field { flex: 1; min-width: 0; }
+.field-2col input { width: 100%; }
 .field > span { font-size: 0.82rem; font-weight: 560; color: var(--text-2); padding-left: 2px; }
 .field input,
 .amount-input {
@@ -864,35 +867,44 @@ button { font: inherit; }
 .pot-manage { display: flex; flex-direction: column; gap: 8px; }
 .pot-edit {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--glass);
 }
-.pot-edit .pe-name {
+.pe-top { display: flex; gap: 8px; align-items: center; }
+.pe-name {
   flex: 1;
   min-width: 0;
   padding: 11px 12px;
   font-size: 16px;
+  font-weight: 560;
   border: 1px solid var(--hairline);
   border-radius: 12px;
   background: var(--glass-strong);
   color: var(--text);
 }
-.pot-edit .pe-bal-wrap {
+.pe-cols { display: flex; gap: 8px; }
+.pe-col { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pe-col > span { font-size: 0.72rem; color: var(--text-2); padding-left: 2px; }
+.pe-money {
   display: flex;
   align-items: center;
   gap: 2px;
   padding-left: 10px;
-  width: 118px;
   border: 1px solid var(--hairline);
   border-radius: 12px;
   background: var(--glass-strong);
 }
-.pot-edit .pe-bal-wrap .cur { color: var(--text-2); font-weight: 600; }
-.pot-edit .pe-bal {
+.pe-money .cur { color: var(--text-2); font-weight: 600; }
+.pe-money input {
   width: 100%;
+  min-width: 0;
   border: none;
   background: none;
-  padding: 11px 10px 11px 2px;
+  padding: 10px 8px 10px 2px;
   font-size: 16px;
   color: inherit;
   outline: none;
@@ -994,7 +1006,146 @@ button { font: inherit; }
 .chart-svg .c-guide { stroke: var(--accent); stroke-width: 1.5; opacity: 0.35; }
 .chart-svg .c-focus { fill: var(--accent); stroke: var(--bg-0); stroke-width: 3; }
 .chart-svg .c-focus.is-neg { fill: var(--neg); }
+.chart-svg .c-danger { fill: var(--neg); opacity: 0.10; }
 .chart-hint { text-align: center; font-size: 0.75rem; color: var(--text-3); }
+
+/* ============================================================
+   Waarschuwingen (negatief saldo)
+   ============================================================ */
+.warnings { display: flex; flex-direction: column; gap: 8px; }
+.warnings:empty { display: none; }
+.warn-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--neg-soft);
+  border: 1px solid color-mix(in srgb, var(--neg) 32%, transparent);
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.warn-card .wi { flex: none; font-size: 1.05rem; }
+.warn-card b { color: var(--neg); font-weight: 680; }
+
+/* ============================================================
+   Potje-doel (voortgang)
+   ============================================================ */
+.pot-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+  margin-top: 4px;
+}
+.pot-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-a), var(--brand-b));
+  transition: width 0.4s var(--ease);
+}
+.pc-goal { font-size: 0.7rem; color: var(--text-3); }
+
+/* ============================================================
+   Snellere invoer
+   ============================================================ */
+.suggest-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.suggest-row:empty { display: none; }
+.suggest-chip, .qa-chip {
+  border: 1px solid var(--hairline);
+  background: var(--glass-strong);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  font-weight: 560;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.suggest-chip:active, .qa-chip:active { transform: scale(0.96); }
+.qa-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+/* ============================================================
+   Overzicht — maandtotalen
+   ============================================================ */
+.month-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.month-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  box-shadow: var(--glass-shadow);
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.14s var(--ease);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.month-row:active { transform: scale(0.99); }
+.month-row.is-now { border-color: var(--accent); }
+.mr-name { font-weight: 640; font-size: 1rem; text-transform: capitalize; }
+.mr-end { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.02em; justify-self: end; }
+.mr-end.is-neg { color: var(--neg); }
+.mr-flow { font-size: 0.82rem; color: var(--text-2); display: flex; gap: 12px; }
+.mr-flow .in { color: var(--pos); font-weight: 600; }
+.mr-flow .out { color: var(--neg); font-weight: 600; }
+.mr-chev { justify-self: end; color: var(--text-3); }
+.mr-now-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   Maandkiezer
+   ============================================================ */
+.month-name-btn {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  text-transform: capitalize;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 10px;
+  touch-action: manipulation;
+}
+.month-name-btn:hover { background: var(--pos-soft); }
+.mp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mp-year { font-weight: 680; font-size: 1.1rem; }
+.mp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mp-cell {
+  padding: 15px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
+  background: var(--glass-strong);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: capitalize;
+  touch-action: manipulation;
+}
+.mp-cell.is-on { background: var(--pos-soft); border-color: var(--accent); color: var(--accent); }
+.mp-cell:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ---------- Animaties ---------- */
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }

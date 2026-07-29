@@ -7,8 +7,16 @@ Geen account, geen server — alle gegevens blijven lokaal op je apparaat
 
 ## Wat kan het?
 
-- **Spaarpotjes** — verdeel je spaargeld over potjes (Algemeen, Vakantie, Auto, of eigen potjes),
-  elk met een eigen beginsaldo en doorlopend saldo. Filter het hele overzicht per potje.
+- **Overzicht als basis** — een startpagina met **maandtotalen** (inkomsten, uitgaven,
+  eindsaldo per maand), de cashflow-grafiek en waarschuwingen. Tik een maand aan voor
+  de **detailpagina** van die maand.
+- **Toevoegen met maandkeuze** — voeg een inkomst of aankoop toe vanaf elke pagina en
+  **kies zelf de maand** (en dag). Je hoeft niet eerst naar de betreffende maand.
+- **Spaarpotjes met doelen** — verdeel je spaargeld over potjes (Algemeen, Vakantie, Auto,
+  of eigen potjes), elk met beginsaldo, doorlopend saldo en een optioneel **doelbedrag met
+  voortgangsbalk**. Filter het hele overzicht per potje.
+- **Waarschuwing bij negatief saldo** — de app meldt het als een potje in een bepaalde
+  maand onder nul dreigt te komen; de grafiek kleurt rood onder de nullijn.
 - **Spaargeld per maand** — voer in wat er maandelijks bijkomt (los of terugkerend).
 - **Aankopen plannen** in een specifieke maand, met categorieën **Baby · Huis · Overig**.
 - **Cashflow per dag** — geef per post aan op welke dag van de maand hij binnenkomt
