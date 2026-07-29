@@ -51,6 +51,26 @@ function monthName(key) {
 function currentMonthKey() {
   return monthKey(new Date());
 }
+function daysInMonth(key) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+function clampDay(day, dim) {
+  const d = Math.floor(Number(day));
+  if (!Number.isFinite(d) || d < 1) return 1;
+  return Math.min(d, dim);
+}
+function monthsBetween(a, b) {
+  const [ay, am] = a.split("-").map(Number);
+  const [by, bm] = b.split("-").map(Number);
+  return (by - ay) * 12 + (bm - am);
+}
+function maxKey(a, b) {
+  return a >= b ? a : b;
+}
+function todayDay() {
+  return new Date().getDate();
+}
 
 /* ---------- Bedrag parsen ("1.234,56" / "1234.56" / "1234,56") ---------- */
 function parseAmount(raw) {
@@ -205,8 +225,11 @@ const els = {
   listIn: $("#list-in"),
   listOut: $("#list-out"),
   catSummary: $("#cat-summary"),
-  projection: $("#projection"),
+  emptyHint: $("#empty-hint"),
   projSub: $("#proj-sub"),
+  chartScroll: $("#chart-scroll"),
+  chartMonth: $("#chart-month"),
+  chartValue: $("#chart-value"),
   worthTotal: $("#worth-total"),
   worthCash: $("#worth-cash"),
   worthInvest: $("#worth-invest"),
@@ -248,11 +271,20 @@ function renderBudget() {
   els.totalIn.textContent = eur.format(inc);
   els.totalOut.textContent = eur.format(out);
 
+  els.emptyHint.hidden = !isEmptyState();
   renderPots();
   renderCatSummary(pf);
   renderList("in", els.listIn, pf);
   renderList("out", els.listOut, pf);
-  renderProjection(pf);
+  renderChart(pf);
+}
+
+function isEmptyState() {
+  const noStart = state.pots.every((p) => !p.startBalance);
+  const noRec = state.recurring.length === 0;
+  const noMonths = Object.values(state.months).every((m) => !(m.entries && m.entries.length));
+  const noInv = state.investments.length === 0;
+  return noStart && noRec && noMonths && noInv;
 }
 
 function renderPots() {
@@ -348,6 +380,7 @@ function renderList(kind, ul, pf) {
     main.appendChild(label);
 
     const bits = [];
+    bits.push(`${e.day || 1}e`);
     if (selectedPot === "all") bits.push(getPot(potOf(e)).label);
     if (kind === "out") bits.push(CATS[catOf(e)].label);
     if (e.recurring) bits.push("↻ maandelijks");
@@ -368,36 +401,129 @@ function renderList(kind, ul, pf) {
   }
 }
 
-function renderProjection(pf) {
-  const rows = [];
-  let maxAbs = 1;
-  for (let i = 0; i < 6; i++) {
-    const key = addMonths(viewMonth, i);
-    const val = endBalance(key, pf);
-    rows.push({ key, val });
-    maxAbs = Math.max(maxAbs, Math.abs(val));
-  }
-  els.projSub.textContent = pf ? `${getPot(pf).label} · 6 maanden` : "komende 6 maanden";
+// Dagelijkse cashflow-grafiek: loopt saldo dag voor dag op, scrubbaar.
+function renderChart(pf) {
+  const start = state.startMonth;
+  const endM = addMonths(maxKey(viewMonth, currentMonthKey()), 6);
+  let span = monthsBetween(start, endM);
+  span = Math.max(5, Math.min(17, span));
 
-  els.projection.innerHTML = "";
-  for (const { key, val } of rows) {
-    const row = document.createElement("div");
-    row.className = "proj-row";
-    const m = document.createElement("span");
-    m.className = "proj-month";
-    m.textContent = monthShortFmt.format(keyToDate(key));
-    const track = document.createElement("div");
-    track.className = "proj-track";
-    const fill = document.createElement("div");
-    fill.className = "proj-fill" + (val < 0 ? " is-neg" : "");
-    fill.style.width = `${Math.max(2, (Math.abs(val) / maxAbs) * 100)}%`;
-    track.appendChild(fill);
-    const v = document.createElement("span");
-    v.className = "proj-val tnum" + (val < 0 ? " is-neg" : "");
-    v.textContent = eur.format(val);
-    row.append(m, track, v);
-    els.projection.appendChild(row);
+  const pts = [];               // {key, day, balance}
+  const monthStart = [];        // {index, key}
+  let bal = startSum(pf);
+  let mk = start;
+  for (let mi = 0; mi <= span; mi++) {
+    const dim = daysInMonth(mk);
+    const deltas = new Array(dim + 1).fill(0);
+    for (const e of entriesForMonth(mk)) {
+      if (pf && potOf(e) !== pf) continue;
+      deltas[clampDay(e.day, dim)] += e.kind === "in" ? e.amount : -e.amount;
+    }
+    monthStart.push({ index: pts.length, key: mk });
+    for (let d = 1; d <= dim; d++) {
+      bal += deltas[d];
+      pts.push({ key: mk, day: d, balance: bal });
+    }
+    mk = addMonths(mk, 1);
   }
+  if (pts.length === 0) return;
+
+  const stepX = 4.4, padX = 14, H = 168, padTop = 18, padBot = 26;
+  const W = padX * 2 + (pts.length - 1) * stepX;
+  let min = Infinity, max = -Infinity;
+  for (const p of pts) { if (p.balance < min) min = p.balance; if (p.balance > max) max = p.balance; }
+  min = Math.min(min, 0); max = Math.max(max, 0);
+  if (min === max) max = min + 1;
+  const range = max - min;
+  const X = (i) => padX + i * stepX;
+  const Y = (v) => padTop + (1 - (v - min) / range) * (H - padTop - padBot);
+  const baseY = H - padBot;
+
+  let line = "";
+  for (let i = 0; i < pts.length; i++) line += (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(pts[i].balance).toFixed(1) + " ";
+  const area = `M ${X(0).toFixed(1)} ${baseY} ${line}L ${X(pts.length - 1).toFixed(1)} ${baseY} Z`;
+
+  const nowKey = currentMonthKey();
+  let ticks = "";
+  for (const m of monthStart) {
+    const isNow = m.key === nowKey;
+    ticks += `<text class="c-tick${isNow ? " is-now" : ""}" x="${X(m.index).toFixed(1)}" y="${H - 8}" text-anchor="middle">${monthShortFmt.format(keyToDate(m.key))}</text>`;
+  }
+
+  const zero = min < 0 && max > 0
+    ? `<line class="c-zero" x1="${padX}" y1="${Y(0).toFixed(1)}" x2="${(W - padX).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>` : "";
+
+  els.projSub.textContent = pf ? `${getPot(pf).label}` : "sleep om te bekijken";
+  els.chartScroll.innerHTML = `
+    <svg class="chart-svg" width="${W.toFixed(0)}" height="${H}" viewBox="0 0 ${W.toFixed(0)} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="c-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="var(--accent)" stop-opacity="0.30"/>
+        <stop offset="1" stop-color="var(--accent)" stop-opacity="0.02"/>
+      </linearGradient></defs>
+      ${zero}
+      <path class="c-area" d="${area}"/>
+      <path class="c-line" d="${line.trim()}"/>
+      ${ticks}
+      <line class="c-guide" id="c-guide" x1="0" y1="${padTop}" x2="0" y2="${baseY}"/>
+      <circle class="c-focus" id="c-focus" r="5" cx="-10" cy="-10"/>
+    </svg>`;
+
+  const svgEl = els.chartScroll.querySelector("svg");
+  const guide = svgEl.querySelector("#c-guide");
+  const focus = svgEl.querySelector("#c-focus");
+  const clampIdx = (i) => Math.max(0, Math.min(pts.length - 1, i));
+
+  function setFocus(i) {
+    i = clampIdx(i);
+    const p = pts[i];
+    const x = X(i), y = Y(p.balance);
+    guide.setAttribute("x1", x); guide.setAttribute("x2", x);
+    focus.setAttribute("cx", x); focus.setAttribute("cy", y);
+    focus.classList.toggle("is-neg", p.balance < 0);
+    els.chartMonth.textContent = `${p.day} ${monthShortFmt.format(keyToDate(p.key))} ${p.key.slice(0, 4)}`;
+    els.chartValue.textContent = eur.format(p.balance);
+    els.chartValue.classList.toggle("is-neg", p.balance < 0);
+    return p;
+  }
+
+  // Startfocus: vandaag (indien huidige maand in beeld), anders 1e van bekeken maand
+  let focusIdx = monthStart[0].index;
+  const vm = monthStart.find((m) => m.key === viewMonth);
+  if (vm) {
+    focusIdx = vm.index;
+    if (viewMonth === nowKey) focusIdx = vm.index + Math.min(todayDay(), daysInMonth(nowKey)) - 1;
+  }
+  setFocus(focusIdx);
+  requestAnimationFrame(() => {
+    els.chartScroll.scrollLeft = X(focusIdx) - els.chartScroll.clientWidth / 2;
+  });
+
+  const idxFromEvent = (ev) => {
+    const rect = svgEl.getBoundingClientRect();
+    return Math.round((ev.clientX - rect.left - padX) / stepX);
+  };
+  let downX = null, moved = false, ptype = null;
+  svgEl.addEventListener("pointerdown", (ev) => {
+    downX = ev.clientX; moved = false; ptype = ev.pointerType;
+    if (ptype !== "touch") setFocus(idxFromEvent(ev)); // muis: direct scrubben
+  });
+  svgEl.addEventListener("pointermove", (ev) => {
+    if (downX === null) return;
+    if (Math.abs(ev.clientX - downX) > 6) moved = true;
+    if (ptype !== "touch" && ev.buttons & 1) setFocus(idxFromEvent(ev));
+  });
+  svgEl.addEventListener("pointerup", (ev) => {
+    if (downX === null) return;
+    const tap = !moved;
+    const wasTouch = ptype === "touch";
+    downX = null;
+    // Muis: altijd naar focus; touch: alleen bij een tik (drag = pannen)
+    if (!wasTouch || tap) {
+      const p = setFocus(idxFromEvent(ev));
+      if (p && p.key !== viewMonth) { viewMonth = clampToStart(p.key); haptic(6); renderBudget(); }
+    }
+  });
+  svgEl.addEventListener("pointercancel", () => { downX = null; });
 }
 
 /* ============================================================
@@ -546,6 +672,7 @@ const entryOverlay = $("#entry-overlay");
 const entryForm = $("#entry-form");
 const fLabel = $("#f-label");
 const fAmount = $("#f-amount");
+const fDay = $("#f-day");
 const fRecurring = $("#f-recurring");
 const entryTitle = $("#entry-title");
 const entryError = $("#entry-error");
@@ -627,6 +754,7 @@ function openEntrySheet(entry, presetKind) {
     setPot(potOf(entry));
     fLabel.value = entry.label;
     fAmount.value = String(entry.amount).replace(".", ",");
+    fDay.value = entry.day ? String(entry.day) : "";
     fRecurring.checked = !!entry.recurring;
   } else {
     editing = null;
@@ -636,6 +764,7 @@ function openEntrySheet(entry, presetKind) {
     setPot(selectedPot !== "all" ? selectedPot : firstPotId());
     fLabel.value = "";
     fAmount.value = "";
+    fDay.value = "";
     fRecurring.checked = false;
   }
   deleteBtn.style.display = entry ? "block" : "none";
@@ -650,8 +779,11 @@ entryForm.addEventListener("submit", (ev) => {
   if (!label) return showError(entryError, "Vul een omschrijving in.");
   if (!Number.isFinite(amount) || amount <= 0) return showError(entryError, "Vul een geldig bedrag in.");
 
+  const dayNum = Math.floor(Number(fDay.value));
+  const day = Number.isFinite(dayNum) && dayNum >= 1 ? Math.min(dayNum, 31) : 1;
+
   const recurring = fRecurring.checked;
-  const rec = { kind: formKind, label, amount, potId: formPot };
+  const rec = { kind: formKind, label, amount, potId: formPot, day };
   if (formKind === "out") rec.category = formCat;
 
   if (editing) removeEntry(editing.id, editing.recurring, viewMonth, true);
@@ -917,11 +1049,13 @@ $("#pot-add").addEventListener("click", () => {
   haptic(10); saveState(); renderPotManage(); render();
 });
 
-$("#btn-settings").addEventListener("click", () => {
+function openSettings() {
   renderPotManage();
   sStartMonth.value = state.startMonth;
   openOverlay(settingsOverlay);
-});
+}
+$("#btn-settings").addEventListener("click", openSettings);
+$("#hint-setup").addEventListener("click", openSettings);
 
 function commitSettings() {
   if (/^\d{4}-\d{2}$/.test(sStartMonth.value)) {

@@ -1,5 +1,5 @@
 // Service worker · offline app-shell voor Budget PWA
-const CACHE = "budget-glass-v3";
+const CACHE = "budget-glass-v4";
 const ASSETS = [
   "./",
   "./index.html",

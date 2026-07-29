@@ -40,25 +40,28 @@ await firstBal.fill("5000");
 await firstBal.blur();
 await page.click("#settings-overlay [data-close]");
 
-// Voeg terugkerend spaarbedrag toe
+// Voeg terugkerend spaarbedrag toe (salaris op de 25e)
 await page.click('[data-add="in"]');
 await page.fill("#f-label", "Maandelijks sparen");
 await page.fill("#f-amount", "800");
+await page.fill("#f-day", "25");
 await page.click(".switch-track");
 await page.click("#entry-submit");
 
-// Voeg aankoop toe in categorie Baby
+// Voeg aankoop toe in categorie Baby (10e)
 await page.click('[data-add="out"]');
 await page.click('.cat-chip[data-cat="baby"]');
 await page.fill("#f-label", "Kinderwagen");
 await page.fill("#f-amount", "1200");
+await page.fill("#f-day", "10");
 await page.click("#entry-submit");
 
-// Voeg aankoop toe in categorie Huis
+// Voeg aankoop toe in categorie Huis (15e)
 await page.click('[data-add="out"]');
 await page.click('.cat-chip[data-cat="huis"]');
 await page.fill("#f-label", "Bank");
 await page.fill("#f-amount", "2500");
+await page.fill("#f-day", "15");
 await page.click("#entry-submit");
 
 await page.waitForTimeout(300);

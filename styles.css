@@ -11,16 +11,16 @@
 
   /* Light theme — wit met dennengroen */
   --bg-0: #ffffff;
-  --bg-1: #eef4f0;
+  --bg-1: #f5f8f7;
   --text: #12241d;
   --text-2: rgba(18, 36, 29, 0.64);
   --text-3: rgba(18, 36, 29, 0.42);
 
-  --glass: rgba(255, 255, 255, 0.62);
-  --glass-strong: rgba(255, 255, 255, 0.82);
-  --glass-border: rgba(27, 77, 62, 0.10);
-  --glass-shadow: 0 10px 30px -12px rgba(20, 50, 40, 0.22),
-                  0 2px 6px -2px rgba(20, 50, 40, 0.12);
+  --glass: rgba(255, 255, 255, 0.70);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(27, 77, 62, 0.12);
+  --glass-shadow: 0 12px 34px -14px rgba(20, 50, 40, 0.20),
+                  0 2px 8px -3px rgba(20, 50, 40, 0.10);
   --hairline: rgba(18, 36, 29, 0.08);
 
   --accent: #1B4D3E;       /* links, iconen, actieve tab */
@@ -102,11 +102,11 @@ body {
   filter: blur(70px);
   opacity: 0.6;
 }
-.blob { opacity: 0.30; }
-.blob-a { top: -20vmax; left: -14vmax; background: radial-gradient(circle, #2E6B54, transparent 68%); }
-.blob-b { bottom: -24vmax; right: -18vmax; background: radial-gradient(circle, #3AA57D, transparent 68%); }
-.blob-c { top: 34%; right: -22vmax; background: radial-gradient(circle, #8FD8B8, transparent 70%); opacity: 0.22; }
-@media (prefers-color-scheme: dark) { .blob { opacity: 0.42; } .blob-c { opacity: 0.3; } }
+.blob { opacity: 0.12; }
+.blob-a { top: -22vmax; left: -16vmax; background: radial-gradient(circle, #2E6B54, transparent 70%); }
+.blob-b { bottom: -26vmax; right: -20vmax; background: radial-gradient(circle, #3AA57D, transparent 70%); }
+.blob-c { top: 40%; right: -24vmax; background: radial-gradient(circle, #8FD8B8, transparent 72%); opacity: 0.08; }
+@media (prefers-color-scheme: dark) { .blob { opacity: 0.40; } .blob-c { opacity: 0.28; } }
 
 /* ---------- Glass basis ---------- */
 .glass {
@@ -921,6 +921,80 @@ button { font: inherit; }
   cursor: pointer;
   touch-action: manipulation;
 }
+
+/* ============================================================
+   Starthint (lege staat)
+   ============================================================ */
+.empty-hint {
+  padding: 18px var(--pad);
+  border-radius: var(--radius-m);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+.empty-hint[hidden] { display: none; }
+.empty-hint h3 { margin: 0; font-size: 1.05rem; font-weight: 660; }
+.empty-hint p { margin: 0; color: var(--text-2); font-size: 0.92rem; line-height: 1.5; }
+.empty-hint .btn-primary { align-self: center; padding: 11px 20px; }
+
+/* ============================================================
+   Interactieve saldo-grafiek
+   ============================================================ */
+.chart-card {
+  padding: 14px 6px 10px;
+  border-radius: var(--radius-m);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chart-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+}
+.chart-readout .cr-month {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: capitalize;
+}
+.chart-readout .cr-value {
+  font-size: 1.35rem;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+.chart-readout .cr-value.is-neg { color: var(--neg); }
+
+.chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  cursor: ew-resize;
+}
+.chart-scroll::-webkit-scrollbar { display: none; }
+.chart-svg { display: block; touch-action: pan-x; }
+.chart-svg .c-area { fill: url(#c-grad); }
+.chart-svg .c-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chart-svg .c-zero { stroke: var(--hairline); stroke-width: 1; stroke-dasharray: 3 4; }
+.chart-svg .c-tick { fill: var(--text-3); font-size: 11px; }
+.chart-svg .c-tick.is-now { fill: var(--accent); font-weight: 700; }
+.chart-svg .c-dot { fill: var(--bg-0); stroke: var(--accent); stroke-width: 2; }
+.chart-svg .c-guide { stroke: var(--accent); stroke-width: 1.5; opacity: 0.35; }
+.chart-svg .c-focus { fill: var(--accent); stroke: var(--bg-0); stroke-width: 3; }
+.chart-svg .c-focus.is-neg { fill: var(--neg); }
+.chart-hint { text-align: center; font-size: 0.75rem; color: var(--text-3); }
 
 /* ---------- Animaties ---------- */
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }

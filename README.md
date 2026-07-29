@@ -11,8 +11,11 @@ Geen account, geen server — alle gegevens blijven lokaal op je apparaat
   elk met een eigen beginsaldo en doorlopend saldo. Filter het hele overzicht per potje.
 - **Spaargeld per maand** — voer in wat er maandelijks bijkomt (los of terugkerend).
 - **Aankopen plannen** in een specifieke maand, met categorieën **Baby · Huis · Overig**.
+- **Cashflow per dag** — geef per post aan op welke dag van de maand hij binnenkomt
+  of eraf gaat. Een interactieve grafiek toont je saldo dag voor dag; sleep of scrol
+  om elk moment af te lezen en tik om naar die maand te springen.
 - **Saldo op elk moment** — beginsaldo → eindsaldo per maand, met doorlopende
-  overdracht naar volgende maanden en een **saldoverloop** voor de komende 6 maanden.
+  overdracht naar volgende maanden.
 - **Terugkerende posten** — markeer vast inkomen of vaste lasten als "elke maand";
   ze verschijnen automatisch en zijn per maand overslaan of helemaal te verwijderen.
 - **Vermogen-overzicht** — een tweede tab met je **totale vermogen**

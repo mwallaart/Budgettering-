@@ -55,6 +55,13 @@
         </button>
       </nav>
 
+      <!-- Starthint (lege staat) -->
+      <div class="empty-hint glass" id="empty-hint" hidden>
+        <h3>Welkom! 👋</h3>
+        <p>Stel eerst je spaarpotjes en beginsaldo in. Voeg daarna met de <b>+</b>-knop je inkomsten en aankopen toe — je saldo rekent zich vanzelf uit.</p>
+        <button type="button" class="btn-primary" id="hint-setup">Potjes instellen</button>
+      </div>
+
       <!-- Spaarpotjes -->
       <div class="pots-strip" id="pots-strip" role="tablist" aria-label="Spaarpotje kiezen"></div>
 
@@ -99,10 +106,17 @@
 
       <section class="group" aria-labelledby="proj-title">
         <div class="group-head">
-          <h2 id="proj-title">Saldoverloop</h2>
-          <span class="group-sub" id="proj-sub">komende 6 maanden</span>
+          <h2 id="proj-title">Cashflow &amp; saldo</h2>
+          <span class="group-sub" id="proj-sub">sleep om te bekijken</span>
         </div>
-        <div class="projection glass" id="projection"></div>
+        <div class="chart-card glass">
+          <div class="chart-readout">
+            <span class="cr-month" id="chart-month">—</span>
+            <span class="cr-value tnum" id="chart-value">€ 0,00</span>
+          </div>
+          <div class="chart-scroll" id="chart-scroll"></div>
+          <p class="chart-hint">Sleep of scrol door de dagen · tik om naar die maand te gaan</p>
+        </div>
       </section>
     </section>
 
@@ -190,8 +204,14 @@
         <div class="amount-input">
           <span class="cur">€</span>
           <input id="f-amount" type="text" inputmode="decimal" autocomplete="off"
-                 enterkeyhint="done" placeholder="0,00" required />
+                 enterkeyhint="next" placeholder="0,00" required />
         </div>
+      </label>
+
+      <label class="field">
+        <span>Op welke dag van de maand?</span>
+        <input id="f-day" type="number" inputmode="numeric" min="1" max="31" step="1"
+               enterkeyhint="done" placeholder="bijv. 25" />
       </label>
 
       <label class="switch">
