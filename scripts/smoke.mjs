@@ -116,10 +116,48 @@ await page.click('.tab-btn[data-tab="maand"]');
 await page.waitForTimeout(500);
 await page.screenshot({ path: path.join(root, "scripts", "shot-dark-maand.png"), fullPage: true });
 
+// --- Alle sheets op smal scherm: niets mag rechts uitlopen ---
+await page.setViewportSize({ width: 320, height: 640 });
+const sheetIssues = [];
+for (const [name, open] of [
+  ["instellingen", async () => { await page.click("#btn-settings"); }],
+  ["invoer", async () => { await page.click('.tab-btn[data-tab="maand"]'); await page.click('[data-add="out"]'); }],
+  ["belegging", async () => { await page.click('.tab-btn[data-tab="vermogen"]'); await page.click("#add-invest"); }],
+  ["maandkiezer", async () => { await page.click('.tab-btn[data-tab="maand"]'); await page.click("#month-name"); }],
+]) {
+  await open();
+  await page.waitForTimeout(250);
+  const r = await page.evaluate(() => {
+    const ov = [...document.querySelectorAll(".sheet-overlay")].find((o) => !o.hidden);
+    if (!ov) return { missing: true };
+    const sheet = ov.querySelector(".sheet");
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const bad = [];
+    for (const el of ov.querySelectorAll("*")) {
+      const b = el.getBoundingClientRect();
+      if (b.width && (b.right > vw + 0.5 || b.left < -0.5)) {
+        bad.push(el.tagName.toLowerCase() + "." + String(el.className || "").split(" ")[0]);
+      }
+    }
+    const act = sheet.querySelector(".sheet-actions");
+    const ar = act ? act.getBoundingClientRect() : null;
+    return {
+      hOverflow: sheet.scrollWidth > sheet.clientWidth + 1,
+      offscreen: [...new Set(bad)],
+      actionsVisible: ar ? ar.bottom <= vh + 1 && ar.top >= 0 : null,
+    };
+  });
+  if (r.missing || r.hOverflow || r.offscreen.length || r.actionsVisible === false) sheetIssues.push([name, r]);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+}
+
 await browser.close();
 server.close();
 
 console.log("Nav:", JSON.stringify(navCheck));
+console.log("Sheets:", sheetIssues.length ? JSON.stringify(sheetIssues, null, 2) : "alle 4 OK (geen overflow, acties zichtbaar)");
+if (sheetIssues.length) process.exitCode = 1;
 
 console.log("Maand eindsaldo:", endBalance, "| aankopen:", totalOut);
 console.log("Overzicht spaargeld nu:", ovNow, "| maandrijen:", monthRows);

@@ -67,6 +67,46 @@ function parseAmount(raw) {
 function haptic(ms) { try { if (navigator.vibrate) navigator.vibrate(ms || 12); } catch { /* n.v.t. */ } }
 
 /* ============================================================
+   Thema: 'auto' (systeem) | 'light' | 'dark'
+   Los van de budget-state opgeslagen, zodat de inline head-script het
+   vóór de eerste paint kan lezen.
+   ============================================================ */
+const THEME_KEY = "budget-theme";
+const sysDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+function getThemePref() {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v === "light" || v === "dark" ? v : "auto";
+  } catch { return "auto"; }
+}
+function resolvedDark(pref) {
+  return pref === "dark" || (pref === "auto" && sysDark.matches);
+}
+function applyTheme(pref) {
+  const dark = resolvedDark(pref);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const meta = document.getElementById("meta-theme-color");
+  if (meta) meta.setAttribute("content", dark ? "#08120f" : "#ffffff");
+  syncThemeSeg(pref);
+}
+function setThemePref(pref) {
+  try { localStorage.setItem(THEME_KEY, pref); } catch { /* n.v.t. */ }
+  applyTheme(pref);
+}
+function syncThemeSeg(pref) {
+  document.querySelectorAll("#theme-seg .seg-opt").forEach((b) => {
+    b.setAttribute("aria-checked", String(b.dataset.themeOpt === pref));
+  });
+}
+document.querySelectorAll("#theme-seg .seg-opt").forEach((b) => {
+  b.addEventListener("click", () => { haptic(8); setThemePref(b.dataset.themeOpt); });
+});
+// Volgt het systeem alleen wanneer de voorkeur 'auto' is
+sysDark.addEventListener("change", () => { if (getThemePref() === "auto") applyTheme("auto"); });
+applyTheme(getThemePref());
+
+/* ============================================================
    State
    ============================================================ */
 function defaultState() {
@@ -691,7 +731,9 @@ function renderMpGrid() {
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "mp-cell" + (key === viewMonth ? " is-on" : "");
-    cell.textContent = monthOnlyFmt.format(new Date(mpYear, m - 1, 1));
+    // Korte namen: passen ook op smalle toestellen in 3 kolommen
+    cell.textContent = monthShortFmt.format(new Date(mpYear, m - 1, 1)).replace(".", "");
+    cell.setAttribute("aria-label", monthOnlyFmt.format(new Date(mpYear, m - 1, 1)));
     cell.disabled = key < state.startMonth;
     cell.addEventListener("click", () => { viewMonth = clampToStart(key); haptic(6); closeOverlay(monthOverlay); switchTab("maand"); render(); });
     mpGrid.appendChild(cell);
@@ -710,7 +752,7 @@ const fDay = $("#f-day");
 const fRecurring = $("#f-recurring");
 const entryTitle = $("#entry-title");
 const entryError = $("#entry-error");
-const segOpts = [...document.querySelectorAll(".seg-opt")];
+const segOpts = [...entryForm.querySelectorAll(".seg-opt")];
 const catField = $("#cat-field");
 const catRow = $("#cat-row");
 const potRow = $("#pot-row");

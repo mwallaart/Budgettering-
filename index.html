@@ -6,9 +6,23 @@
   <title>Budget · Overzicht &amp; vermogen</title>
   <meta name="description" content="Persoonlijke budgetteer-app: overzicht met maandtotalen, spaarpotjes met doelen, cashflow per dag en totaal vermogen. Offline en installeerbaar." />
 
+  <!-- Thema vóór de eerste paint zetten, anders flitst de app kort in het
+       verkeerde thema. Voorkeur: 'auto' (systeem), 'light' of 'dark'. -->
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem("budget-theme") || "auto";
+        var dark = pref === "dark" ||
+          (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      } catch (e) {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
+
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#0b1512" media="(prefers-color-scheme: dark)" />
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" id="meta-theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Budget" />
@@ -312,6 +326,15 @@
     <div class="sheet glass" role="dialog" aria-labelledby="set-title" aria-modal="true">
       <div class="sheet-grip" aria-hidden="true"></div>
       <h2 class="sheet-title" id="set-title">Instellingen</h2>
+
+      <div class="field">
+        <span>Weergave</span>
+        <div class="seg seg-3" id="theme-seg" role="radiogroup" aria-label="Weergave">
+          <button type="button" class="seg-opt" data-theme-opt="auto" role="radio">Systeem</button>
+          <button type="button" class="seg-opt" data-theme-opt="light" role="radio">Licht</button>
+          <button type="button" class="seg-opt" data-theme-opt="dark" role="radio">Donker</button>
+        </div>
+      </div>
 
       <div class="field">
         <span>Spaarpotjes · beginsaldo &amp; doel</span>

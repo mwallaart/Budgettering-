@@ -2,8 +2,10 @@
    Budget · Apple glass PWA
    ============================================================ */
 
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
 :root {
-  color-scheme: light dark;
 
   /* Solide "merk"-groen — altijd witte tekst erop, in beide thema's */
   --brand-a: #2E6B54;
@@ -46,8 +48,10 @@
   --maxw: 560px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Donker thema.
+   JS zet data-theme="dark" of "light" op <html> (ook bij systeemvoorkeur),
+   zodat de gebruiker handmatig kan wisselen. */
+:root[data-theme="dark"] {
     /* Donkerder, neutralere basis zodat kaarten er duidelijk bovenop liggen */
     --bg-0: #08120f;
     --bg-1: #0d1a16;
@@ -78,7 +82,6 @@
     --pos-soft: rgba(84, 223, 168, 0.18);
     --neg: #ff9077;
     --neg-soft: rgba(255, 144, 119, 0.18);
-  }
 }
 
 * { box-sizing: border-box; }
@@ -123,7 +126,8 @@ body {
 .blob-a { top: -22vmax; left: -16vmax; background: radial-gradient(circle, #2E6B54, transparent 70%); }
 .blob-b { bottom: -26vmax; right: -20vmax; background: radial-gradient(circle, #3AA57D, transparent 70%); }
 .blob-c { top: 40%; right: -24vmax; background: radial-gradient(circle, #8FD8B8, transparent 72%); opacity: 0.08; }
-@media (prefers-color-scheme: dark) { .blob { opacity: 0.40; } .blob-c { opacity: 0.28; } }
+:root[data-theme="dark"] .blob { opacity: 0.40; }
+:root[data-theme="dark"] .blob-c { opacity: 0.28; }
 
 /* ---------- Glass basis ---------- */
 .glass {
@@ -555,7 +559,9 @@ button { font: inherit; }
   transition: background 0.16s var(--ease), color 0.16s var(--ease);
   touch-action: manipulation;
 }
-.seg-opt[aria-selected="true"] {
+.seg-3 { grid-template-columns: repeat(3, 1fr); }
+.seg-opt[aria-selected="true"],
+.seg-opt[aria-checked="true"] {
   background: var(--glass-strong);
   color: var(--text);
   box-shadow: 0 2px 8px -3px rgba(21, 40, 84, 0.3);
@@ -638,8 +644,20 @@ button { font: inherit; }
 .field-error { margin: 0; color: var(--neg); font-size: 0.84rem; font-weight: 500; }
 .choice-text { margin: 0; color: var(--text-2); font-size: 0.94rem; line-height: 1.5; }
 
-/* Sheet-acties */
-.sheet-actions { display: flex; gap: 10px; margin-top: 2px; }
+/* Sheet-acties — blijven onderin plakken zodat ze altijd bereikbaar zijn,
+   ook als de sheet moet scrollen. */
+.sheet-actions {
+  display: flex;
+  gap: 10px;
+  position: sticky;
+  bottom: calc(-20px - env(safe-area-inset-bottom));
+  z-index: 2;
+  margin: 2px calc(var(--pad) * -1) calc(-20px - env(safe-area-inset-bottom));
+  padding: 12px var(--pad) calc(20px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--glass-strong) 62%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
 .sheet-actions.column { flex-direction: column; }
 .sheet-actions > * { flex: 1; }
 .set-buttons { display: flex; flex-direction: column; gap: 8px; }
@@ -949,9 +967,9 @@ button { font: inherit; }
   border-radius: 14px;
   background: var(--glass);
 }
-.pe-top { display: flex; gap: 8px; align-items: center; }
+.pe-top { display: flex; gap: 8px; align-items: center; min-width: 0; }
 .pe-name {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   padding: 11px 12px;
   font-size: 16px;
@@ -1218,8 +1236,12 @@ button { font: inherit; }
   gap: 10px;
 }
 .mp-year { font-weight: 680; font-size: 1.1rem; }
-.mp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .mp-cell {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 15px 6px;
   border-radius: 12px;
   border: 1px solid var(--hairline);
@@ -1304,18 +1326,22 @@ input[type="month"], input[type="number"] { min-width: 0; width: 100%; }
   margin-bottom: 2px;
 }
 
-/* Icoon-invoer in potjesbeheer */
-.pe-icon {
-  flex: none;
-  width: 48px;
+/* Icoon-invoer in potjesbeheer.
+   Specifieker dan `.field input { width: 100% }`, anders rekt het veld op
+   en duwt het de verwijderknop buiten het scherm. */
+.pot-edit .pe-icon {
+  flex: 0 0 46px;
+  width: 46px;
+  min-width: 46px;
   text-align: center;
-  padding: 11px 4px;
+  padding: 11px 2px;
   font-size: 18px;
   border: 1px solid var(--hairline);
   border-radius: 12px;
   background: var(--glass-strong);
   color: var(--text);
 }
+.pot-edit .pot-del { flex: 0 0 38px; }
 
 /* Grafiek: raster + vandaag-lijn */
 .chart-svg .c-grid { stroke: var(--hairline); stroke-width: 1; opacity: 0.5; }
@@ -1331,52 +1357,60 @@ input[type="month"], input[type="number"] { min-width: 0; width: 100%; }
    Donkere modus — afsluitende verfijning
    (staat achteraan zodat het de polish-regels hierboven overschrijft)
    ============================================================ */
-@media (prefers-color-scheme: dark) {
-  /* Iets meer sfeer, maar niet modderig */
-  .blob { opacity: 0.30; }
-  .blob-c { opacity: 0.18; }
+/* Iets meer sfeer, maar niet modderig */
+:root[data-theme="dark"] .blob { opacity: 0.30; }
+:root[data-theme="dark"] .blob-c { opacity: 0.18; }
 
-  /* Kaarten duidelijk van de achtergrond scheiden */
-  .glass, .list, .month-row {
-    box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  }
-
-  /* Statkaarten: subtiele tint over een neutrale ondergrond, anders
-     mengt oranje met het groen van de kaart tot bruin */
-  .stat-in {
-    background: linear-gradient(rgba(84, 223, 168, 0.12), rgba(84, 223, 168, 0.12)), rgba(26, 40, 36, 0.86);
-  }
-  .stat-out {
-    background: linear-gradient(rgba(255, 144, 119, 0.12), rgba(255, 144, 119, 0.12)), rgba(34, 30, 30, 0.86);
-  }
-
-  .net-badge { background: rgba(0, 0, 0, 0.26); }
-
-  /* Waarschuwing: neutrale ondergrond, dan tinten */
-  .warn-card {
-    background: linear-gradient(rgba(255, 144, 119, 0.14), rgba(255, 144, 119, 0.14)), rgba(34, 30, 30, 0.88);
-  }
-
-  /* Actieve elementen wat prominenter */
-  .pot-card.is-on { background: color-mix(in srgb, var(--accent) 18%, var(--glass)); }
-  .tab-ind { background: color-mix(in srgb, var(--accent) 20%, transparent); }
-  .seg-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 20%, var(--glass-strong)); }
-
-  /* Grafiek beter leesbaar op donkere kaart */
-  .chart-svg .c-line { stroke-width: 2.8; }
-  .chart-svg .c-grid { opacity: 0.35; }
-  .chart-svg .c-tick { fill: var(--text-3); }
-  .chart-svg .c-danger { opacity: 0.16; }
-
-  /* Invoervelden een tikje lichter dan de kaart eronder */
-  .field > input, .amount-input, .pe-money, .pe-name, .pe-icon, .mp-cell {
-    background: rgba(60, 88, 77, 0.88);
-    border-color: rgba(255, 255, 255, 0.16);
-  }
-
-  /* Groene merkknoppen: witte tekst blijft leesbaar */
-  .btn-primary, .fab, .brand-mark, .mr-now-pill { color: #fff; }
+/* Kaarten duidelijk van de achtergrond scheiden */
+:root[data-theme="dark"] .glass, :root[data-theme="dark"] .list, :root[data-theme="dark"] .month-row {
+  box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
+
+/* Statkaarten: subtiele tint over een neutrale ondergrond, anders
+   mengt oranje met het groen van de kaart tot bruin */
+:root[data-theme="dark"] .stat-in {
+  background: linear-gradient(rgba(84, 223, 168, 0.12), rgba(84, 223, 168, 0.12)), rgba(26, 40, 36, 0.86);
+}
+:root[data-theme="dark"] .stat-out {
+  background: linear-gradient(rgba(255, 144, 119, 0.12), rgba(255, 144, 119, 0.12)), rgba(34, 30, 30, 0.86);
+}
+
+:root[data-theme="dark"] .net-badge { background: rgba(0, 0, 0, 0.26); }
+
+/* Waarschuwing: neutrale ondergrond, dan tinten */
+:root[data-theme="dark"] .warn-card {
+  background: linear-gradient(rgba(255, 144, 119, 0.14), rgba(255, 144, 119, 0.14)), rgba(34, 30, 30, 0.88);
+}
+
+/* Actieve elementen wat prominenter */
+:root[data-theme="dark"] .pot-card.is-on { background: color-mix(in srgb, var(--accent) 18%, var(--glass)); }
+:root[data-theme="dark"] .tab-ind { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+:root[data-theme="dark"] .seg-opt[aria-selected="true"],
+:root[data-theme="dark"] .seg-opt[aria-checked="true"] { background: color-mix(in srgb, var(--accent) 20%, var(--glass-strong)); }
+
+/* Grafiek beter leesbaar op donkere kaart */
+:root[data-theme="dark"] .chart-svg .c-line { stroke-width: 2.8; }
+:root[data-theme="dark"] .chart-svg .c-grid { opacity: 0.35; }
+:root[data-theme="dark"] .chart-svg .c-tick { fill: var(--text-3); }
+:root[data-theme="dark"] .chart-svg .c-danger { opacity: 0.16; }
+
+/* Verwijderknop: neutrale ondergrond, anders mengt rood met groen tot bruin */
+:root[data-theme="dark"] .pot-del {
+  background: linear-gradient(rgba(255, 144, 119, 0.16), rgba(255, 144, 119, 0.16)), rgba(38, 32, 31, 0.92);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+:root[data-theme="dark"] .btn-danger {
+  background: linear-gradient(rgba(255, 144, 119, 0.16), rgba(255, 144, 119, 0.16)), rgba(38, 32, 31, 0.92);
+}
+
+/* Invoervelden een tikje lichter dan de kaart eronder */
+:root[data-theme="dark"] .field > input, :root[data-theme="dark"] .amount-input, :root[data-theme="dark"] .pe-money, :root[data-theme="dark"] .pe-name, :root[data-theme="dark"] .pe-icon, :root[data-theme="dark"] .mp-cell {
+  background: rgba(60, 88, 77, 0.88);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Groene merkknoppen: witte tekst blijft leesbaar */
+.btn-primary, .fab, .brand-mark, .mr-now-pill { color: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
