@@ -6,6 +6,10 @@
 const STORAGE_KEY = "budget-glass-v1";
 const THEME_KEY = "budget-theme";
 
+/* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
+   of het toestel de nieuwste versie draait of nog een gecachte oude. */
+const BUILD = "2.1 · build 5 (30 jul)";
+
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 
@@ -1240,6 +1244,7 @@ $("#month-title").addEventListener("click", () => openPicker("nav", S.month));
 /* ---------- Instellingen ---------- */
 function renderSettings() {
   applyTheme(themePref());
+  $("#build-stamp").textContent = `Versie ${BUILD} · alle bedragen in euro · nl-NL`;
   const nowK = clampMonth(todayKey());
   $("#pot-total").textContent = fmt(end(nowK)) + " totaal";
   $("#start-month-label").textContent = MN[parseK(D.startMonth).m] + " " + parseK(D.startMonth).y;

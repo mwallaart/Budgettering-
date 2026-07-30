@@ -1,0 +1,286 @@
+{
+  "version": 5,
+  "startMonth": "2026-07",
+  "pots": [
+    {
+      "id": "alg",
+      "label": "Algemeen",
+      "icon": "🪙",
+      "startBalance": 0,
+      "goal": 0,
+      "goalDate": null
+    },
+    {
+      "id": "spaar",
+      "label": "Sparen",
+      "icon": "🐖",
+      "startBalance": 0,
+      "goal": 0,
+      "goalDate": null
+    },
+    {
+      "id": "vak",
+      "label": "Vakantie",
+      "icon": "🏖️",
+      "startBalance": 0,
+      "goal": 0,
+      "goalDate": null
+    },
+    {
+      "id": "pers",
+      "label": "Persoonlijk",
+      "icon": "👤",
+      "startBalance": 0,
+      "goal": 0,
+      "goalDate": null
+    }
+  ],
+  "recurring": [
+    {
+      "id": "i1",
+      "kind": "in",
+      "group": "in",
+      "label": "Salaris Mitch",
+      "amount": 3662,
+      "day": 25,
+      "potId": "alg",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "i2",
+      "kind": "in",
+      "group": "in",
+      "label": "Salaris Leo",
+      "amount": 3350,
+      "day": 24,
+      "potId": "alg",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u1",
+      "kind": "out",
+      "label": "Hypotheek",
+      "amount": 1800,
+      "day": 1,
+      "potId": "alg",
+      "category": "huis",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u2",
+      "kind": "out",
+      "label": "Zorgverzekering",
+      "amount": 350,
+      "day": 1,
+      "potId": "alg",
+      "category": "verzekering",
+      "fromMonth": "2026-07",
+      "review": true
+    },
+    {
+      "id": "u3",
+      "kind": "out",
+      "label": "Gas / elektra",
+      "amount": 150,
+      "day": 2,
+      "potId": "alg",
+      "category": "huis",
+      "fromMonth": "2026-07",
+      "review": true
+    },
+    {
+      "id": "u4",
+      "kind": "out",
+      "label": "Autoverzekering",
+      "amount": 80,
+      "day": 2,
+      "potId": "alg",
+      "category": "vervoer",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u5",
+      "kind": "out",
+      "label": "Inshared (woonverzekering)",
+      "amount": 30,
+      "day": 3,
+      "potId": "alg",
+      "category": "verzekering",
+      "fromMonth": "2026-07",
+      "review": true
+    },
+    {
+      "id": "u6",
+      "kind": "out",
+      "label": "Ziggo",
+      "amount": 50,
+      "day": 4,
+      "potId": "alg",
+      "category": "abo",
+      "fromMonth": "2026-07",
+      "review": true
+    },
+    {
+      "id": "u7",
+      "kind": "out",
+      "label": "Simyo",
+      "amount": 8,
+      "day": 5,
+      "potId": "alg",
+      "category": "abo",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u8",
+      "kind": "out",
+      "label": "Odido telefoon",
+      "amount": 25,
+      "day": 5,
+      "potId": "alg",
+      "category": "abo",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u9",
+      "kind": "out",
+      "label": "Telefoon Leo",
+      "amount": 15,
+      "day": 5,
+      "potId": "alg",
+      "category": "abo",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u10",
+      "kind": "out",
+      "label": "Boodschappen",
+      "amount": 500,
+      "day": 5,
+      "potId": "alg",
+      "category": "bood",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u11",
+      "kind": "out",
+      "label": "Gemeentebelastingen",
+      "amount": 98,
+      "day": 8,
+      "potId": "alg",
+      "category": "huis",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u12",
+      "kind": "out",
+      "label": "Spotify",
+      "amount": 10,
+      "day": 8,
+      "potId": "alg",
+      "category": "abo",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u13",
+      "kind": "out",
+      "label": "Wegenbelasting",
+      "amount": 80,
+      "day": 10,
+      "potId": "alg",
+      "category": "vervoer",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u14",
+      "kind": "out",
+      "label": "Vitens (water)",
+      "amount": 20,
+      "day": 10,
+      "potId": "alg",
+      "category": "huis",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "u15",
+      "kind": "out",
+      "label": "ANWB",
+      "amount": 15,
+      "day": 12,
+      "potId": "alg",
+      "category": "vervoer",
+      "fromMonth": "2026-07",
+      "review": true
+    },
+    {
+      "id": "u16",
+      "kind": "out",
+      "label": "Benzine / cadeau's",
+      "amount": 250,
+      "day": 15,
+      "potId": "alg",
+      "category": "vervoer",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "o1",
+      "kind": "move",
+      "group": "over",
+      "label": "Sparen",
+      "amount": 1000,
+      "day": 26,
+      "potId": "alg",
+      "toPot": "spaar",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "o2",
+      "kind": "move",
+      "group": "over",
+      "label": "Vakantiepotje",
+      "amount": 500,
+      "day": 26,
+      "potId": "alg",
+      "toPot": "vak",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "o3",
+      "kind": "out",
+      "group": "over",
+      "label": "Beleggen",
+      "amount": 500,
+      "day": 26,
+      "potId": "alg",
+      "category": "overig",
+      "fromMonth": "2026-07"
+    },
+    {
+      "id": "o4",
+      "kind": "move",
+      "group": "over",
+      "label": "Persoonlijk besteden",
+      "amount": 1500,
+      "day": 26,
+      "potId": "alg",
+      "toPot": "pers",
+      "fromMonth": "2026-07"
+    }
+  ],
+  "months": {},
+  "investments": [
+    {
+      "id": "v1",
+      "label": "Beleggingsrekening",
+      "value": 0,
+      "monthly": 500,
+      "updated": "2026-07-30"
+    }
+  ],
+  "recentLabels": [
+    "Boodschappen",
+    "Benzine / cadeau's",
+    "Tandarts"
+  ],
+  "backupDismissed": false,
+  "lastBackup": null
+}
