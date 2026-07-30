@@ -54,6 +54,13 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --pad: 18px;
   --maxw: 480px;
+
+  /* Onderrand voor tabbar/FAB/toast. Op iOS valt dit samen met de
+     home-indicator (env), elders houdt max() een nette marge. Alles wat
+     onderaan zweeft rekent hiervan af, zodat de onderlinge afstanden
+     kloppen op elk toestel. */
+  --barbottom: max(14px, env(safe-area-inset-bottom));
+  --barheight: 66px;
 }
 
 /* ---------- Tokens: donker ---------- */
@@ -258,7 +265,7 @@ a:hover { color: var(--gold); }
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px var(--pad) calc(180px + env(safe-area-inset-bottom));
+  padding: 2px var(--pad) calc(var(--barbottom) + var(--barheight) + 96px);
   -webkit-overflow-scrolling: touch;
 }
 .view { display: flex; flex-direction: column; gap: 14px; animation: riseIn 0.32s var(--ease); }
@@ -746,7 +753,18 @@ a:hover { color: var(--gold); }
 }
 
 .swipe { position: relative; border-radius: 18px; overflow: hidden; }
-.swipe-actions { position: absolute; inset: 0; display: flex; gap: 6px; justify-content: flex-end; }
+/* Actieknoppen liggen achter de regel. Alleen aanklikbaar (en focusbaar)
+   wanneer er daadwerkelijk geveegd is, anders vangen ze kliks op de regel
+   en staan ze onzichtbaar in de tab-volgorde. */
+.swipe-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.swipe.open .swipe-actions { pointer-events: auto; }
 .swipe-actions button { width: 72px; border-radius: 18px; border: none; font-size: 11.5px; font-weight: 700; }
 .swipe-move { background: var(--tint2); color: var(--ink); }
 .swipe-del { background: linear-gradient(rgba(180,85,58,0.22), rgba(180,85,58,0.22)), var(--card); color: var(--neg); }
@@ -765,6 +783,8 @@ a:hover { color: var(--gold); }
   width: 100%;
   text-align: left;
   color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .row.dragging { transition: none; }
 .row-tile {
@@ -869,7 +889,7 @@ a:hover { color: var(--gold); }
   display: grid;
   place-items: center;
   z-index: 20;
-  bottom: calc(120px + env(safe-area-inset-bottom));
+  bottom: calc(var(--barbottom) + var(--barheight) + 20px);
   left: 50%;
   transform: translateX(calc(var(--maxw) / 2 - 60px - var(--pad) + 2px));
   transition: transform 0.14s var(--ease);
@@ -885,7 +905,7 @@ a:hover { color: var(--gold); }
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(20px + env(safe-area-inset-bottom));
+  bottom: var(--barbottom);
   width: min(calc(var(--maxw) - 28px), calc(100vw - 28px));
   padding: 6px;
   border-radius: 30px;
@@ -938,7 +958,7 @@ a:hover { color: var(--gold); }
   flex-direction: column;
   gap: 4px;
   z-index: 31;
-  bottom: calc(172px + env(safe-area-inset-bottom));
+  bottom: calc(var(--barbottom) + var(--barheight) + 92px);
   right: max(var(--pad), calc(50vw - var(--maxw) / 2 + var(--pad)));
 }
 .quick[hidden] { display: none; }
@@ -1366,7 +1386,7 @@ a:hover { color: var(--gold); }
   right: 0;
   margin: 0 auto;
   width: min(calc(var(--maxw) - 36px), calc(100vw - 36px));
-  bottom: calc(176px + env(safe-area-inset-bottom));
+  bottom: calc(var(--barbottom) + var(--barheight) + 90px);
   z-index: 35;
   display: flex;
   align-items: center;

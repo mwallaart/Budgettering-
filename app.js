@@ -547,12 +547,13 @@ function renderGroups() {
       const cls = r.kind === "in" ? "pos" : (r.kind === "move" ? "" : "neg");
       const ico = r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶");
       const hint = (!S.hintDone && g.key === "in" && i === 0) ? "animation:swipeHint 2.8s cubic-bezier(.22,1,.36,1) 1.4s 2" : "";
-      return `<div class="swipe">
-        <div class="swipe-actions">
-          <button type="button" class="swipe-move" data-move="${r.id}">Verzet →</button>
-          <button type="button" class="swipe-del" data-del="${r.id}">Wissen</button>
+      const openSwipe = S.swipe && S.swipe.id === r.id;
+      return `<div class="swipe${openSwipe ? " open" : ""}">
+        <div class="swipe-actions"${openSwipe ? "" : ' aria-hidden="true"'}>
+          <button type="button" class="swipe-move" data-move="${r.id}"${openSwipe ? "" : ' tabindex="-1"'}>Verzet →</button>
+          <button type="button" class="swipe-del" data-del="${r.id}"${openSwipe ? "" : ' tabindex="-1"'}>Wissen</button>
         </div>
-        <button type="button" class="row" data-row="${r.id}" style="transform:translateX(${dx}px);${hint}">
+        <div class="row" role="button" tabindex="0" data-row="${r.id}" style="transform:translateX(${dx}px);${hint}">
           <span class="row-tile" aria-hidden="true">${ico}</span>
           <span class="row-main">
             <span class="row-top">
@@ -562,7 +563,10 @@ function renderGroups() {
             <span class="row-meta">${esc(rowMeta(r))}</span>
           </span>
           <span class="row-amt tnum ${cls}">${amt}</span>
-        </button>
+          <button type="button" class="row-more" data-actions="${r.id}" aria-label="Acties voor ${esc(r.label)}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>
+          </button>
+        </div>
       </div>`;
     }).join("") : "";
     return `<div class="group" style="margin-bottom:14px">
@@ -593,11 +597,21 @@ function renderGroups() {
   wrap.querySelectorAll("[data-move]").forEach((b2) => b2.addEventListener("click", () => moveNext(findRow(b2.dataset.move))));
   wrap.querySelectorAll("[data-del]").forEach((b2) => b2.addEventListener("click", () => delRow(findRow(b2.dataset.del))));
 
+  // ⋯-knop: dezelfde acties zonder te vegen (en bereikbaar met toetsenbord)
+  wrap.querySelectorAll("[data-actions]").forEach((b2) => {
+    b2.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const r = findRow(b2.dataset.actions);
+      if (r) openRowActions(r);
+    });
+  });
+
   // Swipe + tap
   wrap.querySelectorAll("[data-row]").forEach((el) => {
     const id = el.dataset.row;
     let x0 = null, moved = false, base = 0;
     el.addEventListener("pointerdown", (ev) => {
+      if (ev.target.closest(".row-more")) return;   // ⋯ start geen veeg
       x0 = ev.clientX; moved = false;
       base = S.swipe && S.swipe.id === id ? S.swipe.dx : 0;
       el.classList.add("dragging");
@@ -623,10 +637,45 @@ function renderGroups() {
       const openIt = raw < -70;
       S.swipe = openIt ? { id, dx: -150 } : null;
       el.style.transform = `translateX(${openIt ? -150 : 0}px)`;
+      setSwipeOpen(el, openIt);
     };
     el.addEventListener("pointerup", finish);
     el.addEventListener("pointercancel", () => { x0 = null; el.classList.remove("dragging"); el.style.transform = `translateX(${S.swipe && S.swipe.id === id ? -150 : 0}px)`; });
+    // Toetsenbord: Enter/Space bewerkt, ← opent de acties
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        const r = findRow(id); if (r) openEntry(r, S.month);
+      } else if (ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        const r = findRow(id); if (r) openRowActions(r);
+      }
+    });
   });
+}
+
+/* Zet de open-staat op de bestaande DOM-node, zodat de reveal blijft
+   animeren (opnieuw renderen zou de transitie verliezen). */
+function setSwipeOpen(rowEl, open) {
+  const wrap = rowEl.closest(".swipe");
+  if (!wrap) return;
+  wrap.classList.toggle("open", open);
+  const acts = wrap.querySelector(".swipe-actions");
+  if (!acts) return;
+  if (open) acts.removeAttribute("aria-hidden"); else acts.setAttribute("aria-hidden", "true");
+  acts.querySelectorAll("button").forEach((b) => {
+    if (open) b.removeAttribute("tabindex"); else b.setAttribute("tabindex", "-1");
+  });
+}
+
+/* Actiesheet per regel: verzetten of wissen zonder vegen */
+function openRowActions(r) {
+  choiceCtx = { r, mode: "actions", month: S.month };
+  $("#choice-title").textContent = r.label;
+  $("#choice-body").textContent = rowMeta(r);
+  $("#choice-once").textContent = "Verzet naar volgende maand";
+  $("#choice-all").textContent = "Verwijderen";
+  openSheet("sh-choice");
 }
 
 function moveNext(r) {
@@ -1100,6 +1149,7 @@ function askChoice(r, mode) {
 }
 $("#choice-once").addEventListener("click", () => {
   const { r, month } = choiceCtx;
+  if (choiceCtx.mode === "actions") { closeSheets(); moveNext(r); return; }
   const nd = clone();
   nd.months[month] = nd.months[month] || { entries: [], skip: [] };
   if (!nd.months[month].skip.includes(r.id)) nd.months[month].skip.push(r.id);
@@ -1113,6 +1163,7 @@ $("#choice-once").addEventListener("click", () => {
 });
 $("#choice-all").addEventListener("click", () => {
   const { r, month, mode } = choiceCtx;
+  if (mode === "actions") { closeSheets(); delRow(r); return; }
   const nd = clone();
   if (mode === "del") {
     nd.recurring = nd.recurring.filter((x) => x.id !== r.id);

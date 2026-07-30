@@ -81,7 +81,7 @@ async function load(page, withData = true) {
     await page.reload({ waitUntil: "networkidle" });
   }
   // laadscherm wegwachten
-  await page.waitForSelector("#loader[hidden]", { timeout: 5000 }).catch(() => {});
+  await page.waitForSelector("#loader[hidden]", { state: "attached", timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(700);
 }
 
