@@ -59,8 +59,6 @@
      home-indicator (env), elders houdt max() een nette marge. Alles wat
      onderaan zweeft rekent hiervan af, zodat de onderlinge afstanden
      kloppen op elk toestel. */
-  --barbottom: max(14px, env(safe-area-inset-bottom));
-  --barheight: 66px;
   /* Transparante variant van --app1 voor de fade onderaan. Met `transparent`
      krijg je in sommige browsers een grijze zweem, daarom expliciet. */
   --app1-0: rgba(246, 241, 227, 0);
@@ -186,6 +184,7 @@ a:hover { color: var(--gold); }
   flex-direction: column;
   background: linear-gradient(180deg, var(--app0) 0%, var(--app1) 100%);
   padding-top: env(safe-area-inset-top);
+  overflow: hidden;
 }
 @media (min-width: 560px) {
   body { background: var(--desk); }
@@ -270,7 +269,7 @@ a:hover { color: var(--gold); }
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px var(--pad) calc(var(--barbottom) + var(--barheight) + 96px);
+  padding: 2px var(--pad) 26px;
   -webkit-overflow-scrolling: touch;
 }
 .view { display: flex; flex-direction: column; gap: 14px; animation: riseIn 0.32s var(--ease); }
@@ -872,20 +871,34 @@ a:hover { color: var(--gold); }
 /* ============================================================
    FAB · tabbar · snelmenu
    ============================================================ */
-/* Loopt door tot de onderrand en wordt volledig dekkend, zodat er geen
-   inhoud doorheen scrolt in de strook onder de tabbar (de veilige zone). */
-.fade-bottom {
-  position: fixed;
+/* ---------- Dock onderaan (normaal element, geen position:fixed) ---------- */
+.dock {
+  flex: none;
+  position: relative;
+  z-index: 20;
+  /* De veilige zone ís de onderrand: op iOS eindigt de balk daarmee precies
+     op de home-indicator, elders houdt max() 14px marge. env() staat hier in
+     een gewone padding-declaratie, niet in een custom property — dat laatste
+     is de constructie die op iOS onbetrouwbaar bleek. */
+  padding: 0 14px max(14px, env(safe-area-inset-bottom));
+  background: var(--app1);
+}
+/* Zachte overgang boven de dock, zodat inhoud niet hard afbreekt */
+.dock::before {
+  content: "";
+  position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: calc(var(--barbottom) + var(--barheight) + 56px);
+  bottom: 100%;
+  height: 56px;
+  background: linear-gradient(180deg, var(--app1-0), var(--app1));
   pointer-events: none;
-  background: linear-gradient(180deg, var(--app1-0) 0%, var(--app1) 52%, var(--app1) 100%);
-  z-index: 9;
 }
+
 .fab {
-  position: fixed;
+  position: absolute;
+  right: 18px;
+  bottom: calc(100% + 6px);
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -894,28 +907,16 @@ a:hover { color: var(--gold); }
   box-shadow: 0 14px 26px -10px rgba(23, 63, 50, 0.75);
   display: grid;
   place-items: center;
-  z-index: 20;
-  bottom: calc(var(--barbottom) + var(--barheight) + 20px);
-  left: 50%;
-  transform: translateX(calc(var(--maxw) / 2 - 60px - var(--pad) + 2px));
   transition: transform 0.14s var(--ease);
 }
-@media (max-width: 520px) {
-  .fab { left: auto; right: var(--pad); transform: none; }
-}
-.fab:active { transform: scale(0.92) translateX(0); }
-@media (min-width: 521px) { .fab:active { transform: translateX(calc(var(--maxw) / 2 - 60px - var(--pad) + 2px)) scale(0.92); } }
+.fab:active { transform: scale(0.92); }
 .fab svg { display: block; }
 
 .tabbar {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: var(--barbottom);
-  width: min(calc(var(--maxw) - 28px), calc(100vw - 28px));
+  position: relative;
+  width: auto;
   padding: 6px;
   border-radius: 30px;
-  z-index: 10;
   background: var(--glass);
   -webkit-backdrop-filter: blur(30px) saturate(200%);
   backdrop-filter: blur(30px) saturate(200%);
@@ -952,8 +953,11 @@ a:hover { color: var(--gold); }
 }
 
 .quick {
-  position: fixed;
+  position: absolute;
+  right: 18px;
+  bottom: calc(100% + 76px);
   width: 250px;
+  max-width: calc(100% - 36px);
   padding: 8px;
   border-radius: 22px;
   background: var(--sheet);
@@ -964,8 +968,6 @@ a:hover { color: var(--gold); }
   flex-direction: column;
   gap: 4px;
   z-index: 31;
-  bottom: calc(var(--barbottom) + var(--barheight) + 92px);
-  right: max(var(--pad), calc(50vw - var(--maxw) / 2 + var(--pad)));
 }
 .quick[hidden] { display: none; }
 .quick-kicker {
@@ -995,6 +997,9 @@ a:hover { color: var(--gold); }
 /* ============================================================
    Sheets
    ============================================================ */
+/* Het snelmenu leeft in de dock (z-index 20); zijn scrim moet daar dus
+   onder blijven. Het sheet-scrim (30) hoort er juist bovenop. */
+#quick-scrim { z-index: 19; }
 .scrim {
   position: fixed;
   inset: 0;
@@ -1387,12 +1392,10 @@ a:hover { color: var(--gold); }
 
 /* Toast */
 .toast {
-  position: fixed;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  width: min(calc(var(--maxw) - 36px), calc(100vw - 36px));
-  bottom: calc(var(--barbottom) + var(--barheight) + 90px);
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: calc(100% + 76px);
   z-index: 35;
   display: flex;
   align-items: center;

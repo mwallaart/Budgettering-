@@ -223,14 +223,29 @@
     </section>
   </div>
 
-  <!-- ==================== FAB · tabbar ==================== -->
-  <div class="fade-bottom" aria-hidden="true"></div>
+  <!-- ==================== Dock: FAB · tabbar · toast · snelmenu ====================
+       Staat als normaal element onderaan de app-kolom, niet position:fixed.
+       Zo zit de balk altijd echt tegen de onderrand, ongeacht hoe iOS de
+       veilige zones en het viewport rapporteert. -->
+  <div class="dock">
+    <button type="button" class="fab" id="fab" aria-label="Toevoegen · houd vast voor snelinvoer">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg>
+    </button>
 
-  <button type="button" class="fab" id="fab" aria-label="Toevoegen · houd vast voor snelinvoer">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg>
-  </button>
+    <!-- Snelmenu -->
+    <div class="quick" id="quick" hidden>
+      <div class="quick-kicker">Snel toevoegen</div>
+      <div id="quick-items"></div>
+      <button type="button" class="btn" id="quick-all" style="margin-top:4px">Alle opties…</button>
+    </div>
 
-  <nav class="tabbar" aria-label="Weergave">
+    <!-- Toast -->
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+      <div class="toast-text" id="toast-text"></div>
+      <button type="button" id="toast-undo">Ongedaan maken</button>
+    </div>
+
+    <nav class="tabbar" aria-label="Weergave">
     <button type="button" class="tab" data-tab="overzicht" aria-current="page">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.6" y="3.6" width="7.2" height="7.2" rx="2.2"/><rect x="13.2" y="3.6" width="7.2" height="7.2" rx="2.2"/><rect x="3.6" y="13.2" width="7.2" height="7.2" rx="2.2"/><rect x="13.2" y="13.2" width="7.2" height="7.2" rx="2.2"/></svg>
       Overzicht
@@ -243,15 +258,10 @@
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
       Vermogen
     </button>
-  </nav>
-
-  <!-- ==================== Snelmenu ==================== -->
-  <div class="scrim" id="quick-scrim" hidden></div>
-  <div class="quick" id="quick" hidden>
-    <div class="quick-kicker">Snel toevoegen</div>
-    <div id="quick-items"></div>
-    <button type="button" class="btn" id="quick-all" style="margin-top:4px">Alle opties…</button>
+    </nav>
   </div>
+
+  <div class="scrim" id="quick-scrim" hidden></div>
 
   <!-- ==================== Sheets ==================== -->
   <div class="scrim" id="scrim" hidden></div>
@@ -470,12 +480,6 @@
         <button type="button" class="ghost" data-close>Annuleer</button>
       </div>
     </div>
-  </div>
-
-  <!-- Toast -->
-  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
-    <div class="toast-text" id="toast-text"></div>
-    <button type="button" id="toast-undo">Ongedaan maken</button>
   </div>
 
   <!-- Confetti -->
