@@ -61,6 +61,9 @@
      kloppen op elk toestel. */
   --barbottom: max(14px, env(safe-area-inset-bottom));
   --barheight: 66px;
+  /* Transparante variant van --app1 voor de fade onderaan. Met `transparent`
+     krijg je in sommige browsers een grijze zweem, daarom expliciet. */
+  --app1-0: rgba(246, 241, 227, 0);
 }
 
 /* ---------- Tokens: donker ---------- */
@@ -107,6 +110,8 @@
   --glassEdge: rgba(255, 255, 255, 0.14);
   --glassOn: rgba(255, 255, 255, 0.14);
   --glassShade: rgba(0, 0, 0, 0.45);
+
+  --app1-0: rgba(11, 19, 16, 0);
 }
 
 * { box-sizing: border-box; }
@@ -867,15 +872,16 @@ a:hover { color: var(--gold); }
 /* ============================================================
    FAB · tabbar · snelmenu
    ============================================================ */
+/* Loopt door tot de onderrand en wordt volledig dekkend, zodat er geen
+   inhoud doorheen scrolt in de strook onder de tabbar (de veilige zone). */
 .fade-bottom {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 120px;
+  height: calc(var(--barbottom) + var(--barheight) + 56px);
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(0,0,0,0), var(--app1) 78%);
-  opacity: 0.75;
+  background: linear-gradient(180deg, var(--app1-0) 0%, var(--app1) 52%, var(--app1) 100%);
   z-index: 9;
 }
 .fab {
