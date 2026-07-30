@@ -114,16 +114,39 @@
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
-
+/* ============================================================
+   PWA-robuustheid
+   Het document zelf scrollt nooit: alleen .scroll doet dat. Zonder deze
+   vergrendeling kan iOS de hele app meeslepen (rubber-band), wat de layout
+   laat verschuiven en de dock los lijkt te trekken.
+   ============================================================ */
+html {
+  -webkit-text-size-adjust: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 body {
   margin: 0;
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--app1);
   font-family: Manrope, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: var(--ink);
-  overscroll-behavior-y: none;
+  /* App-gevoel: geen tekstselectie of iOS-callout op de chrome. Invoervelden
+     en bedragen blijven wel selecteerbaar (zie hieronder). */
+  -webkit-touch-callout: none;
+  user-select: none;
+  /* Geen dubbeltik-zoom (die veroorzaakt in een PWA scheve, half ingezoomde
+     weergaven). Knijpzoom blijft bewust wél werken — dat is toegankelijkheid. */
+  touch-action: manipulation;
+}
+input, textarea, .hero-amount, .chart-focus-val, .mrow-end, .row-amt {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 input, button, select { font-family: inherit; color: var(--ink); }
@@ -177,7 +200,7 @@ a:hover { color: var(--gold); }
    ============================================================ */
 .app {
   position: relative;
-  min-height: 100dvh;
+  height: 100%;
   max-width: var(--maxw);
   margin: 0 auto;
   display: flex;
@@ -188,10 +211,7 @@ a:hover { color: var(--gold); }
 }
 @media (min-width: 560px) {
   body { background: var(--desk); }
-  .app {
-    min-height: 100dvh;
-    box-shadow: 0 30px 70px -20px rgba(20, 30, 25, 0.28);
-  }
+  .app { box-shadow: 0 30px 70px -20px rgba(20, 30, 25, 0.28); }
 }
 
 /* ---------- Topbar ---------- */
@@ -271,7 +291,12 @@ a:hover { color: var(--gold); }
   overflow-x: hidden;
   padding: 2px var(--pad) 26px;
   -webkit-overflow-scrolling: touch;
+  /* Houdt de scroll binnen deze container: geen doorwerking naar het
+     document en dus geen pull-to-refresh of bounce van de hele app. */
+  overscroll-behavior-y: contain;
 }
+/* Achtergrond niet meescrollen terwijl een sheet open staat */
+.app.locked .scroll { overflow: hidden; }
 .view { display: flex; flex-direction: column; gap: 14px; animation: riseIn 0.32s var(--ease); }
 .view[hidden] { display: none; }
 
@@ -1017,8 +1042,10 @@ a:hover { color: var(--gold); }
   right: 0;
   margin: 0 auto;
   width: min(var(--maxw), 100vw);
-  bottom: 0;
-  max-height: 92dvh;
+  /* --kb = hoogte van het schermtoetsenbord (via visualViewport). Zonder deze
+     correctie verdwijnen de opslaan-knoppen op iOS achter het toetsenbord. */
+  bottom: var(--kb, 0px);
+  max-height: calc(92dvh - var(--kb, 0px));
   z-index: 31;
   display: flex;
   flex-direction: column;
@@ -1390,13 +1417,19 @@ a:hover { color: var(--gold); }
 .choice-col .ghost { border: none; background: transparent; color: var(--ink3); min-height: 48px; font-size: 13.5px; }
 .choice-body { font-size: 12.5px; line-height: 1.45; color: var(--ink3); margin-top: 4px; }
 
-/* Toast */
+/* Toast · eigen laag boven scrim (30) en sheets (31), gecentreerd via margin
+   zodat de riseIn-animatie geen translateX hoeft te overschrijven. --dockh
+   wordt door app.js bijgehouden, zodat de toast altijd net boven de FAB zweeft
+   ongeacht de hoogte van de dock en de veilige zone. */
 .toast {
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: calc(100% + 76px);
-  z-index: 35;
+  position: fixed;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: min(calc(var(--maxw) - 36px), calc(100vw - 36px));
+  /* max(): staat het schermtoetsenbord open, dan schuift de toast daarboven. */
+  bottom: max(calc(var(--dockh, 96px) + 76px), calc(var(--kb, 0px) + 12px));
+  z-index: 45;
   display: flex;
   align-items: center;
   gap: 12px;

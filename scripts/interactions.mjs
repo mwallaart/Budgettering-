@@ -406,6 +406,129 @@ check("reduced-motion: laadscherm overgeslagen", rmLoader);
 check("reduced-motion: animaties uit", rmAnim === "none" || rmAnim === "riseIn", rmAnim);
 await page.emulateMedia({ reducedMotion: null });
 
+/* ---------- 25. PWA-robuustheid: geen afwijkende weergaven ---------- */
+await page.setViewportSize({ width: 390, height: 844 });
+await page.evaluate((j) => localStorage.setItem("budget-glass-v1", j), JSON.stringify(seed()));
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector("#loader[hidden]", { state: "attached", timeout: 6000 });
+await page.waitForTimeout(600);
+
+// Het document zelf mag niet kunnen scrollen: alleen .scroll doet dat.
+const docLock = await page.evaluate(() => {
+  const h = getComputedStyle(document.documentElement), b = getComputedStyle(document.body);
+  return {
+    htmlOverflow: h.overflow, bodyPos: b.position,
+    htmlOver: h.overscrollBehavior, bodyOver: b.overscrollBehavior,
+    docScrollable: document.documentElement.scrollHeight > window.innerHeight + 1,
+  };
+});
+check("Document scrolt niet (body vast)", docLock.bodyPos === "fixed" && !docLock.docScrollable, JSON.stringify(docLock));
+check("overscroll-behavior uit op html en body", docLock.htmlOver === "none" && docLock.bodyOver === "none", `${docLock.htmlOver} / ${docLock.bodyOver}`);
+
+// Wielen in de lijst scrollt .scroll, niet het venster.
+await page.mouse.move(195, 500);
+await page.mouse.wheel(0, 400);
+await page.waitForTimeout(300);
+const scrolled = await page.evaluate(() => ({ inner: document.querySelector("#scroll").scrollTop, win: window.scrollY }));
+check("Alleen de lijst scrolt, het venster niet", scrolled.inner > 0 && scrolled.win === 0, JSON.stringify(scrolled));
+
+// Sheet open: achtergrond staat stil en is niet bereikbaar.
+await page.click("#fab");
+await page.waitForTimeout(450);
+const lockState = await page.evaluate(() => {
+  const s = document.querySelector("#scroll");
+  return {
+    locked: document.querySelector(".app").classList.contains("locked"),
+    overflow: getComputedStyle(s).overflowY,
+    scrollInert: s.inert, tabbarInert: document.querySelector(".tabbar").inert,
+    topbarInert: document.querySelector(".topbar").inert, fabInert: document.querySelector("#fab").inert,
+    toastInert: !!document.querySelector("#toast").inert,
+    top: s.scrollTop,
+  };
+});
+await page.mouse.move(195, 120);
+await page.mouse.wheel(0, 400);
+await page.waitForTimeout(300);
+const topAfter = await page.evaluate(() => document.querySelector("#scroll").scrollTop);
+check("Achtergrond scrolt niet met sheet open", lockState.overflow === "hidden" && topAfter === lockState.top, `${lockState.top} → ${topAfter}`);
+check("Achtergrond niet bereikbaar met sheet open", lockState.locked && lockState.scrollInert && lockState.tabbarInert && lockState.topbarInert && lockState.fabInert, JSON.stringify(lockState));
+check("Toast blijft bereikbaar met sheet open", lockState.toastInert === false);
+await page.keyboard.press("Escape");
+await page.waitForTimeout(300);
+const unlocked = await page.evaluate(() => ({
+  locked: document.querySelector(".app").classList.contains("locked"),
+  inert: document.querySelector("#scroll").inert,
+  overflow: getComputedStyle(document.querySelector("#scroll")).overflowY,
+}));
+check("Sluiten heft de vergrendeling op", !unlocked.locked && !unlocked.inert && unlocked.overflow === "auto", JSON.stringify(unlocked));
+
+// Toast bóven een open sheet: potje wissen in Instellingen en terugdraaien.
+await page.click("#btn-settings");
+await page.waitForTimeout(450);
+const potsBefore = await page.locator("#pot-manage .pot-edit").count();
+await page.locator("#pot-manage .pot-edit [data-rm]").last().click();
+await page.waitForTimeout(400);
+const toastBox = await page.locator("#toast").boundingBox();
+const onTop = await page.evaluate(([x, y]) => {
+  const el = document.elementFromPoint(x, y);
+  return !!(el && el.closest("#toast"));
+}, [toastBox.x + toastBox.width - 40, toastBox.y + toastBox.height / 2]);
+check("Toast ligt boven de open sheet", onTop);
+await page.click("#toast-undo");
+await page.waitForTimeout(400);
+check("Ongedaan maken werkt met sheet open", (await page.locator("#pot-manage .pot-edit").count()) === potsBefore,
+  `${potsBefore} → ${await page.locator("#pot-manage .pot-edit").count()}`);
+await page.keyboard.press("Escape");
+await page.waitForTimeout(300);
+
+// Vegen sluit bij scrollen, zodat er geen halfopen regel achterblijft.
+await page.locator('.tab[data-tab="maand"]').click();
+await page.waitForTimeout(400);
+await page.locator('#groups [data-group="fixed"]').click();
+await page.waitForTimeout(350);
+const rrow = page.locator('#groups .row:has-text("Hypotheek")').first();
+const rrb = await rrow.boundingBox();
+await page.mouse.move(rrb.x + rrb.width * 0.62, rrb.y + rrb.height / 2);
+await page.mouse.down();
+await page.mouse.move(rrb.x + rrb.width * 0.1, rrb.y + rrb.height / 2, { steps: 12 });
+await page.mouse.up();
+await page.waitForTimeout(300);
+const openedSwipe = (await page.locator("#groups .swipe.open").count()) === 1;
+await page.evaluate(() => { document.querySelector("#scroll").scrollTop += 200; });
+await page.waitForTimeout(350);
+check("Vegen sluit weer bij scrollen", openedSwipe && (await page.locator("#groups .swipe.open").count()) === 0);
+
+// Draaien naar liggend: opnieuw tekenen zonder horizontale overloop.
+await page.setViewportSize({ width: 844, height: 390 });
+await page.waitForTimeout(500);
+const land = await page.evaluate(() => {
+  const dock = document.querySelector(".dock").getBoundingClientRect();
+  return {
+    hOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+    bodyOverflow: document.body.scrollWidth > window.innerWidth + 1,
+    dockBottom: Math.round(dock.bottom), inner: window.innerHeight,
+    viewVisible: !document.querySelector("#v-maand").hidden,
+  };
+});
+check("Liggend: geen horizontale overloop", !land.hOverflow && !land.bodyOverflow, JSON.stringify(land));
+check("Liggend: navigatie blijft in beeld", land.dockBottom <= land.inner + 1 && land.viewVisible, JSON.stringify(land));
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(400);
+const back = await page.evaluate(() => ({
+  hOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+  dockBottom: Math.round(document.querySelector(".dock").getBoundingClientRect().bottom),
+  inner: window.innerHeight,
+}));
+check("Terug naar staand: layout herstelt", !back.hOverflow && back.dockBottom <= back.inner + 1, JSON.stringify(back));
+
+// Dubbeltik-zoom uit, maar knijpzoom moet blijven werken (toegankelijkheid).
+const zoomOk = await page.evaluate(() => {
+  const mv = document.querySelector('meta[name="viewport"]').content;
+  return { touchAction: getComputedStyle(document.body).touchAction, mv };
+});
+check("Dubbeltik-zoom uit via touch-action", /manipulation/.test(zoomOk.touchAction), zoomOk.touchAction);
+check("Knijpzoom blijft toegestaan", !/user-scalable\s*=\s*no|maximum-scale/.test(zoomOk.mv), zoomOk.mv);
+
 await browser.close();
 server.close();
 

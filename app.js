@@ -8,7 +8,7 @@ const THEME_KEY = "budget-theme";
 
 /* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
    of het toestel de nieuwste versie draait of nog een gecachte oude. */
-const BUILD = "2.1 · build 5 (30 jul)";
+const BUILD = "2.2 · build 6 (30 jul)";
 
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -818,16 +818,30 @@ const scrim = $("#scrim");
 const SHEETS = ["sh-entry", "sh-transfer", "sh-invest", "sh-settings", "sh-picker", "sh-choice"];
 let lastFocus = null;
 
+/* Vergrendelt de achtergrond zolang een sheet open staat: niet scrollen,
+   niet aanklikbaar en niet met Tab bereikbaar.
+
+   Let op: de toast zit óók in .dock. Die mag níet inert worden, anders is
+   "ongedaan maken" onbereikbaar als er een toast verschijnt terwijl een sheet
+   open staat (bv. een potje verwijderen in Instellingen). Daarom per element
+   in plaats van de hele dock. */
+const appEl = document.querySelector(".app");
+const bgParts = [$(".topbar"), $("#scroll"), $(".tabbar"), $("#fab"), $("#quick")];
+function lockBackground(on) {
+  appEl.classList.toggle("locked", on);
+  bgParts.forEach((el) => { if (el) el.inert = on; });
+}
+
 function openSheet(id) {
   lastFocus = document.activeElement;
   SHEETS.forEach((s) => { $("#" + s).hidden = s !== id; });
   scrim.hidden = false;
-  document.body.style.overflow = "hidden";
+  lockBackground(true);
 }
 function closeSheets() {
   SHEETS.forEach((s) => { $("#" + s).hidden = true; });
   scrim.hidden = true;
-  document.body.style.overflow = "";
+  lockBackground(false);
   S.editId = null; S.draft = null; S.pickerFor = null;
   if (lastFocus?.focus) lastFocus.focus();
   render();
@@ -1467,6 +1481,63 @@ function runLoader(ms) {
   runLoader._t = setTimeout(() => { loader.hidden = true; }, ms || 1500);
 }
 $("#coin").addEventListener("click", () => runLoader(1600));
+
+/* ============================================================
+   PWA-robuustheid
+   ============================================================ */
+
+/* Toetsenbordhoogte doorgeven aan de CSS, zodat sheets erboven blijven. */
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const syncKb = () => {
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty("--kb", Math.round(kb) + "px");
+  };
+  vv.addEventListener("resize", syncKb);
+  vv.addEventListener("scroll", syncKb);
+  syncKb();
+}
+
+/* Dockhoogte doorgeven aan de CSS: de toast leeft in een eigen laag boven de
+   sheets en moet toch net boven de FAB blijven zweven. De hoogte verandert mee
+   met de veilige zone en met tekstvergroting, dus meten in plaats van vastzetten. */
+const dockEl = document.querySelector(".dock");
+if (dockEl) {
+  const syncDock = () => {
+    document.documentElement.style.setProperty("--dockh", Math.round(dockEl.offsetHeight) + "px");
+  };
+  if (window.ResizeObserver) new ResizeObserver(syncDock).observe(dockEl);
+  else window.addEventListener("resize", syncDock);
+  syncDock();
+}
+
+/* Terug uit de achtergrond: opnieuw tekenen. Anders blijft een app die dagen
+   open stond de oude "vandaag" tonen in de grafiek en de NU-badge. */
+let lastDay = new Date().toDateString();
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  const now = new Date().toDateString();
+  if (now !== lastDay) {
+    lastDay = now;
+    S.focus = null;                   // focuspunt terug naar vandaag
+    S.month = clampMonth(S.month);
+  }
+  render();
+});
+
+/* Scrollen sluit een open veeg-actie: voorkomt dat er een halve rij open
+   blijft staan buiten beeld. */
+$("#scroll").addEventListener("scroll", () => {
+  if (S.swipe) { S.swipe = null; renderGroups(); }
+}, { passive: true });
+
+/* Draaien of formaat wijzigen: hertekenen zodat de grafiek de nieuwe breedte
+   gebruikt en niets half berekend blijft staan. */
+let rzTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(rzTimer);
+  rzTimer = setTimeout(() => render(), 150);
+});
 
 /* ============================================================
    Init

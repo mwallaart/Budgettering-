@@ -223,7 +223,7 @@
     </section>
   </div>
 
-  <!-- ==================== Dock: FAB · tabbar · toast · snelmenu ====================
+  <!-- ==================== Dock: FAB · tabbar · snelmenu ====================
        Staat als normaal element onderaan de app-kolom, niet position:fixed.
        Zo zit de balk altijd echt tegen de onderrand, ongeacht hoe iOS de
        veilige zones en het viewport rapporteert. -->
@@ -237,12 +237,6 @@
       <div class="quick-kicker">Snel toevoegen</div>
       <div id="quick-items"></div>
       <button type="button" class="btn" id="quick-all" style="margin-top:4px">Alle opties…</button>
-    </div>
-
-    <!-- Toast -->
-    <div class="toast" id="toast" role="status" aria-live="polite" hidden>
-      <div class="toast-text" id="toast-text"></div>
-      <button type="button" id="toast-undo">Ongedaan maken</button>
     </div>
 
     <nav class="tabbar" aria-label="Weergave">
@@ -262,6 +256,14 @@
   </div>
 
   <div class="scrim" id="quick-scrim" hidden></div>
+
+  <!-- Toast · staat buiten de dock zodat hij boven scrim en sheets uitkomt:
+       de dock is een eigen stapelcontext (z-index 20), dus een toast daarbinnen
+       zou achter een open sheet verdwijnen en "ongedaan maken" onbereikbaar maken. -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <div class="toast-text" id="toast-text"></div>
+    <button type="button" id="toast-undo">Ongedaan maken</button>
+  </div>
 
   <!-- ==================== Sheets ==================== -->
   <div class="scrim" id="scrim" hidden></div>
