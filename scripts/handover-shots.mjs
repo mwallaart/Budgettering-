@@ -88,9 +88,28 @@ async function load(page, withData = true) {
 }
 
 
+/* Toestelmaat iPhone 16 Pro met de echte veilige zones, plus een nagebootste
+   statusbalk. Zonder die balk lijkt de bovenste 59px lege ruimte, terwijl daar
+   op het toestel de klok en batterij staan — dat leidt tot verkeerde conclusies
+   over de bovenmarge. */
+const SAFE = `.app{padding-top:59px !important} :root{--barbottom:34px !important}`;
+const STATUS = `
+<div style="position:fixed;top:0;left:0;right:0;height:59px;z-index:99;
+  display:flex;align-items:flex-end;justify-content:space-between;padding:0 34px 6px;
+  font:600 15px Manrope,sans-serif;color:var(--ink);pointer-events:none">
+  <span>9:41</span>
+  <span style="display:flex;align-items:center;gap:6px">
+    <span style="font-size:13px">▮▮▮▯</span>
+    <span style="border:1.4px solid currentColor;border-radius:3px;padding:1px 3px;font-size:10px">83</span>
+  </span>
+</div>`;
+
 async function shoot(theme) {
-  const p = await newPage(390, 844, theme);
+  const p = await newPage(402, 874, theme);
   await load(p);
+  await p.addStyleTag({ content: SAFE });
+  await p.evaluate((h) => document.body.insertAdjacentHTML("beforeend", h), STATUS);
+  await p.waitForTimeout(300);
   const sfx = theme === "dark" ? "-dark" : "";
   await p.screenshot({ path: path.join(OUT, `overzicht${sfx}.png`), fullPage: true });
   await p.click('.tab[data-tab="maand"]'); await p.waitForTimeout(700);
