@@ -1,5 +1,5 @@
 // Service worker · offline app-shell voor Budget PWA
-const CACHE = "budget-glass-v10";
+const CACHE = "huishoudboekje-v1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,10 +7,24 @@ const ASSETS = [
   "./app.js",
   "./manifest.webmanifest",
   "./favicon.png",
+  "./fonts/fonts.css",
+  "./uploads/Make It Rain Money GIF.gif",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/maskable-512.png",
   "./icons/apple-touch-icon.png",
+  "./fonts/InstrumentSerif-400-latin-ext.woff2",
+  "./fonts/InstrumentSerif-400-latin.woff2",
+  "./fonts/Manrope-400-latin-ext.woff2",
+  "./fonts/Manrope-400-latin.woff2",
+  "./fonts/Manrope-500-latin-ext.woff2",
+  "./fonts/Manrope-500-latin.woff2",
+  "./fonts/Manrope-600-latin-ext.woff2",
+  "./fonts/Manrope-600-latin.woff2",
+  "./fonts/Manrope-700-latin-ext.woff2",
+  "./fonts/Manrope-700-latin.woff2",
+  "./fonts/Manrope-800-latin-ext.woff2",
+  "./fonts/Manrope-800-latin.woff2",
 ];
 
 self.addEventListener("install", (event) => {

@@ -1,5 +1,16 @@
 # Design-brief · Budget-PWA (overdracht voor een nieuw ontwerp)
 
+> **Let op — deels achterhaald.** Dit document beschreef het *vorige* ontwerp
+> (wit met dennengroen). Sindsdien is het Claude Design-ontwerp
+> **"Huishoudboekje"** doorgevoerd: crème/parchment met dennengroen en goud,
+> Instrument Serif voor de grote bedragen en Manrope voor de UI. Bron:
+> `design-import/Budget App.dc.html`; actuele tokens staan bovenaan `styles.css`.
+>
+> Nog steeds geldig en de moeite van het lezen waard: **§4 datamodel** (nu
+> uitgebreid met `goalDate`, `group`, `kind: "move"`, `review`, `monthly`),
+> **§7 constraints** en vooral **§8 valkuilen**. De screenshots in
+> `design-refs/` zijn bijgewerkt naar het nieuwe ontwerp.
+
 > **Hoe te gebruiken:** open een nieuw gesprek met Claude, plak dit document en
 > voeg de screenshots uit **`design-refs/`** toe. Vertel dan wat je anders wilt
 > (bijv. "maak het speelser", "meer als een bank-app", "minimalistischer").

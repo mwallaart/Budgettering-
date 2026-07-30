@@ -1,1065 +1,1290 @@
 // ============================================================
-//  Budget · state, berekeningen en UI
+//  Huishoudboekje — budget-PWA
+//  Logica volgt het Claude Design-ontwerp (design-import/)
 // ============================================================
 
 const STORAGE_KEY = "budget-glass-v1";
+const THEME_KEY = "budget-theme";
 
-/* ---------- Categorieën (voor aankopen) ---------- */
+const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+
 const CATS = {
-  baby:   { label: "Baby",   color: "#D96BA0", icon: "🍼" },
-  huis:   { label: "Huis",   color: "#3E7CB1", icon: "🏠" },
-  overig: { label: "Overig", color: "#C99A2E", icon: "🏷️" },
+  huis:        { icon: "🏠", label: "Huis" },
+  vervoer:     { icon: "🚗", label: "Vervoer" },
+  verzekering: { icon: "🛡️", label: "Verzekering" },
+  abo:         { icon: "📺", label: "Abonnement" },
+  bood:        { icon: "🛒", label: "Boodschappen" },
+  overig:      { icon: "🏷️", label: "Overig" },
 };
 const CAT_KEYS = Object.keys(CATS);
-const DEFAULT_CAT = "overig";
-const catOf = (e) => (CATS[e?.category] ? e.category : DEFAULT_CAT);
+const ALLOC_COLORS = ["var(--brand)", "var(--posSoft)", "var(--gold)", "var(--gold2)", "var(--ink4)"];
+const POT_ICONS = ["🪙","🐖","🏖️","👤","🏠","🚗","🍼","🎁","🛟","📈","🎓","🐾"];
 
-/* ---------- Standaard spaarpotjes ---------- */
-const DEFAULT_POTS = [
-  { id: "algemeen", label: "Algemeen", startBalance: 0, goal: 0, icon: "🐷" },
-  { id: "vakantie", label: "Vakantie", startBalance: 0, goal: 0, icon: "🏖️" },
-  { id: "auto", label: "Auto", startBalance: 0, goal: 0, icon: "🚗" },
-];
-const POT_COLORS = ["#1B4D3E", "#2E8B6B", "#57B894", "#8FD3B6", "#3AA57D"];
-const INV_COLORS = ["#3E7CB1", "#B4482E", "#C99A2E", "#7A5CC0", "#D96BA0"];
+/* ---------- Maand-helpers ---------- */
+const key = (y, m) => y + "-" + String(m + 1).padStart(2, "0");
+const parseK = (k) => ({ y: +k.slice(0, 4), m: +k.slice(5, 7) - 1 });
+const addM = (k, n) => { const p = parseK(k); const d = new Date(p.y, p.m + n, 1); return key(d.getFullYear(), d.getMonth()); };
+const dim = (k) => { const p = parseK(k); return new Date(p.y, p.m + 1, 0).getDate(); };
+const monthsBetween = (a, b) => { const x = parseK(a), y = parseK(b); return (y.y - x.y) * 12 + (y.m - x.m); };
+const todayKey = () => { const d = new Date(); return key(d.getFullYear(), d.getMonth()); };
+const TODAY = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
 
-function guessIcon(label) {
-  const l = (label || "").toLowerCase();
-  if (/vakantie|reis|trip|holiday|vlieg/.test(l)) return "🏖️";
-  if (/auto|car|wagen|scooter|fiets/.test(l)) return "🚗";
-  if (/huis|home|hypotheek|wonen|verbouw|keuken|meubel/.test(l)) return "🏠";
-  if (/baby|kind|kids|luier/.test(l)) return "🍼";
-  if (/nood|buffer|reserve/.test(l)) return "🛟";
-  if (/beleg|invest|aandeel|etf/.test(l)) return "📈";
-  if (/cadeau|gift|kerst|sint/.test(l)) return "🎁";
-  return "🐷";
-}
-
-/* ---------- Formatters ---------- */
-const eur = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
-const monthFmt = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" });
-const monthShortFmt = new Intl.DateTimeFormat("nl-NL", { month: "short" });
-const monthOnlyFmt = new Intl.DateTimeFormat("nl-NL", { month: "long" });
-
-/* ---------- Maand-helpers (sleutel = "YYYY-MM") ---------- */
-function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
-function keyToDate(key) { const [y, m] = key.split("-").map(Number); return new Date(y, m - 1, 1); }
-function addMonths(key, n) { const d = keyToDate(key); d.setMonth(d.getMonth() + n); return monthKey(d); }
-function monthName(key) { return monthFmt.format(keyToDate(key)); }
-function currentMonthKey() { return monthKey(new Date()); }
-function daysInMonth(key) { const [y, m] = key.split("-").map(Number); return new Date(y, m, 0).getDate(); }
-function clampDay(day, dim) { const d = Math.floor(Number(day)); if (!Number.isFinite(d) || d < 1) return 1; return Math.min(d, dim); }
-function monthsBetween(a, b) { const [ay, am] = a.split("-").map(Number); const [by, bm] = b.split("-").map(Number); return (by - ay) * 12 + (bm - am); }
-function maxKey(a, b) { return a >= b ? a : b; }
-function todayDay() { return new Date().getDate(); }
-
-/* ---------- Bedrag parsen ---------- */
 function parseAmount(raw) {
   if (typeof raw !== "string") return NaN;
   let s = raw.trim().replace(/[€\s]/g, "");
   if (s === "") return NaN;
   if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if ((s.match(/\./g) || []).length >= 1 && /\.\d{3}(\D|$)/.test(s)) s = s.replace(/\./g, "");
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
 }
-
-/* ---------- Haptiek ---------- */
 function haptic(ms) { try { if (navigator.vibrate) navigator.vibrate(ms || 12); } catch { /* n.v.t. */ } }
-
-/* ============================================================
-   Thema: 'auto' (systeem) | 'light' | 'dark'
-   Los van de budget-state opgeslagen, zodat de inline head-script het
-   vóór de eerste paint kan lezen.
-   ============================================================ */
-const THEME_KEY = "budget-theme";
-const sysDark = window.matchMedia("(prefers-color-scheme: dark)");
-
-function getThemePref() {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return v === "light" || v === "dark" ? v : "auto";
-  } catch { return "auto"; }
-}
-function resolvedDark(pref) {
-  return pref === "dark" || (pref === "auto" && sysDark.matches);
-}
-function applyTheme(pref) {
-  const dark = resolvedDark(pref);
-  document.documentElement.dataset.theme = dark ? "dark" : "light";
-  const meta = document.getElementById("meta-theme-color");
-  if (meta) meta.setAttribute("content", dark ? "#08120f" : "#ffffff");
-  syncThemeSeg(pref);
-}
-function setThemePref(pref) {
-  try { localStorage.setItem(THEME_KEY, pref); } catch { /* n.v.t. */ }
-  applyTheme(pref);
-}
-function syncThemeSeg(pref) {
-  document.querySelectorAll("#theme-seg .seg-opt").forEach((b) => {
-    b.setAttribute("aria-checked", String(b.dataset.themeOpt === pref));
-  });
-}
-document.querySelectorAll("#theme-seg .seg-opt").forEach((b) => {
-  b.addEventListener("click", () => { haptic(8); setThemePref(b.dataset.themeOpt); });
-});
-// Volgt het systeem alleen wanneer de voorkeur 'auto' is
-sysDark.addEventListener("change", () => { if (getThemePref() === "auto") applyTheme("auto"); });
-applyTheme(getThemePref());
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = (s) => document.querySelector(s);
 
 /* ============================================================
    State
    ============================================================ */
+function defaultPots() {
+  return [
+    { id: "alg", label: "Algemeen", icon: "🪙", startBalance: 0, goal: 0, goalDate: null },
+    { id: "spaar", label: "Sparen", icon: "🐖", startBalance: 0, goal: 0, goalDate: null },
+    { id: "vak", label: "Vakantie", icon: "🏖️", startBalance: 0, goal: 0, goalDate: null },
+  ];
+}
 function defaultState() {
   return {
-    version: 4,
-    startMonth: currentMonthKey(),
-    pots: DEFAULT_POTS.map((p) => ({ ...p })),
+    version: 5,
+    startMonth: todayKey(),
+    pots: defaultPots(),
     recurring: [],
     months: {},
     investments: [],
     recentLabels: [],
+    backupDismissed: false,
+    lastBackup: null,
   };
 }
 
-function loadState() {
+function migrate(raw) {
+  const d = { ...defaultState(), ...raw };
+  if (!Array.isArray(d.pots) || d.pots.length === 0) d.pots = defaultPots();
+  // v4 en eerder: potjes zonder icoon/doeldatum
+  d.pots = d.pots.map((p, i) => ({
+    goal: 0, goalDate: null, icon: POT_ICONS[i % POT_ICONS.length], startBalance: 0, ...p,
+  }));
+  d.recurring = (d.recurring || []).map((r) => ({ ...r, day: r.day || 1 }));
+  Object.keys(d.months || {}).forEach((k) => {
+    const m = d.months[k] || {};
+    d.months[k] = { entries: (m.entries || []).map((e) => ({ ...e, day: e.day || 1 })), skip: m.skip || [] };
+  });
+  d.investments = (d.investments || []).map((i) => ({ monthly: 0, ...i }));
+  if (!Array.isArray(d.recentLabels)) d.recentLabels = [];
+  d.version = 5;
+  return d;
+}
+
+let D = (() => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
-    const parsed = JSON.parse(raw);
-    const merged = { ...defaultState(), ...parsed };
-    if (parsed && parsed.pots === undefined) {
-      merged.pots = DEFAULT_POTS.map((p) => ({ ...p }));
-      if (typeof parsed.startBalance === "number") merged.pots[0].startBalance = parsed.startBalance;
-    }
-    if (!Array.isArray(merged.pots) || merged.pots.length === 0) merged.pots = DEFAULT_POTS.map((p) => ({ ...p }));
-    merged.pots = merged.pots.map((p) => ({ goal: 0, icon: guessIcon(p.label), ...p }));
-    if (!Array.isArray(merged.recentLabels)) merged.recentLabels = [];
-    return merged;
-  } catch {
-    return defaultState();
-  }
+    return raw ? migrate(JSON.parse(raw)) : defaultState();
+  } catch { return defaultState(); }
+})();
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(D)); } catch { /* vol/geblokkeerd */ }
 }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const clone = () => JSON.parse(JSON.stringify(D));
 
-function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* vol/geblokkeerd */ }
+/* UI-state (niet opgeslagen, behalve thema en privacy) */
+const S = {
+  tab: "overzicht",
+  month: null,
+  pot: null,
+  privacy: false,
+  focus: null,
+  collapsed: { fixed: true },
+  swipe: null,
+  draft: null,
+  editId: null,
+  hintDone: false,
+  pickerFor: null,
+  pickerYear: null,
+  undo: null,
+};
+S.month = clampMonth(todayKey());
+
+function months() { return Array.from({ length: 12 }, (_, i) => addM(D.startMonth, i)); }
+function clampMonth(k) {
+  const list = months();
+  if (k < list[0]) return list[0];
+  if (k > list[11]) return list[11];
+  return k;
 }
-
-let state = loadState();
-let viewMonth = clampToStart(currentMonthKey());
-let selectedPot = "all";
-let activeTab = "overzicht";
-let mpYear = Number(currentMonthKey().slice(0, 4));
-
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
-
-/* ---------- Potjes-helpers ---------- */
-function firstPotId() { return state.pots[0] ? state.pots[0].id : "algemeen"; }
-function getPot(id) { return state.pots.find((p) => p.id === id) || null; }
-function potOf(e) { return getPot(e?.potId) ? e.potId : firstPotId(); }
 
 /* ============================================================
-   Berekeningen
+   Rekenkern (1:1 uit het ontwerp)
    ============================================================ */
-function monthData(key) { return state.months[key] || { entries: [], skip: [] }; }
-
-function entriesForMonth(key) {
-  const md = monthData(key);
-  const skip = md.skip || [];
-  const oneOff = (md.entries || []).map((e) => ({ ...e, recurring: false }));
-  const recurring = state.recurring
-    .filter((r) => r.fromMonth <= key && !skip.includes(r.id))
-    .map((r) => ({ ...r, recurring: true }));
-  return [...recurring, ...oneOff];
+function fmt(n, dec) {
+  if (S.privacy) return "€ ••••";
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency", currency: "EUR",
+    minimumFractionDigits: dec ? 2 : 0, maximumFractionDigits: dec ? 2 : 0,
+  }).format(n).replace(/ /g, " ");
 }
-
-function monthNet(key, potId) {
+function delta(p, potId) {
+  if (p.kind === "in") return p.amount;
+  if (p.kind === "out") return -p.amount;
+  if (!potId) return 0;                       // interne overboeking: netto nul
+  if (p.potId === potId) return -p.amount;
+  if (p.toPot === potId) return p.amount;
+  return 0;
+}
+function posts(mk, potId) {
+  const mo = D.months[mk] || { entries: [], skip: [] };
+  const rec = D.recurring
+    .filter((r) => (r.fromMonth || D.startMonth) <= mk && !(mo.skip || []).includes(r.id))
+    .map((r) => ({ ...r, rec: true }));
+  let all = rec.concat(mo.entries || []);
+  if (S.editId) all = all.filter((p) => p.id !== S.editId);
+  if (S.draft && S.draft.month === mk) all = all.concat([S.draft]);
+  if (potId) all = all.filter((p) => p.potId === potId || p.toPot === potId);
+  return all;
+}
+function net(mk, potId) {
   let inc = 0, out = 0;
-  for (const e of entriesForMonth(key)) {
-    if (potId && potOf(e) !== potId) continue;
-    if (e.kind === "in") inc += e.amount; else out += e.amount;
-  }
+  posts(mk, potId).forEach((p) => { const v = delta(p, potId); if (v > 0) inc += v; else out += -v; });
   return { inc, out, net: inc - out };
 }
-
 function startSum(potId) {
-  if (potId) return getPot(potId)?.startBalance || 0;
-  return state.pots.reduce((s, p) => s + (p.startBalance || 0), 0);
+  return D.pots.filter((p) => !potId || p.id === potId).reduce((s, p) => s + (p.startBalance || 0), 0);
 }
+function begin(mk, potId) {
+  let b = startSum(potId);
+  for (const k of months()) { if (k >= mk) break; b += net(k, potId).net; }
+  return b;
+}
+function end(mk, potId) { return begin(mk, potId) + net(mk, potId).net; }
 
-function beginBalance(key, potId) {
+function series(potId) {
+  const pts = [];
   let bal = startSum(potId);
-  let cursor = state.startMonth;
-  while (cursor < key) { bal += monthNet(cursor, potId).net; cursor = addMonths(cursor, 1); }
-  return bal;
-}
-function endBalance(key, potId) { return beginBalance(key, potId) + monthNet(key, potId).net; }
-function clampToStart(key) { return key < state.startMonth ? state.startMonth : key; }
-function liquidNow() { return endBalance(clampToStart(currentMonthKey())); }
-function investTotal() { return state.investments.reduce((s, i) => s + (Number(i.value) || 0), 0); }
-
-// Horizon voor grafiek/lijst
-function chartSpan() {
-  const start = state.startMonth;
-  const endM = addMonths(maxKey(viewMonth, currentMonthKey()), 6);
-  return Math.max(5, Math.min(17, monthsBetween(start, endM)));
-}
-
-// Eerste dag waarop een potje onder nul komt (of null)
-function firstNegative(potId) {
-  const start = state.startMonth;
-  const span = chartSpan();
-  let bal = startSum(potId);
-  let mk = start;
-  for (let mi = 0; mi <= span; mi++) {
-    const dim = daysInMonth(mk);
-    const deltas = new Array(dim + 1).fill(0);
-    for (const e of entriesForMonth(mk)) {
-      if (potOf(e) !== potId) continue;
-      deltas[clampDay(e.day, dim)] += e.kind === "in" ? e.amount : -e.amount;
+  for (const mk of months()) {
+    const p = parseK(mk), n = dim(mk), ps = posts(mk, potId);
+    for (let day = 1; day <= n; day++) {
+      ps.forEach((po) => { if (Math.min(po.day || 1, n) === day) bal += delta(po, potId); });
+      pts.push({ d: new Date(p.y, p.m, day), v: bal, mk });
     }
-    for (let d = 1; d <= dim; d++) { bal += deltas[d]; if (bal < 0) return { key: mk, day: d, amount: bal }; }
-    mk = addMonths(mk, 1);
   }
-  return null;
+  return pts;
+}
+function pace(p, atKey) {
+  if (!p.goal || !p.goalDate) return null;
+  const bal = end(atKey, p.id);
+  const per = D.recurring.reduce((s, r) => s + delta(r, p.id), 0);
+  const a = parseK(atKey), b = parseK(p.goalDate);
+  const left = Math.max(0, (b.y - a.y) * 12 + (b.m - a.m));
+  return { left, diff: Math.round(bal + per * left - p.goal), per, date: MS[b.m] + " " + b.y };
+}
+function investTotal() { return D.investments.reduce((s, i) => s + (Number(i.value) || 0), 0); }
+function investMonthly() { return D.investments.reduce((s, i) => s + (Number(i.monthly) || 0), 0); }
+
+function isEmptyState() {
+  const noStart = D.pots.every((p) => !p.startBalance);
+  const noRec = D.recurring.length === 0;
+  const noEntries = Object.values(D.months).every((m) => !(m.entries && m.entries.length));
+  return noStart && noRec && noEntries && D.investments.length === 0;
 }
 
 /* ============================================================
-   DOM refs
+   Thema
    ============================================================ */
-const $ = (sel) => document.querySelector(sel);
-const els = {
-  brandName: $("#brand-name"),
-  // overzicht
-  ovNow: $("#ov-now"), ovWorth: $("#ov-worth"),
-  warnings: $("#warnings"),
-  chartSub: $("#chart-sub"),
-  chartScroll: $("#chart-scroll"), chartMonth: $("#chart-month"), chartValue: $("#chart-value"),
-  monthList: $("#month-list"),
-  emptyHint: $("#empty-hint"),
-  // maand
-  monthName: $("#month-name"),
-  prev: $("#prev-month"), next: $("#next-month"), today: $("#today-btn"),
-  potsStrip: $("#pots-strip"),
-  heroEyebrow: $("#hero-title"),
-  end: $("#end-balance"), begin: $("#begin-balance"), net: $("#net-badge"),
-  totalIn: $("#total-in"), totalOut: $("#total-out"),
-  listIn: $("#list-in"), listOut: $("#list-out"), catSummary: $("#cat-summary"),
-  // vermogen
-  worthTotal: $("#worth-total"), worthCash: $("#worth-cash"), worthInvest: $("#worth-invest"),
-  alloc: $("#alloc"), listInvest: $("#list-invest"),
-};
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sysDark = window.matchMedia("(prefers-color-scheme: dark)");
+function themePref() {
+  try { const v = localStorage.getItem(THEME_KEY); return v === "light" || v === "dark" ? v : "auto"; }
+  catch { return "auto"; }
 }
+function applyTheme(pref) {
+  const dark = pref === "dark" || (pref === "auto" && sysDark.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const meta = $("#meta-theme-color");
+  if (meta) meta.setAttribute("content", dark ? "#0B1310" : "#F6F1E3");
+  document.querySelectorAll("#theme-seg button").forEach((b) => {
+    b.setAttribute("aria-checked", String(b.dataset.themeOpt === pref));
+  });
+}
+document.querySelectorAll("#theme-seg button").forEach((b) => {
+  b.addEventListener("click", () => { haptic(8); try { localStorage.setItem(THEME_KEY, b.dataset.themeOpt); } catch {} applyTheme(b.dataset.themeOpt); });
+});
+sysDark.addEventListener("change", () => { if (themePref() === "auto") applyTheme("auto"); });
+applyTheme(themePref());
 
-/* ---------- Bedrag met count-up ---------- */
-const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const _amtCache = new WeakMap();
-function setAmount(el, value) {
-  const prev = _amtCache.get(el);
-  _amtCache.set(el, value);
-  if (REDUCE_MOTION || prev === undefined || prev === value) { el.textContent = eur.format(value); return; }
-  const from = prev, to = value, dur = 450, t0 = performance.now();
-  function step(t) {
-    const k = Math.min(1, (t - t0) / dur);
-    const e = 1 - Math.pow(1 - k, 3);
-    el.textContent = eur.format(from + (to - from) * e);
-    if (k < 1) requestAnimationFrame(step); else el.textContent = eur.format(to);
-  }
+/* ============================================================
+   Count-up voor de grote bedragen
+   ============================================================ */
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const shownVals = new WeakMap();
+function setBig(el, value) {
+  if (S.privacy) { el.textContent = fmt(0); shownVals.set(el, value); return; }
+  const prev = shownVals.get(el);
+  shownVals.set(el, value);
+  if (REDUCED || prev === undefined || prev === value) { el.textContent = fmt(value); return; }
+  const from = prev, t0 = performance.now(), dur = 520;
+  const step = (now) => {
+    const q = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - q, 3);
+    el.textContent = fmt(from + (value - from) * e);
+    if (q < 1) requestAnimationFrame(step); else el.textContent = fmt(value);
+  };
   requestAnimationFrame(step);
 }
 
 /* ============================================================
    Render
    ============================================================ */
-function render() { renderOverview(); renderMonth(); renderVermogen(); }
+const els = {
+  pageTitle: $("#page-title"),
+  views: { overzicht: $("#v-overzicht"), maand: $("#v-maand"), vermogen: $("#v-vermogen") },
+};
 
-function isEmptyState() {
-  const noStart = state.pots.every((p) => !p.startBalance);
-  const noRec = state.recurring.length === 0;
-  const noMonths = Object.values(state.months).every((m) => !(m.entries && m.entries.length));
-  const noInv = state.investments.length === 0;
-  return noStart && noRec && noMonths && noInv;
+function render() {
+  els.pageTitle.textContent = S.tab === "overzicht" ? "Overzicht"
+    : S.tab === "maand" ? MN[parseK(S.month).m] + " " + parseK(S.month).y : "Vermogen";
+  for (const k of Object.keys(els.views)) els.views[k].hidden = k !== S.tab;
+  document.querySelectorAll(".tab").forEach((b) => {
+    if (b.dataset.tab === S.tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
+  const hint = S.privacy ? "tik om te tonen" : "tik om te verbergen";
+  $("#privacy-hint").textContent = hint;
+  $("#privacy-hint2").textContent = hint;
+
+  renderOverview();
+  renderMonth();
+  renderWealth();
 }
 
 /* ---------- Overzicht ---------- */
+function safePoint() {
+  const spendPot = D.pots.length ? D.pots[0].id : null;
+  const ss = spendPot ? series(spendPot) : series(null);
+  const t = TODAY(), horizon = new Date(t.getTime() + 45 * 86400000);
+  const win = ss.filter((p) => p.d >= t && p.d <= horizon);
+  const pt = win.length ? win.reduce((a, p) => (p.v < a.v ? p : a), win[0]) : { v: 0, d: t };
+  return { pt, label: spendPot ? D.pots[0].label : "" };
+}
+function firstWarning() {
+  const t = TODAY();
+  let warn = null;
+  for (const p of D.pots) {
+    const s = series(p.id).find((x) => x.v < 0 && x.d >= t);
+    if (s && (!warn || s.d < warn.d)) warn = { pot: p, d: s.d, v: s.v };
+  }
+  return warn;
+}
+
 function renderOverview() {
-  els.emptyHint.hidden = !isEmptyState();
-  const now = liquidNow();
-  setAmount(els.ovNow, now);
-  els.ovNow.classList.toggle("is-neg", now < 0);
-  els.ovWorth.textContent = eur.format(now + investTotal());
-  renderWarnings();
+  const nowK = clampMonth(todayKey());
+  const savings = end(nowK);
+  setBig($("#ov-amount"), savings);
+  const n = net(nowK).net;
+  $("#ov-delta").textContent = (n >= 0 ? "+ " : "− ") + fmt(Math.abs(n)) + " deze maand";
+  const sp = safePoint();
+  $("#ov-safe").textContent = "Veilig " + fmt(Math.max(0, sp.pt.v));
+  $("#ov-pots").textContent = D.pots.length + (D.pots.length === 1 ? " potje" : " potjes");
+
+  $("#empty-card").hidden = !isEmptyState();
+
+  const warn = firstWarning();
+  const wc = $("#warn-card");
+  wc.hidden = !warn;
+  if (warn) {
+    $("#warn-title").textContent = warn.pot.label + " komt onder nul";
+    $("#warn-body").textContent = "Op " + warn.d.getDate() + " " + MN[warn.d.getMonth()] +
+      " staat dit potje op " + fmt(warn.v) + ".";
+  }
+
+  $("#backup-banner").hidden = D.backupDismissed || !!D.lastBackup || isEmptyState();
+
   renderChart();
   renderMonthList();
 }
 
-function renderWarnings() {
-  els.warnings.innerHTML = "";
-  const found = [];
-  for (const p of state.pots) { const n = firstNegative(p.id); if (n) found.push({ pot: p, ...n }); }
-  for (const w of found.slice(0, 4)) {
-    const card = document.createElement("div");
-    card.className = "warn-card";
-    card.innerHTML = `<span class="wi" aria-hidden="true">⚠️</span>
-      <span><b>${escapeHtml(w.pot.label)}</b> komt op ${w.day} ${monthShortFmt.format(keyToDate(w.key))} ${w.key.slice(0, 4)} onder nul (<b>${eur.format(w.amount)}</b>)</span>`;
-    els.warnings.appendChild(card);
-  }
+function renderChart() {
+  const ss = series(null);
+  if (!ss.length) return;
+  const t = TODAY();
+  let nowIdx = ss.findIndex((p) => p.d >= t);
+  if (nowIdx < 0) nowIdx = ss.length - 1;
+  const fi = Math.min(ss.length - 1, Math.max(0, S.focus == null ? nowIdx : S.focus));
+
+  const vals = ss.map((p) => p.v);
+  let lo = Math.min(0, ...vals), hi = Math.max(1, ...vals);
+  if (hi === lo) hi = lo + 1;
+  const padv = (hi - lo) * 0.12; lo -= padv; hi += padv;
+
+  const X = (i) => (ss.length < 2 ? 0 : (i / (ss.length - 1)) * 320);
+  const Y = (v) => 128 - ((v - lo) / (hi - lo)) * 124;
+  let line = "";
+  for (let i = 0; i < ss.length; i++) line += (i ? "L" : "M") + X(i).toFixed(2) + " " + Y(ss[i].v).toFixed(2) + " ";
+  line = line.trim();
+  const area = line + " L320 132 L0 132 Z";
+  const zeroY = Y(0).toFixed(2);
+  const fp = ss[fi];
+
+  $("#chart-hit").innerHTML = `
+    <svg viewBox="0 0 320 132" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="cfArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--posSoft)" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="var(--posSoft)" stop-opacity="0"/>
+        </linearGradient>
+        <clipPath id="cfClip"><path d="${area}"/></clipPath>
+      </defs>
+      <line x1="0" y1="1" x2="320" y2="1" stroke="var(--fill1)" stroke-width="1"/>
+      <line x1="0" y1="44" x2="320" y2="44" stroke="var(--fill1)" stroke-width="1"/>
+      <line x1="0" y1="88" x2="320" y2="88" stroke="var(--fill1)" stroke-width="1"/>
+      <path d="${area}" fill="url(#cfArea)"/>
+      <rect x="0" y="${zeroY}" width="320" height="132" fill="rgba(180,85,58,.30)" clip-path="url(#cfClip)"/>
+      <line x1="0" y1="${zeroY}" x2="320" y2="${zeroY}" stroke="var(--negSoft)" stroke-width="1" stroke-dasharray="3 3"/>
+      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <line x1="${X(nowIdx).toFixed(2)}" y1="0" x2="${X(nowIdx).toFixed(2)}" y2="132" stroke="var(--ink4)" stroke-width="1" stroke-dasharray="2 4"/>
+      <line x1="${X(fi).toFixed(2)}" y1="0" x2="${X(fi).toFixed(2)}" y2="132" stroke="var(--gold2)" stroke-width="1"/>
+      <circle cx="${X(fi).toFixed(2)}" cy="${Y(fp.v).toFixed(2)}" r="5" fill="var(--card)" stroke="var(--accent)" stroke-width="2.4" vector-effect="non-scaling-stroke"/>
+    </svg>`;
+
+  $("#focus-date").textContent = fp.d.getDate() + " " + MS[fp.d.getMonth()] + " " + fp.d.getFullYear();
+  const fv = $("#focus-val");
+  fv.textContent = fmt(fp.v);
+  fv.classList.toggle("neg", fp.v < 0);
+
+  const list = months();
+  $("#chart-labels").innerHTML = [0, 2, 4, 6, 8, 10]
+    .map((i) => `<span>${MS[parseK(list[i]).m]}</span>`).join("");
 }
+
+// Scrubben over de grafiek
+(() => {
+  const hit = $("#chart-hit");
+  let active = false;
+  const toIdx = (ev) => {
+    const svg = hit.querySelector("svg");
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+    return Math.round(t * (series(null).length - 1));
+  };
+  hit.addEventListener("pointerdown", (ev) => {
+    active = true; hit.setPointerCapture?.(ev.pointerId);
+    const i = toIdx(ev); if (i != null) { S.focus = i; renderChart(); }
+  });
+  hit.addEventListener("pointermove", (ev) => {
+    if (!active) return;
+    const i = toIdx(ev); if (i != null) { S.focus = i; renderChart(); }
+  });
+  const up = () => { active = false; };
+  hit.addEventListener("pointerup", up);
+  hit.addEventListener("pointercancel", up);
+})();
 
 function renderMonthList() {
-  // horizon: van startmaand t/m (laatste data-maand of nu) + 3
-  let last = currentMonthKey();
-  for (const k of Object.keys(state.months)) if ((state.months[k].entries || []).length && k > last) last = k;
-  for (const r of state.recurring) if (r.fromMonth > last) last = r.fromMonth;
-  const horizon = addMonths(last, 3);
-  const count = Math.min(24, Math.max(1, monthsBetween(state.startMonth, horizon) + 1));
-  const nowKey = currentMonthKey();
-
-  els.monthList.innerHTML = "";
-  for (let i = 0; i < count; i++) {
-    const key = addMonths(state.startMonth, i);
-    const { inc, out } = monthNet(key);
-    const end = endBalance(key);
-    const isNow = key === nowKey;
-
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "month-row" + (isNow ? " is-now" : "");
-
-    const total = inc + out;
-    const bar = total > 0
-      ? `<div class="mr-bar"><span class="in" style="flex:${inc}"></span><span class="out" style="flex:${out}"></span></div>`
-      : `<div class="mr-bar"></div>`;
-
-    b.innerHTML = `
-      <div class="mr-main">
-        <div class="mr-top">
-          <span class="mr-name">${escapeHtml(monthName(key))}</span>
-          ${isNow ? '<span class="mr-now-pill">Nu</span>' : ""}
-        </div>
-        ${bar}
-        <div class="mr-flow"><span class="in">+ ${eur.format(inc)}</span><span class="out">− ${eur.format(out)}</span></div>
-      </div>
-      <div class="mr-right">
-        <span class="mr-end tnum${end < 0 ? " is-neg" : ""}">${eur.format(end)}</span>
-        <span class="mr-lbl">eindsaldo</span>
-      </div>`;
-
-    b.addEventListener("click", () => { viewMonth = key; selectedPot = "all"; haptic(6); switchTab("maand"); render(); });
-    li.appendChild(b);
-    els.monthList.appendChild(li);
-  }
+  const nowK = todayKey();
+  const html = months().map((k) => {
+    const nn = net(k), e = end(k), tot = Math.max(1, nn.inc + nn.out), p = parseK(k);
+    const isNow = k === nowK;
+    return `<button type="button" class="mrow" data-month="${k}">
+      <span class="mrow-main">
+        <span class="mrow-top">
+          <span class="mrow-name">${MN[p.m]} ${p.y}</span>
+          ${isNow ? '<span class="badge-now">NU</span>' : ""}
+        </span>
+        <span class="mrow-bar">
+          <span class="in" style="width:${((nn.inc / tot) * 100).toFixed(1)}%"></span>
+          <span class="out" style="width:${((nn.out / tot) * 100).toFixed(1)}%"></span>
+        </span>
+        <span class="mrow-flow">${fmt(nn.inc)} in · ${fmt(nn.out)} uit</span>
+      </span>
+      <span class="mrow-right">
+        <span class="mrow-end tnum${e < 0 ? " neg" : ""}">${fmt(e)}</span>
+        <span class="mrow-net">${nn.net >= 0 ? "+ " : "− "}${fmt(Math.abs(nn.net))}</span>
+      </span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+    </button>`;
+  }).join("");
+  const box = $("#month-list");
+  box.innerHTML = html;
+  box.querySelectorAll("[data-month]").forEach((b) => {
+    b.addEventListener("click", () => { S.month = b.dataset.month; S.pot = null; haptic(6); switchTab("maand"); });
+  });
 }
 
-/* ---------- Maanddetail ---------- */
+/* ---------- Maand ---------- */
 function renderMonth() {
-  if (selectedPot !== "all" && !getPot(selectedPot)) selectedPot = "all";
-  const pf = selectedPot === "all" ? undefined : selectedPot;
+  const mk = S.month;
+  if (S.pot && !D.pots.some((p) => p.id === S.pot)) S.pot = null;
+  const p = parseK(mk);
+  $("#month-title").textContent = MN[p.m] + " " + p.y;
+  $("#prev-month").disabled = mk <= months()[0];
+  $("#next-month").disabled = mk >= months()[11];
 
-  els.monthName.textContent = monthName(viewMonth);
-  els.prev.disabled = viewMonth <= state.startMonth;
-
-  const { inc, out, net } = monthNet(viewMonth, pf);
-  const end = endBalance(viewMonth, pf);
-
-  const potLabel = pf ? getPot(pf).label : null;
-  els.heroEyebrow.textContent = potLabel ? `Saldo einde maand · ${potLabel}` : "Verwacht saldo einde maand";
-
-  els.begin.textContent = eur.format(beginBalance(viewMonth, pf));
-  setAmount(els.end, end);
-  els.end.classList.toggle("is-neg", end < 0);
-
-  const sign = net > 0 ? "+" : net < 0 ? "−" : "±";
-  els.net.textContent = `${sign} ${eur.format(Math.abs(net))}`;
-  els.net.classList.toggle("is-neg", net < 0);
-
-  els.totalIn.textContent = eur.format(inc);
-  els.totalOut.textContent = eur.format(out);
+  const scope = S.pot ? (D.pots.find((x) => x.id === S.pot)?.label || "") : "alle potjes";
+  $("#month-scope").textContent = "Saldo einde maand · " + scope;
+  setBig($("#month-end"), end(mk, S.pot));
+  $("#month-begin").textContent = "Begin van de maand " + fmt(begin(mk, S.pot));
 
   renderPots();
-  renderCatSummary(pf);
-  renderList("in", els.listIn, pf);
-  renderList("out", els.listOut, pf);
+  renderHousehold();
+  renderGroups();
 }
 
 function renderPots() {
-  els.potsStrip.innerHTML = "";
-  const card = (id, label, amount, on, pot) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "pot-card" + (on ? " is-on" : "");
-    b.setAttribute("role", "tab");
-    b.setAttribute("aria-selected", String(on));
-    if (pot && pot.icon) {
-      const ic = document.createElement("span");
-      ic.className = "pc-icon"; ic.textContent = pot.icon; ic.setAttribute("aria-hidden", "true");
-      b.appendChild(ic);
-    }
-    const n = document.createElement("span");
-    n.className = "pc-name"; n.textContent = label;
-    const a = document.createElement("span");
-    a.className = "pc-amt tnum" + (amount < 0 ? " is-neg" : ""); a.textContent = eur.format(amount);
-    b.append(n, a);
-    if (pot && pot.goal > 0) {
-      const pct = Math.max(0, Math.min(1, amount / pot.goal));
-      const bar = document.createElement("div"); bar.className = "pot-progress";
-      const fill = document.createElement("span"); fill.style.width = `${(pct * 100).toFixed(0)}%`; bar.appendChild(fill);
-      const g = document.createElement("span"); g.className = "pc-goal";
-      g.textContent = `van ${eur.format(pot.goal)} · ${Math.round(pct * 100)}%`;
-      b.append(bar, g);
-    }
-    b.addEventListener("click", () => { selectedPot = id; haptic(8); renderMonth(); });
-    return b;
-  };
-  els.potsStrip.appendChild(card("all", "Alle potjes", endBalance(viewMonth), selectedPot === "all", null));
-  for (const p of state.pots) els.potsStrip.appendChild(card(p.id, p.label, endBalance(viewMonth, p.id), selectedPot === p.id, p));
-}
-
-function renderCatSummary(pf) {
-  const totals = { baby: 0, huis: 0, overig: 0 };
-  for (const e of entriesForMonth(viewMonth)) {
-    if (e.kind !== "out") continue;
-    if (pf && potOf(e) !== pf) continue;
-    totals[catOf(e)] += e.amount;
-  }
-  const grand = totals.baby + totals.huis + totals.overig;
-  els.catSummary.innerHTML = "";
-  if (grand <= 0) return;
-  for (const key of CAT_KEYS) {
-    const val = totals[key]; if (val <= 0) continue;
-    const cat = CATS[key];
-    const chip = document.createElement("div");
-    chip.className = "cat-stat";
-    chip.innerHTML = `<span class="cat-dot" style="background:${cat.color}" aria-hidden="true"></span>
-      <span class="cat-name">${cat.label}</span><span class="cat-val tnum">${eur.format(val)}</span>`;
-    els.catSummary.appendChild(chip);
-  }
-}
-
-function renderList(kind, ul, pf) {
-  const items = entriesForMonth(viewMonth).filter((e) => e.kind === kind && (!pf || potOf(e) === pf));
-  ul.innerHTML = "";
-  if (items.length === 0) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = kind === "in" ? "Nog geen inkomsten deze maand." : "Nog geen aankopen deze maand.";
-    ul.appendChild(li);
-    return;
-  }
-  for (const e of items) {
-    const li = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.type = "button"; btn.className = "row";
-    btn.addEventListener("click", () => openEntrySheet(e));
-
-    const dot = document.createElement("span");
-    if (kind === "out") { const c = CATS[catOf(e)]; dot.className = "row-dot"; dot.style.background = c.color + "22"; dot.textContent = c.icon; }
-    else { dot.className = "row-dot in"; dot.textContent = "↓"; }
-    dot.setAttribute("aria-hidden", "true");
-
-    const main = document.createElement("span");
-    main.className = "row-main";
-    const label = document.createElement("span");
-    label.className = "row-label"; label.textContent = e.label;
-    main.appendChild(label);
-
-    const bits = [`${e.day || 1}e`];
-    if (selectedPot === "all") bits.push(getPot(potOf(e)).label);
-    if (kind === "out") bits.push(CATS[catOf(e)].label);
-    if (e.recurring) bits.push("↻ maandelijks");
-    const tag = document.createElement("span");
-    tag.className = "row-tag"; tag.textContent = bits.join(" · ");
-    main.appendChild(tag);
-
-    const amount = document.createElement("span");
-    amount.className = `row-amount tnum ${kind}`;
-    amount.textContent = (kind === "in" ? "+ " : "− ") + eur.format(e.amount);
-
-    btn.append(dot, main, amount);
-    li.appendChild(btn);
-    ul.appendChild(li);
-  }
-}
-
-/* ---------- Cashflow-grafiek (dagelijks, scrubbaar) ---------- */
-function renderChart(pf) {
-  const start = state.startMonth;
-  const span = chartSpan();
-
-  const pts = [];
-  const monthStart = [];
-  let bal = startSum(pf);
-  let mk = start;
-  for (let mi = 0; mi <= span; mi++) {
-    const dim = daysInMonth(mk);
-    const deltas = new Array(dim + 1).fill(0);
-    for (const e of entriesForMonth(mk)) {
-      if (pf && potOf(e) !== pf) continue;
-      deltas[clampDay(e.day, dim)] += e.kind === "in" ? e.amount : -e.amount;
-    }
-    monthStart.push({ index: pts.length, key: mk });
-    for (let d = 1; d <= dim; d++) { bal += deltas[d]; pts.push({ key: mk, day: d, balance: bal }); }
-    mk = addMonths(mk, 1);
-  }
-  if (pts.length === 0) return;
-
-  const stepX = 4.4, padX = 14, H = 168, padTop = 18, padBot = 26;
-  const W = padX * 2 + (pts.length - 1) * stepX;
-  let min = Infinity, max = -Infinity;
-  for (const p of pts) { if (p.balance < min) min = p.balance; if (p.balance > max) max = p.balance; }
-  min = Math.min(min, 0); max = Math.max(max, 0);
-  if (min === max) max = min + 1;
-  const range = max - min;
-  const X = (i) => padX + i * stepX;
-  const Y = (v) => padTop + (1 - (v - min) / range) * (H - padTop - padBot);
-  const baseY = H - padBot;
-
-  let line = "";
-  for (let i = 0; i < pts.length; i++) line += (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(pts[i].balance).toFixed(1) + " ";
-  const area = `M ${X(0).toFixed(1)} ${baseY} ${line}L ${X(pts.length - 1).toFixed(1)} ${baseY} Z`;
-
-  const nowKey = currentMonthKey();
-  let ticks = "";
-  for (const m of monthStart) {
-    const isNow = m.key === nowKey;
-    ticks += `<text class="c-tick${isNow ? " is-now" : ""}" x="${X(m.index).toFixed(1)}" y="${H - 8}" text-anchor="middle">${monthShortFmt.format(keyToDate(m.key))}</text>`;
-  }
-  const danger = min < 0 ? `<rect class="c-danger" x="${padX}" y="${Y(0).toFixed(1)}" width="${(W - padX * 2).toFixed(1)}" height="${(baseY - Y(0)).toFixed(1)}"/>` : "";
-  const zero = (min < 0 && max > 0) ? `<line class="c-zero" x1="${padX}" y1="${Y(0).toFixed(1)}" x2="${(W - padX).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>` : "";
-
-  let grid = "";
-  const gN = 3;
-  for (let g = 1; g <= gN; g++) {
-    const gy = (padTop + (g / (gN + 1)) * (H - padTop - padBot)).toFixed(1);
-    grid += `<line class="c-grid" x1="${padX}" y1="${gy}" x2="${(W - padX).toFixed(1)}" y2="${gy}"/>`;
-  }
-
-  let todayMark = "";
-  const nowM = monthStart.find((m) => m.key === nowKey);
-  if (nowM) {
-    const tx = X(nowM.index + Math.min(todayDay(), daysInMonth(nowKey)) - 1).toFixed(1);
-    todayMark = `<line class="c-today" x1="${tx}" y1="${padTop}" x2="${tx}" y2="${baseY}"/><text class="c-today-lbl" x="${tx}" y="${padTop - 5}" text-anchor="middle">nu</text>`;
-  }
-
-  els.chartSub.textContent = "sleep om te bekijken";
-  els.chartScroll.innerHTML = `
-    <svg class="chart-svg" width="${W.toFixed(0)}" height="${H}" viewBox="0 0 ${W.toFixed(0)} ${H}" xmlns="http://www.w3.org/2000/svg">
-      <defs><linearGradient id="c-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="var(--accent)" stop-opacity="0.30"/>
-        <stop offset="1" stop-color="var(--accent)" stop-opacity="0.02"/>
-      </linearGradient></defs>
-      ${grid}${danger}${zero}
-      <path class="c-area" d="${area}"/>
-      <path class="c-line" d="${line.trim()}"/>
-      ${todayMark}${ticks}
-      <line class="c-guide" id="c-guide" x1="0" y1="${padTop}" x2="0" y2="${baseY}"/>
-      <circle class="c-focus" id="c-focus" r="5" cx="-10" cy="-10"/>
-    </svg>`;
-
-  const svgEl = els.chartScroll.querySelector("svg");
-  const guide = svgEl.querySelector("#c-guide");
-  const focus = svgEl.querySelector("#c-focus");
-  const clampIdx = (i) => Math.max(0, Math.min(pts.length - 1, i));
-
-  function setFocus(i) {
-    i = clampIdx(i);
-    const p = pts[i];
-    const x = X(i), y = Y(p.balance);
-    guide.setAttribute("x1", x); guide.setAttribute("x2", x);
-    focus.setAttribute("cx", x); focus.setAttribute("cy", y);
-    focus.classList.toggle("is-neg", p.balance < 0);
-    els.chartMonth.textContent = `${p.day} ${monthShortFmt.format(keyToDate(p.key))} ${p.key.slice(0, 4)}`;
-    els.chartValue.textContent = eur.format(p.balance);
-    els.chartValue.classList.toggle("is-neg", p.balance < 0);
-    return p;
-  }
-
-  let focusIdx = monthStart[0].index;
-  const vm = monthStart.find((m) => m.key === viewMonth);
-  if (vm) { focusIdx = vm.index; if (viewMonth === nowKey) focusIdx = vm.index + Math.min(todayDay(), daysInMonth(nowKey)) - 1; }
-  setFocus(focusIdx);
-  requestAnimationFrame(() => { els.chartScroll.scrollLeft = X(focusIdx) - els.chartScroll.clientWidth / 2; });
-
-  const idxFromEvent = (ev) => { const rect = svgEl.getBoundingClientRect(); return Math.round((ev.clientX - rect.left - padX) / stepX); };
-  let downX = null, moved = false, ptype = null;
-  svgEl.addEventListener("pointerdown", (ev) => { downX = ev.clientX; moved = false; ptype = ev.pointerType; if (ptype !== "touch") setFocus(idxFromEvent(ev)); });
-  svgEl.addEventListener("pointermove", (ev) => { if (downX === null) return; if (Math.abs(ev.clientX - downX) > 6) moved = true; if (ptype !== "touch" && ev.buttons & 1) setFocus(idxFromEvent(ev)); });
-  svgEl.addEventListener("pointerup", (ev) => {
-    if (downX === null) return;
-    const tap = !moved, wasTouch = ptype === "touch";
-    downX = null;
-    if (!wasTouch || tap) {
-      const p = setFocus(idxFromEvent(ev));
-      if (p) { viewMonth = clampToStart(p.key); selectedPot = "all"; haptic(6); switchTab("maand"); render(); }
-    }
+  const mk = S.month;
+  const chips = [{ id: null, label: "Alle potjes", icon: "◎", balance: end(mk), goal: 0, pace: null }]
+    .concat(D.pots.map((p) => ({
+      id: p.id, label: p.label, icon: p.icon, balance: end(mk, p.id),
+      goal: p.goal, pace: pace(p, mk),
+    })));
+  const box = $("#pots");
+  box.innerHTML = chips.map((c) => {
+    const on = S.pot === c.id;
+    const pct = c.goal ? Math.max(0, Math.min(100, (c.balance / c.goal) * 100)) : 0;
+    const hasGoal = !!c.goal;
+    return `<button type="button" class="pot${on ? " on" : ""}" role="tab" aria-selected="${on}" data-pot="${c.id == null ? "" : c.id}">
+      <span class="pot-top">
+        <span class="pot-ico" aria-hidden="true">${c.icon}</span>
+        <span class="pot-pct">${hasGoal ? Math.round(pct) + "%" : ""}</span>
+      </span>
+      <span class="pot-label">${esc(c.label)}</span>
+      <span class="pot-amt tnum${c.balance < 0 ? " neg" : ""}">${fmt(c.balance)}</span>
+      ${hasGoal ? `<span class="pot-track"><span class="pot-fill" style="width:${pct.toFixed(0)}%"></span></span>
+        <span class="pot-goal">van ${fmt(c.goal)}</span>
+        ${c.pace ? `<span class="pot-pace${c.pace.diff < 0 ? " behind" : ""}">${c.pace.diff >= 0 ? "op schema" : "achter"} · ${fmt(Math.abs(c.pace.diff))} · ${c.pace.date}</span>` : ""}` : ""}
+    </button>`;
+  }).join("");
+  box.querySelectorAll("[data-pot]").forEach((b) => {
+    b.addEventListener("click", () => { S.pot = b.dataset.pot || null; haptic(8); renderMonth(); });
   });
-  svgEl.addEventListener("pointercancel", () => { downX = null; });
+}
+
+function monthBuckets(mk) {
+  const ps = posts(mk, S.pot);
+  const totIn = ps.filter((p) => p.kind === "in").reduce((s, p) => s + p.amount, 0);
+  const fixedPosts = ps.filter((p) => p.kind !== "in" && p.group !== "over");
+  const overPosts = ps.filter((p) => p.group === "over");
+  const totFixed = fixedPosts.reduce((s, p) => s + p.amount, 0);
+  const totOver = overPosts.reduce((s, p) => s + p.amount, 0);
+  return { ps, totIn, fixedPosts, overPosts, totFixed, totOver, left: totIn - totFixed, rest: totIn - totFixed - totOver };
+}
+
+function renderHousehold() {
+  const mk = S.month;
+  const b = monthBuckets(mk);
+  const sp = safePoint();
+  $("#hh-safe").innerHTML = sp.label
+    ? `Veilig uit ${esc(sp.label)} tot ${sp.pt.getDate ? "" : ""}${sp.pt.d.getDate()} ${MS[sp.pt.d.getMonth()]} · <b class="${sp.pt.v < 0 ? "neg" : ""}">${fmt(Math.max(0, sp.pt.v))}</b>`
+    : "";
+  $("#hh-in").textContent = fmt(b.totIn);
+  $("#hh-fixed").textContent = "− " + fmt(b.totFixed);
+  $("#hh-left").textContent = fmt(b.left);
+
+  const rows = b.overPosts.map((p, i) => ({ label: p.label, amount: p.amount, color: ALLOC_COLORS[i % ALLOC_COLORS.length] }));
+  const bar = rows.map((r, i) => ({ pct: b.left > 0 ? (b.overPosts[i].amount / b.left) * 100 : 0, color: r.color }));
+  if (b.rest > 0 && b.left > 0) bar.push({ pct: (b.rest / b.left) * 100, color: "var(--fill2)" });
+  $("#hh-bar").innerHTML = bar.map((s) => `<span style="width:${s.pct.toFixed(1)}%;background:${s.color}"></span>`).join("");
+  $("#hh-alloc").innerHTML = rows.map((r) => `<div class="alloc-row">
+      <span class="alloc-dot" style="background:${r.color}"></span>
+      <span class="alloc-label">${esc(r.label)}</span>
+      <span class="alloc-amt tnum">${fmt(r.amount)}</span>
+    </div>`).join("");
+  const rest = $("#hh-rest");
+  rest.textContent = fmt(b.rest);
+  rest.classList.toggle("neg", b.rest < 0);
+
+  const nn = net(mk, S.pot);
+  $("#m-in").textContent = fmt(nn.inc);
+  $("#m-out").textContent = fmt(nn.out);
+
+  // Categoriechips (eenmalige uitgaven deze maand)
+  const agg = {};
+  b.ps.filter((p) => p.kind === "out" && p.category && !p.rec).forEach((p) => { agg[p.category] = (agg[p.category] || 0) + p.amount; });
+  const chipbox = $("#cat-chips");
+  chipbox.querySelectorAll(".catchip").forEach((n) => n.remove());
+  CAT_KEYS.filter((k) => agg[k]).forEach((k) => {
+    const el = document.createElement("div");
+    el.className = "catchip";
+    el.innerHTML = `<span aria-hidden="true">${CATS[k].icon}</span><span class="lb">${CATS[k].label}</span><span class="am tnum">${fmt(agg[k])}</span>`;
+    chipbox.appendChild(el);
+  });
+}
+
+/* ---------- Groepen met swipe ---------- */
+function rowMeta(r) {
+  const pot = D.pots.find((p) => p.id === r.potId);
+  const toPot = r.toPot ? D.pots.find((p) => p.id === r.toPot) : null;
+  const bits = [(r.day || 1) + "e", toPot ? `${pot ? pot.label : "—"} → ${toPot.label}` : (pot ? pot.label : "—")];
+  bits.push(r.rec ? "↻ maandelijks" : "eenmalig");
+  if (r.category && CATS[r.category]) bits.push(CATS[r.category].label);
+  return bits.join(" · ");
+}
+
+function renderGroups() {
+  const mk = S.month;
+  const b = monthBuckets(mk);
+  const once = b.ps.filter((p) => !p.rec);
+  const defs = [
+    { key: "in", title: "Inkomsten", rows: b.ps.filter((p) => p.kind === "in" && p.rec), total: fmt(b.totIn), cls: "pos", empty: "Geen inkomsten in dit potje." },
+    { key: "fixed", title: "Vaste lasten", rows: b.fixedPosts.filter((p) => p.rec), total: "− " + fmt(b.fixedPosts.filter((p) => p.rec).reduce((s, p) => s + p.amount, 0)), cls: "neg", empty: "Geen vaste lasten." },
+    { key: "over", title: "Verdeling van wat overblijft", rows: b.overPosts, total: fmt(b.totOver), cls: "", empty: "Nog niets verdeeld." },
+    { key: "once", title: "Eenmalig deze maand", rows: once, total: fmt(once.reduce((s, p) => s + (p.kind === "in" ? p.amount : -p.amount), 0)), cls: "", empty: "Nog geen eenmalige posten deze maand." },
+  ];
+
+  const wrap = $("#groups");
+  wrap.innerHTML = defs.map((g) => {
+    const open = !S.collapsed[g.key];
+    const rows = open ? g.rows.map((r, i) => {
+      const dx = S.swipe && S.swipe.id === r.id ? S.swipe.dx : 0;
+      const amt = r.kind === "in" ? "+ " + fmt(r.amount) : (r.kind === "move" ? fmt(r.amount) : "− " + fmt(r.amount));
+      const cls = r.kind === "in" ? "pos" : (r.kind === "move" ? "" : "neg");
+      const ico = r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶");
+      const hint = (!S.hintDone && g.key === "in" && i === 0) ? "animation:swipeHint 2.8s cubic-bezier(.22,1,.36,1) 1.4s 2" : "";
+      return `<div class="swipe">
+        <div class="swipe-actions">
+          <button type="button" class="swipe-move" data-move="${r.id}">Verzet →</button>
+          <button type="button" class="swipe-del" data-del="${r.id}">Wissen</button>
+        </div>
+        <button type="button" class="row" data-row="${r.id}" style="transform:translateX(${dx}px);${hint}">
+          <span class="row-tile" aria-hidden="true">${ico}</span>
+          <span class="row-main">
+            <span class="row-top">
+              <span class="row-label">${esc(r.label)}</span>
+              ${r.review ? '<span class="dot-review" title="Te herzien"></span>' : ""}
+            </span>
+            <span class="row-meta">${esc(rowMeta(r))}</span>
+          </span>
+          <span class="row-amt tnum ${cls}">${amt}</span>
+        </button>
+      </div>`;
+    }).join("") : "";
+    return `<div class="group" style="margin-bottom:14px">
+      <button type="button" class="group-btn" aria-expanded="${open}" data-group="${g.key}">
+        <span class="gt">
+          <span class="group-title">${g.title}</span>
+          <span class="group-count">${g.rows.length === 1 ? "1 post" : g.rows.length + " posten"}</span>
+        </span>
+        <span class="group-total ${g.cls}">${g.total}</span>
+        <span class="group-caret"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></span>
+      </button>
+      ${open ? (g.rows.length ? `<div style="display:flex;flex-direction:column;gap:8px">${rows}</div>` : `<div class="group-empty">${g.empty}</div>`) : ""}
+    </div>`;
+  }).join("");
+
+  wrap.querySelectorAll("[data-group]").forEach((b2) => {
+    b2.addEventListener("click", () => {
+      const k = b2.dataset.group;
+      S.collapsed = { ...S.collapsed, [k]: !S.collapsed[k] };
+      S.swipe = null;
+      renderGroups();
+    });
+  });
+
+  const allRows = [].concat(...defs.map((g) => g.rows));
+  const findRow = (id) => allRows.find((r) => r.id === id);
+
+  wrap.querySelectorAll("[data-move]").forEach((b2) => b2.addEventListener("click", () => moveNext(findRow(b2.dataset.move))));
+  wrap.querySelectorAll("[data-del]").forEach((b2) => b2.addEventListener("click", () => delRow(findRow(b2.dataset.del))));
+
+  // Swipe + tap
+  wrap.querySelectorAll("[data-row]").forEach((el) => {
+    const id = el.dataset.row;
+    let x0 = null, moved = false, base = 0;
+    el.addEventListener("pointerdown", (ev) => {
+      x0 = ev.clientX; moved = false;
+      base = S.swipe && S.swipe.id === id ? S.swipe.dx : 0;
+      el.classList.add("dragging");
+    });
+    el.addEventListener("pointermove", (ev) => {
+      if (x0 === null) return;
+      const dx = Math.max(-150, Math.min(0, base + (ev.clientX - x0)));
+      if (Math.abs(ev.clientX - x0) > 6) moved = true;
+      if (moved) el.style.transform = `translateX(${dx}px)`;
+    });
+    const finish = (ev) => {
+      if (x0 === null) return;
+      el.classList.remove("dragging");
+      const raw = base + ((ev.clientX ?? x0) - x0);
+      x0 = null;
+      if (!moved) {
+        if (S.swipe) { S.swipe = null; renderGroups(); return; }
+        const r = findRow(id);
+        if (r) openEntry(r, S.month);
+        return;
+      }
+      S.hintDone = true;
+      const openIt = raw < -70;
+      S.swipe = openIt ? { id, dx: -150 } : null;
+      el.style.transform = `translateX(${openIt ? -150 : 0}px)`;
+    };
+    el.addEventListener("pointerup", finish);
+    el.addEventListener("pointercancel", () => { x0 = null; el.classList.remove("dragging"); el.style.transform = `translateX(${S.swipe && S.swipe.id === id ? -150 : 0}px)`; });
+  });
+}
+
+function moveNext(r) {
+  if (!r) return;
+  if (r.rec) { askChoice(r, "move"); return; }
+  const nd = clone();
+  const mk = S.month, nk = addM(mk, 1);
+  nd.months[mk].entries = (nd.months[mk].entries || []).filter((e) => e.id !== r.id);
+  nd.months[nk] = nd.months[nk] || { entries: [], skip: [] };
+  const moved = { ...r }; delete moved.rec;
+  nd.months[nk].entries.push(moved);
+  commit(nd, `${r.label} → ${MN[parseK(nk).m]}`, () => {
+    const b = clone();
+    b.months[nk].entries = (b.months[nk].entries || []).filter((e) => e.id !== r.id);
+    b.months[mk].entries.push(moved);
+    return b;
+  });
+}
+function delRow(r) {
+  if (!r) return;
+  if (r.rec) { askChoice(r, "del"); return; }
+  const nd = clone(), mk = S.month;
+  nd.months[mk].entries = (nd.months[mk].entries || []).filter((e) => e.id !== r.id);
+  commit(nd, `${r.label} verwijderd`, () => {
+    const b = clone();
+    b.months[mk] = b.months[mk] || { entries: [], skip: [] };
+    b.months[mk].entries.push({ ...r, rec: undefined });
+    return b;
+  });
+}
+
+function commit(next, msg, undoFactory) {
+  const undoData = undoFactory ? undoFactory() : null;
+  D = next;
+  S.swipe = null;
+  haptic(16);
+  save();
+  render();
+  if (msg) toast(msg, undoData ? () => { D = undoData; save(); render(); } : null);
 }
 
 /* ---------- Vermogen ---------- */
-function renderVermogen() {
-  const cash = liquidNow(), inv = investTotal(), total = cash + inv;
-  els.worthCash.textContent = eur.format(cash);
-  els.worthInvest.textContent = eur.format(inv);
-  setAmount(els.worthTotal, total);
-  els.worthTotal.classList.toggle("is-neg", total < 0);
-  renderAllocation();
-  renderInvestList();
-}
+function renderWealth() {
+  const nowK = clampMonth(todayKey());
+  const cash = end(nowK), inv = investTotal(), total = cash + inv;
+  setBig($("#w-amount"), total);
+  $("#w-sub").textContent = "Spaargeld + beleggingen · " + fmt(investMonthly()) + " per maand erbij";
 
-function renderAllocation() {
-  const cur = clampToStart(currentMonthKey());
-  const parts = [
-    ...state.pots.map((p, i) => ({ label: p.label, value: Math.max(0, endBalance(cur, p.id)), color: POT_COLORS[i % POT_COLORS.length] })),
-    ...state.investments.map((iv, i) => ({ label: iv.label, value: Math.max(0, Number(iv.value) || 0), color: INV_COLORS[i % INV_COLORS.length] })),
-  ].filter((p) => p.value > 0);
+  const segs = D.pots.map((p, i) => ({ label: p.label, value: Math.max(0, end(nowK, p.id)), color: ALLOC_COLORS[i % ALLOC_COLORS.length] }))
+    .concat(D.investments.map((iv, i) => ({ label: iv.label, value: Math.max(0, Number(iv.value) || 0), color: i % 2 ? "var(--gold2)" : "var(--gold)" })))
+    .filter((s) => s.value > 0);
+  const sum = segs.reduce((s, x) => s + x.value, 0);
+  $("#w-bar").innerHTML = sum > 0
+    ? segs.map((s) => `<span style="width:${((s.value / sum) * 100).toFixed(1)}%;background:${s.color}"></span>`).join("")
+    : `<span style="width:100%;background:var(--fill2)"></span>`;
+  $("#w-alloc").innerHTML = sum > 0 ? segs.map((s) => `<div class="alloc-row">
+      <span class="alloc-dot" style="background:${s.color}"></span>
+      <span class="alloc-label">${esc(s.label)}</span>
+      <span class="alloc-pct tnum">${Math.round((s.value / sum) * 100)}%</span>
+      <span class="alloc-amt tnum">${fmt(s.value)}</span>
+    </div>`).join("") : `<div class="group-empty">Nog niets om te verdelen.</div>`;
 
-  els.alloc.innerHTML = "";
-  const sum = parts.reduce((s, p) => s + p.value, 0);
-  if (sum <= 0) { els.alloc.innerHTML = `<p class="empty" style="padding:8px 4px">Nog niets om te verdelen. Vul een beginsaldo of belegging in.</p>`; return; }
+  // Beleggingen
+  const il = $("#invest-list");
+  il.innerHTML = D.investments.length ? D.investments.map((iv) => {
+    const pct = inv > 0 ? Math.round((iv.value / inv) * 100) : 0;
+    const meta = (iv.monthly ? fmt(iv.monthly) + " per maand" : "geen inleg") + (iv.updated ? " · bijgewerkt " + iv.updated : "");
+    return `<button type="button" class="irow" data-inv="${iv.id}">
+      <span class="row-tile" aria-hidden="true">📈</span>
+      <span class="irow-main"><span class="irow-lbl">${esc(iv.label)}</span><span class="irow-meta">${esc(meta)}</span></span>
+      <span class="irow-right"><span class="irow-amt tnum">${fmt(iv.value)}</span><span class="irow-pct">${pct}%</span></span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+    </button>`;
+  }).join("") : `<div class="group-empty">Nog geen beleggingen.</div>`;
+  il.querySelectorAll("[data-inv]").forEach((b) => b.addEventListener("click", () => openInvest(D.investments.find((x) => x.id === b.dataset.inv))));
 
-  const bar = document.createElement("div");
-  bar.className = "alloc-bar";
-  for (const p of parts) {
-    const seg = document.createElement("span");
-    seg.className = "alloc-seg";
-    seg.style.width = `${(p.value / sum) * 100}%`; seg.style.background = p.color;
-    seg.title = `${p.label}: ${eur.format(p.value)}`;
-    bar.appendChild(seg);
-  }
-  els.alloc.appendChild(bar);
+  // Spaargeld per potje
+  $("#potsum-list").innerHTML = D.pots.map((p) => {
+    const bal = end(nowK, p.id), pc = pace(p, nowK);
+    const goal = p.goal ? `doel ${fmt(p.goal)}${pc ? " · " + (pc.diff >= 0 ? "op schema" : "achter") : ""}` : "geen doel";
+    return `<div class="irow">
+      <span class="row-tile" aria-hidden="true">${p.icon}</span>
+      <span class="irow-main"><span class="irow-lbl">${esc(p.label)}</span><span class="irow-meta">${esc(goal)}</span></span>
+      <span class="irow-amt tnum${bal < 0 ? " neg" : ""}">${fmt(bal)}</span>
+    </div>`;
+  }).join("");
 
-  const legend = document.createElement("div");
-  legend.className = "alloc-legend";
-  for (const p of parts) {
-    const pct = Math.round((p.value / sum) * 100);
-    const row = document.createElement("div");
-    row.className = "alloc-item";
-    row.innerHTML = `<span class="cat-dot" style="background:${p.color}" aria-hidden="true"></span>
-      <span class="alloc-label">${escapeHtml(p.label)}</span>
-      <span class="alloc-pct tnum">${pct}%</span><span class="alloc-amt tnum">${eur.format(p.value)}</span>`;
-    legend.appendChild(row);
-  }
-  els.alloc.appendChild(legend);
-}
-
-function renderInvestList() {
-  const ul = els.listInvest;
-  ul.innerHTML = "";
-  if (state.investments.length === 0) {
-    const li = document.createElement("li");
-    li.className = "empty"; li.textContent = "Nog geen beleggingen. Voeg je eerste rekening toe.";
-    ul.appendChild(li); return;
-  }
-  for (const inv of state.investments) {
-    const li = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.type = "button"; btn.className = "row";
-    btn.addEventListener("click", () => openInvestSheet(inv));
-    const dot = document.createElement("span");
-    dot.className = "row-dot"; dot.style.background = "rgba(62,124,177,0.16)"; dot.textContent = "📈"; dot.setAttribute("aria-hidden", "true");
-    const main = document.createElement("span");
-    main.className = "row-main";
-    const label = document.createElement("span");
-    label.className = "row-label"; label.textContent = inv.label; main.appendChild(label);
-    const amount = document.createElement("span");
-    amount.className = "row-amount tnum"; amount.textContent = eur.format(Number(inv.value) || 0);
-    btn.append(dot, main, amount);
-    li.appendChild(btn);
-    ul.appendChild(li);
-  }
+  // Jaar per categorie
+  const agg = {};
+  for (const mk of months()) posts(mk, null).forEach((p) => {
+    if (p.kind !== "out" || !p.category) return;
+    agg[p.category] = (agg[p.category] || 0) + p.amount;
+  });
+  const keys = CAT_KEYS.filter((k) => agg[k]).sort((a, b) => agg[b] - agg[a]);
+  const max = Math.max(1, ...keys.map((k) => agg[k]));
+  const tot = keys.reduce((s, k) => s + agg[k], 0);
+  $("#year-cats").innerHTML = keys.length ? keys.map((k, i) => `<div class="ycat">
+      <div class="ycat-top">
+        <span class="ycat-ico" aria-hidden="true">${CATS[k].icon}</span>
+        <span class="ycat-lbl">${CATS[k].label}</span>
+        <span class="ycat-pct tnum">${tot ? Math.round((agg[k] / tot) * 100) : 0}%</span>
+        <span class="ycat-amt tnum">${fmt(agg[k])}</span>
+      </div>
+      <div class="ycat-track"><div class="ycat-fill" style="width:${((agg[k] / max) * 100).toFixed(0)}%;background:${ALLOC_COLORS[i % ALLOC_COLORS.length]}"></div></div>
+    </div>`).join("") : `<div class="group-empty">Nog geen uitgaven met een categorie.</div>`;
 }
 
 /* ============================================================
-   Tabs
+   Tabs & navigatie
    ============================================================ */
-const TAB_LABEL = { overzicht: "Overzicht", maand: "Maand", vermogen: "Vermogen" };
-const tabs = {
-  overzicht: $("#tab-overzicht"),
-  maand: $("#tab-maand"),
-  vermogen: $("#tab-vermogen"),
-};
-const tabInd = $("#tab-ind");
-function positionTabInd(name) {
-  const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
-  if (!btn || !tabInd) return;
-  tabInd.style.left = btn.offsetLeft + "px";
-  tabInd.style.width = btn.offsetWidth + "px";
-}
 function switchTab(name) {
-  activeTab = name;
-  for (const k of Object.keys(tabs)) tabs[k].hidden = k !== name;
-  document.querySelectorAll(".tab-btn").forEach((b) => {
-    const on = b.dataset.tab === name;
-    b.classList.toggle("is-active", on);
-    if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
-  });
-  positionTabInd(name);
-  const shown = tabs[name];
-  if (shown) { shown.classList.remove("tab-enter"); void shown.offsetWidth; shown.classList.add("tab-enter"); }
-  els.brandName.textContent = TAB_LABEL[name] || "Budget";
-  window.scrollTo({ top: 0, behavior: "auto" });
-}
-window.addEventListener("resize", () => positionTabInd(activeTab));
-document.querySelectorAll(".tab-btn").forEach((btn) => {
-  btn.addEventListener("click", () => { haptic(6); switchTab(btn.dataset.tab); });
-});
-$("#back-overzicht").addEventListener("click", () => { haptic(6); switchTab("overzicht"); });
-
-/* ============================================================
-   Maandnavigatie + maandkiezer
-   ============================================================ */
-els.prev.addEventListener("click", () => { viewMonth = clampToStart(addMonths(viewMonth, -1)); render(); });
-els.next.addEventListener("click", () => { viewMonth = addMonths(viewMonth, 1); render(); });
-els.today.addEventListener("click", () => { viewMonth = clampToStart(currentMonthKey()); render(); });
-
-const monthOverlay = $("#month-overlay");
-const mpYearEl = $("#mp-year");
-const mpGrid = $("#mp-grid");
-els.monthName.addEventListener("click", () => { mpYear = Number(viewMonth.slice(0, 4)); renderMpGrid(); openOverlay(monthOverlay); });
-$("#mp-prev").addEventListener("click", () => { mpYear--; renderMpGrid(); });
-$("#mp-next").addEventListener("click", () => { mpYear++; renderMpGrid(); });
-
-function renderMpGrid() {
-  mpYearEl.textContent = String(mpYear);
-  mpGrid.innerHTML = "";
-  for (let m = 1; m <= 12; m++) {
-    const key = `${mpYear}-${String(m).padStart(2, "0")}`;
-    const cell = document.createElement("button");
-    cell.type = "button";
-    cell.className = "mp-cell" + (key === viewMonth ? " is-on" : "");
-    // Korte namen: passen ook op smalle toestellen in 3 kolommen
-    cell.textContent = monthShortFmt.format(new Date(mpYear, m - 1, 1)).replace(".", "");
-    cell.setAttribute("aria-label", monthOnlyFmt.format(new Date(mpYear, m - 1, 1)));
-    cell.disabled = key < state.startMonth;
-    cell.addEventListener("click", () => { viewMonth = clampToStart(key); haptic(6); closeOverlay(monthOverlay); switchTab("maand"); render(); });
-    mpGrid.appendChild(cell);
-  }
-}
-
-/* ============================================================
-   Entry-sheet
-   ============================================================ */
-const entryOverlay = $("#entry-overlay");
-const entryForm = $("#entry-form");
-const fMonth = $("#f-month");
-const fLabel = $("#f-label");
-const fAmount = $("#f-amount");
-const fDay = $("#f-day");
-const fRecurring = $("#f-recurring");
-const entryTitle = $("#entry-title");
-const entryError = $("#entry-error");
-const segOpts = [...entryForm.querySelectorAll(".seg-opt")];
-const catField = $("#cat-field");
-const catRow = $("#cat-row");
-const potRow = $("#pot-row");
-const suggestRow = $("#suggest-row");
-
-let editing = null;
-let formKind = "in";
-let formCat = DEFAULT_CAT;
-let formPot = firstPotId();
-
-for (const key of CAT_KEYS) {
-  const c = CATS[key];
-  const chip = document.createElement("button");
-  chip.type = "button"; chip.className = "cat-chip"; chip.dataset.cat = key; chip.setAttribute("role", "radio");
-  chip.style.setProperty("--c", c.color);
-  chip.innerHTML = `<span aria-hidden="true">${c.icon}</span> ${c.label}`;
-  chip.addEventListener("click", () => setCat(key));
-  catRow.appendChild(chip);
-}
-function setCat(key) {
-  formCat = CATS[key] ? key : DEFAULT_CAT;
-  catRow.querySelectorAll(".cat-chip").forEach((ch) => { const on = ch.dataset.cat === formCat; ch.classList.toggle("is-on", on); ch.setAttribute("aria-checked", String(on)); });
-}
-function buildPotChips() {
-  potRow.innerHTML = "";
-  for (const p of state.pots) {
-    const chip = document.createElement("button");
-    chip.type = "button"; chip.className = "cat-chip"; chip.dataset.pot = p.id; chip.setAttribute("role", "radio");
-    chip.style.setProperty("--c", "var(--accent)");
-    chip.textContent = (p.icon ? p.icon + " " : "") + p.label;
-    chip.addEventListener("click", () => setPot(p.id));
-    potRow.appendChild(chip);
-  }
-}
-function setPot(id) {
-  formPot = getPot(id) ? id : firstPotId();
-  potRow.querySelectorAll(".cat-chip").forEach((ch) => { const on = ch.dataset.pot === formPot; ch.classList.toggle("is-on", on); ch.setAttribute("aria-checked", String(on)); });
-}
-function setKind(kind) {
-  formKind = kind;
-  for (const opt of segOpts) opt.setAttribute("aria-selected", String(opt.dataset.kind === kind));
-  catField.hidden = kind !== "out";
-}
-segOpts.forEach((opt) => { opt.setAttribute("role", "tab"); opt.addEventListener("click", () => setKind(opt.dataset.kind)); });
-
-function buildSuggestions() {
-  suggestRow.innerHTML = "";
-  for (const l of state.recentLabels.slice(0, 6)) {
-    const c = document.createElement("button");
-    c.type = "button"; c.className = "suggest-chip"; c.textContent = l;
-    c.addEventListener("click", () => { fLabel.value = l; fAmount.focus(); });
-    suggestRow.appendChild(c);
-  }
-}
-document.querySelectorAll("#qa-row .qa-chip").forEach((ch) => {
-  ch.addEventListener("click", () => { fAmount.value = ch.dataset.amt; fAmount.focus(); });
-});
-
-function openEntrySheet(entry, presetKind) {
-  entryError.hidden = true;
-  buildPotChips();
-  buildSuggestions();
-  if (entry) {
-    editing = { id: entry.id, recurring: entry.recurring, kind: entry.kind };
-    entryTitle.textContent = "Bewerken";
-    setKind(entry.kind); setCat(catOf(entry)); setPot(potOf(entry));
-    fMonth.value = viewMonth;
-    fLabel.value = entry.label;
-    fAmount.value = String(entry.amount).replace(".", ",");
-    fDay.value = entry.day ? String(entry.day) : "";
-    fRecurring.checked = !!entry.recurring;
-  } else {
-    editing = null;
-    entryTitle.textContent = "Toevoegen";
-    setKind(presetKind || "in"); setCat(DEFAULT_CAT);
-    setPot(selectedPot !== "all" ? selectedPot : firstPotId());
-    fMonth.value = clampToStart(viewMonth);
-    fLabel.value = ""; fAmount.value = ""; fDay.value = ""; fRecurring.checked = false;
-  }
-  deleteBtn.style.display = entry ? "block" : "none";
-  openOverlay(entryOverlay);
-  if (!isTouch()) setTimeout(() => fLabel.focus(), 60);
-}
-
-entryForm.addEventListener("submit", (ev) => {
-  ev.preventDefault();
-  const label = fLabel.value.trim();
-  const amount = parseAmount(fAmount.value);
-  if (!label) return showError(entryError, "Vul een omschrijving in.");
-  if (!Number.isFinite(amount) || amount <= 0) return showError(entryError, "Vul een geldig bedrag in.");
-
-  let target = /^\d{4}-\d{2}$/.test(fMonth.value) ? fMonth.value : viewMonth;
-  target = clampToStart(target);
-
-  const dayNum = Math.floor(Number(fDay.value));
-  const day = Number.isFinite(dayNum) && dayNum >= 1 ? Math.min(dayNum, 31) : 1;
-
-  const recurring = fRecurring.checked;
-  const rec = { kind: formKind, label, amount, potId: formPot, day };
-  if (formKind === "out") rec.category = formCat;
-
-  if (editing) removeEntry(editing.id, editing.recurring, viewMonth, true);
-
-  if (recurring) state.recurring.push({ id: uid(), fromMonth: target, ...rec });
-  else ensureMonth(target).entries.push({ id: uid(), ...rec });
-
-  pushRecent(label);
-  viewMonth = target;
-  haptic(12);
-  saveState();
-  closeOverlay(entryOverlay);
+  S.tab = name;
+  S.swipe = null;
   render();
-});
+  $("#scroll").scrollTop = 0;
+}
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { haptic(6); switchTab(b.dataset.tab); }));
+$("#back-ov").addEventListener("click", () => { haptic(6); switchTab("overzicht"); });
+$("#prev-month").addEventListener("click", () => { S.month = clampMonth(addM(S.month, -1)); render(); });
+$("#next-month").addEventListener("click", () => { S.month = clampMonth(addM(S.month, 1)); render(); });
 
-function pushRecent(label) {
-  const l = label.trim();
-  if (!l) return;
-  state.recentLabels = [l, ...state.recentLabels.filter((x) => x.toLowerCase() !== l.toLowerCase())].slice(0, 8);
+/* Privacy */
+function togglePrivacy() {
+  S.privacy = !S.privacy;
+  haptic(8);
+  document.querySelectorAll(".hero-amount").forEach((el) => shownVals.delete(el));
+  render();
 }
-function showError(el, msg) { el.textContent = msg; el.hidden = false; }
-function ensureMonth(key) {
-  if (!state.months[key]) state.months[key] = { entries: [], skip: [] };
-  if (!state.months[key].skip) state.months[key].skip = [];
-  if (!state.months[key].entries) state.months[key].entries = [];
-  return state.months[key];
-}
-
-/* ---------- Verwijderen ---------- */
-function removeEntry(id, recurring, key, silent) {
-  if (recurring) {
-    const idx = state.recurring.findIndex((r) => r.id === id);
-    const removed = idx >= 0 ? state.recurring.splice(idx, 1)[0] : null;
-    if (!silent && removed) { haptic(18); saveState(); render(); toast("Terugkerende post verwijderd", () => { state.recurring.push(removed); saveState(); render(); }); }
-  } else {
-    const md = ensureMonth(key);
-    const idx = md.entries.findIndex((e) => e.id === id);
-    const removed = idx >= 0 ? md.entries.splice(idx, 1)[0] : null;
-    if (!silent && removed) { haptic(18); saveState(); render(); toast("Post verwijderd", () => { ensureMonth(key).entries.push(removed); saveState(); render(); }); }
-  }
-}
-function skipRecurringThisMonth(id, key) {
-  const md = ensureMonth(key);
-  if (!md.skip.includes(id)) md.skip.push(id);
-  saveState(); render();
-  toast("Overgeslagen deze maand", () => { const m = ensureMonth(key); m.skip = m.skip.filter((s) => s !== id); saveState(); render(); });
-}
-
-/* ---------- Verwijderknop ---------- */
-const entryActions = entryForm.querySelector(".sheet-actions");
-const deleteBtn = document.createElement("button");
-deleteBtn.type = "button"; deleteBtn.className = "btn-danger"; deleteBtn.textContent = "Verwijderen"; deleteBtn.style.display = "none";
-deleteBtn.addEventListener("click", () => {
-  if (!editing) return;
-  closeOverlay(entryOverlay);
-  if (editing.recurring) askDeleteRecurring({ id: editing.id, label: fLabel.value.trim() || "deze post" });
-  else removeEntry(editing.id, false, viewMonth);
-});
-entryActions.parentNode.insertBefore(deleteBtn, entryActions);
+$("#hero-savings").addEventListener("click", togglePrivacy);
+$("#hero-wealth").addEventListener("click", togglePrivacy);
 
 /* ============================================================
-   Belegging-sheet
+   Sheets
    ============================================================ */
-const investOverlay = $("#invest-overlay");
-const investForm = $("#invest-form");
-const iLabel = $("#i-label");
-const iValue = $("#i-value");
-const investTitle = $("#invest-title");
-const investError = $("#invest-error");
-let editingInvest = null;
-
-const investActions = investForm.querySelector(".sheet-actions");
-const investDelete = document.createElement("button");
-investDelete.type = "button"; investDelete.className = "btn-danger"; investDelete.textContent = "Verwijderen"; investDelete.style.display = "none";
-investDelete.addEventListener("click", () => {
-  if (!editingInvest) return;
-  const idx = state.investments.findIndex((i) => i.id === editingInvest);
-  const removed = idx >= 0 ? state.investments.splice(idx, 1)[0] : null;
-  closeOverlay(investOverlay);
-  if (removed) { haptic(18); saveState(); render(); toast("Belegging verwijderd", () => { state.investments.splice(idx, 0, removed); saveState(); render(); }); }
-});
-investActions.parentNode.insertBefore(investDelete, investActions);
-
-function openInvestSheet(inv) {
-  investError.hidden = true;
-  if (inv) { editingInvest = inv.id; investTitle.textContent = "Belegging bewerken"; iLabel.value = inv.label; iValue.value = String(inv.value).replace(".", ","); investDelete.style.display = "block"; }
-  else { editingInvest = null; investTitle.textContent = "Belegging toevoegen"; iLabel.value = ""; iValue.value = ""; investDelete.style.display = "none"; }
-  openOverlay(investOverlay);
-  if (!isTouch()) setTimeout(() => iLabel.focus(), 60);
-}
-$("#add-invest").addEventListener("click", () => openInvestSheet(null));
-
-investForm.addEventListener("submit", (ev) => {
-  ev.preventDefault();
-  const label = iLabel.value.trim();
-  const value = parseAmount(iValue.value);
-  if (!label) return showError(investError, "Vul een naam in.");
-  if (!Number.isFinite(value) || value < 0) return showError(investError, "Vul een geldige waarde in.");
-  if (editingInvest) { const inv = state.investments.find((i) => i.id === editingInvest); if (inv) { inv.label = label; inv.value = value; } }
-  else state.investments.push({ id: uid(), label, value });
-  haptic(12); saveState(); closeOverlay(investOverlay); render();
-});
-
-/* ============================================================
-   Choice-sheet
-   ============================================================ */
-const choiceOverlay = $("#choice-overlay");
-const choiceText = $("#choice-text");
-const choiceA = $("#choice-a");
-const choiceB = $("#choice-b");
-function askDeleteRecurring(entry) {
-  choiceText.textContent = `“${entry.label}” is een terugkerende post. Wat wil je doen?`;
-  choiceA.textContent = "Alleen deze maand overslaan";
-  choiceB.textContent = "Elke maand verwijderen";
-  const onA = () => { cleanup(); closeOverlay(choiceOverlay); skipRecurringThisMonth(entry.id, viewMonth); };
-  const onB = () => { cleanup(); closeOverlay(choiceOverlay); removeEntry(entry.id, true, viewMonth); };
-  function cleanup() { choiceA.removeEventListener("click", onA); choiceB.removeEventListener("click", onB); }
-  choiceA.addEventListener("click", onA);
-  choiceB.addEventListener("click", onB);
-  openOverlay(choiceOverlay);
-}
-
-/* ============================================================
-   Overlays helper
-   ============================================================ */
+const scrim = $("#scrim");
+const SHEETS = ["sh-entry", "sh-transfer", "sh-invest", "sh-settings", "sh-picker", "sh-choice"];
 let lastFocus = null;
-function openOverlay(overlay) { lastFocus = document.activeElement; overlay.hidden = false; document.body.style.overflow = "hidden"; }
-function closeOverlay(overlay) { overlay.hidden = true; document.body.style.overflow = ""; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
-document.querySelectorAll("[data-close]").forEach((btn) => { btn.addEventListener("click", () => { const ov = btn.closest(".sheet-overlay"); if (ov) closeOverlay(ov); }); });
-document.querySelectorAll(".sheet-overlay").forEach((ov) => { ov.addEventListener("click", (e) => { if (e.target === ov) closeOverlay(ov); }); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const open = [...document.querySelectorAll(".sheet-overlay")].find((o) => !o.hidden); if (open) closeOverlay(open); } });
-document.querySelectorAll("[data-add]").forEach((btn) => { btn.addEventListener("click", () => openEntrySheet(null, btn.dataset.add)); });
 
-/* ---------- FAB ---------- */
-$("#fab").addEventListener("click", () => { haptic(10); if (activeTab === "vermogen") openInvestSheet(null); else openEntrySheet(null, "out"); });
+function openSheet(id) {
+  lastFocus = document.activeElement;
+  SHEETS.forEach((s) => { $("#" + s).hidden = s !== id; });
+  scrim.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeSheets() {
+  SHEETS.forEach((s) => { $("#" + s).hidden = true; });
+  scrim.hidden = true;
+  document.body.style.overflow = "";
+  S.editId = null; S.draft = null; S.pickerFor = null;
+  if (lastFocus?.focus) lastFocus.focus();
+  render();
+}
+scrim.addEventListener("click", closeSheets);
+document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeSheets));
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!$("#quick").hidden) { closeQuick(); return; }
+  if (SHEETS.some((s) => !$("#" + s).hidden)) closeSheets();
+});
 
-/* ============================================================
-   Instellingen — potjes (beginsaldo + doel), startmaand, back-up
-   ============================================================ */
-const settingsOverlay = $("#settings-overlay");
-const sStartMonth = $("#s-start-month");
-const potManage = $("#pot-manage");
+/* ---------- Post-sheet ---------- */
+const F = { kind: "out", amount: "", label: "", potId: null, category: "overig", month: null, day: 1, repeat: false, editRec: false, group: undefined, review: false, toPot: null };
 
-function moneyInput(placeholder, value, aria, onChange) {
-  const wrap = document.createElement("div"); wrap.className = "pe-money";
-  const cur = document.createElement("span"); cur.className = "cur"; cur.textContent = "€";
-  const input = document.createElement("input"); input.inputMode = "decimal"; input.placeholder = placeholder;
-  input.value = value ? String(value).replace(".", ",") : ""; input.setAttribute("aria-label", aria);
-  input.addEventListener("change", () => onChange(parseAmount(input.value)));
-  wrap.append(cur, input);
-  return wrap;
+function quickAmountsFor(kind) {
+  return kind === "in" ? [50, 100, 250, 500, 1000] : [10, 25, 50, 100, 250];
 }
 
-function renderPotManage() {
-  potManage.innerHTML = "";
-  state.pots.forEach((p, idx) => {
-    const card = document.createElement("div"); card.className = "pot-edit";
+function openEntry(entry, mk) {
+  S.editId = null; S.draft = null;
+  F.month = clampMonth(mk || S.month);
+  if (entry) {
+    S.editId = entry.id;
+    F.kind = entry.kind === "in" ? "in" : "out";
+    F.amount = String(entry.amount);
+    F.label = entry.label;
+    F.potId = entry.potId;
+    F.category = entry.category || "overig";
+    F.day = entry.day || 1;
+    F.repeat = !!entry.rec;
+    F.editRec = !!entry.rec;
+    F.group = entry.group;
+    F.review = !!entry.review;
+    F.toPot = entry.toPot || null;
+    $("#entry-title").textContent = "Post bewerken";
+    $("#entry-save").textContent = "Opslaan";
+    $("#entry-del").hidden = false;
+  } else {
+    F.kind = "out"; F.amount = ""; F.label = "";
+    F.potId = S.pot || (D.pots[0] && D.pots[0].id) || null;
+    F.category = "overig"; F.day = Math.min(new Date().getDate(), dim(F.month));
+    F.repeat = false; F.editRec = false; F.group = undefined; F.review = false; F.toPot = null;
+    $("#entry-title").textContent = "Toevoegen";
+    $("#entry-save").textContent = "Toevoegen";
+    $("#entry-del").hidden = true;
+  }
+  $("#entry-error").hidden = true;
+  syncEntry();
+  openSheet("sh-entry");
+}
 
-    const top = document.createElement("div"); top.className = "pe-top";
-    const icon = document.createElement("input");
-    icon.className = "pe-icon"; icon.value = p.icon || ""; icon.maxLength = 2; icon.setAttribute("aria-label", "Icoon (emoji)");
-    icon.addEventListener("change", () => { p.icon = icon.value.trim() || guessIcon(p.label); saveState(); render(); });
-    const name = document.createElement("input");
-    name.className = "pe-name"; name.value = p.label; name.setAttribute("aria-label", "Naam potje");
-    name.addEventListener("change", () => { p.label = name.value.trim() || `Potje ${idx + 1}`; saveState(); render(); });
-    const del = document.createElement("button");
-    del.type = "button"; del.className = "pot-del"; del.setAttribute("aria-label", `Potje ${p.label} verwijderen`); del.textContent = "×";
-    del.addEventListener("click", () => {
-      if (state.pots.length <= 1) return toast("Je hebt minstens één potje nodig");
-      const removed = state.pots.splice(idx, 1)[0];
-      haptic(18); saveState(); renderPotManage(); render();
-      toast("Potje verwijderd", () => { state.pots.splice(idx, 0, removed); saveState(); renderPotManage(); render(); });
+function syncEntry() {
+  $("#f-amount").value = F.amount;
+  $("#f-label").value = F.label;
+  $("#f-day").value = String(F.day);
+  $("#f-month").textContent = MN[parseK(F.month).m] + " " + parseK(F.month).y;
+  $("#f-repeat-sub").textContent = "Vanaf " + MN[parseK(F.month).m] + " " + parseK(F.month).y;
+  $("#f-repeat").setAttribute("aria-checked", String(F.repeat));
+  document.querySelectorAll("#sh-entry .seg button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.kind === F.kind)));
+  $("#f-cat-wrap").hidden = F.kind !== "out";
+
+  $("#f-quick").innerHTML = quickAmountsFor(F.kind).map((a) => `<button type="button" class="qbtn" data-amt="${a}">${fmt(a)}</button>`).join("");
+  $("#f-quick").querySelectorAll("[data-amt]").forEach((b) => b.addEventListener("click", () => { F.amount = b.dataset.amt; syncEntry(); }));
+
+  $("#f-recent").innerHTML = D.recentLabels.slice(0, 5).map((l) => `<button type="button" class="qbtn sm" data-lab="${esc(l)}">${esc(l)}</button>`).join("");
+  $("#f-recent").querySelectorAll("[data-lab]").forEach((b) => b.addEventListener("click", () => { F.label = b.dataset.lab; $("#f-label").value = F.label; $("#f-amount").focus(); }));
+
+  $("#f-pots").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${F.potId === p.id}" data-pot="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
+  $("#f-pots").querySelectorAll("[data-pot]").forEach((b) => b.addEventListener("click", () => { F.potId = b.dataset.pot; syncEntry(); }));
+
+  $("#f-cats").innerHTML = CAT_KEYS.map((k) => `<button type="button" class="opt" role="radio" aria-checked="${F.category === k}" data-cat="${k}"><span aria-hidden="true">${CATS[k].icon}</span><span class="t">${CATS[k].label}</span></button>`).join("");
+  $("#f-cats").querySelectorAll("[data-cat]").forEach((b) => b.addEventListener("click", () => { F.category = b.dataset.cat; syncEntry(); }));
+
+  updateWhatIf();
+}
+
+function updateWhatIf() {
+  const amt = parseAmount(F.amount);
+  const box = $("#whatif");
+  if (!Number.isFinite(amt) || amt <= 0) { box.hidden = true; S.draft = null; renderMonth(); return; }
+
+  const baseSeries = series(null);
+  S.draft = { id: "__draft", kind: F.kind, label: F.label || "Concept", amount: amt, day: F.day, potId: F.potId, category: F.category, month: F.month, group: F.group };
+  const withSeries = series(null);
+  box.hidden = false;
+
+  const all = baseSeries.map((p) => p.v).concat(withSeries.map((p) => p.v));
+  let lo = Math.min(0, ...all), hi = Math.max(1, ...all);
+  if (hi === lo) hi = lo + 1;
+  const padv = (hi - lo) * 0.12; lo -= padv; hi += padv;
+  const PX = (i, n) => (n < 2 ? 0 : (i / (n - 1)) * 300);
+  const PY = (v) => 50 - ((v - lo) / (hi - lo)) * 46;
+  const path = (arr) => arr.map((p, i) => (i ? "L" : "M") + PX(i, arr.length).toFixed(1) + " " + PY(p.v).toFixed(1)).join(" ");
+
+  $("#wi-svg").innerHTML =
+    `<path d="${path(baseSeries)}" fill="none" stroke="var(--ink4)" stroke-width="1.4" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>
+     <path d="${path(withSeries)}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+
+  const endDelta = withSeries.length && baseSeries.length ? withSeries[withSeries.length - 1].v - baseSeries[baseSeries.length - 1].v : 0;
+  const dEl = $("#wi-delta");
+  dEl.textContent = (endDelta >= 0 ? "+ " : "− ") + fmt(Math.abs(endDelta)) + " over 12 mnd";
+  dEl.className = "whatif-delta tnum " + (endDelta >= 0 ? "pos" : "neg");
+
+  const low = withSeries.reduce((a, p) => (p.v < a.v ? p : a), withSeries[0]);
+  const lEl = $("#wi-low");
+  lEl.textContent = `Laagste stand ${fmt(low.v)} op ${low.d.getDate()} ${MS[low.d.getMonth()]}`;
+  lEl.classList.toggle("neg", low.v < 0);
+
+  renderMonth();
+}
+
+$("#f-amount").addEventListener("input", (e) => { F.amount = e.target.value; updateWhatIf(); });
+$("#f-label").addEventListener("input", (e) => { F.label = e.target.value; });
+$("#f-day").addEventListener("input", (e) => {
+  const v = Math.floor(Number(e.target.value));
+  F.day = Number.isFinite(v) && v >= 1 ? Math.min(v, 31) : 1;
+  updateWhatIf();
+});
+$("#f-repeat").addEventListener("click", () => { F.repeat = !F.repeat; syncEntry(); });
+document.querySelectorAll("#sh-entry .seg button").forEach((b) => b.addEventListener("click", () => { F.kind = b.dataset.kind; syncEntry(); }));
+$("#f-month").addEventListener("click", () => openPicker("entry", F.month));
+$("#entry-transfer").addEventListener("click", () => openTransfer());
+
+$("#sh-entry").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const label = F.label.trim();
+  const amount = parseAmount(F.amount);
+  const err = $("#entry-error");
+  if (!Number.isFinite(amount) || amount <= 0) { err.textContent = "Vul een geldig bedrag in."; err.hidden = false; return; }
+  if (!label) { err.textContent = "Vul een omschrijving in."; err.hidden = false; return; }
+  if (!F.potId) { err.textContent = "Kies een potje."; err.hidden = false; return; }
+
+  const editId = S.editId;
+  const rec = { kind: F.kind, label, amount, day: F.day, potId: F.potId };
+  if (F.kind === "out") rec.category = F.category;
+  if (F.group) rec.group = F.group;
+  if (F.review) rec.review = true;
+
+  const nd = clone();
+  if (editId) {
+    nd.recurring = nd.recurring.filter((r) => r.id !== editId);
+    Object.keys(nd.months).forEach((k) => {
+      nd.months[k].entries = (nd.months[k].entries || []).filter((e) => e.id !== editId);
     });
-    top.append(icon, name, del);
+  }
+  if (F.repeat) nd.recurring.push({ id: editId || uid(), fromMonth: F.month, ...rec });
+  else {
+    nd.months[F.month] = nd.months[F.month] || { entries: [], skip: [] };
+    nd.months[F.month].entries.push({ id: editId || uid(), ...rec });
+  }
+  nd.recentLabels = [label].concat((nd.recentLabels || []).filter((x) => x.toLowerCase() !== label.toLowerCase())).slice(0, 8);
 
-    const cols = document.createElement("div"); cols.className = "pe-cols";
-    const col1 = document.createElement("label"); col1.className = "pe-col";
-    col1.innerHTML = "<span>Beginsaldo</span>";
-    col1.appendChild(moneyInput("0,00", p.startBalance, "Beginsaldo potje", (v) => { p.startBalance = Number.isFinite(v) ? v : 0; saveState(); render(); }));
-    const col2 = document.createElement("label"); col2.className = "pe-col";
-    col2.innerHTML = "<span>Doel (optioneel)</span>";
-    col2.appendChild(moneyInput("bijv. 2000", p.goal, "Doelbedrag potje", (v) => { p.goal = Number.isFinite(v) && v > 0 ? v : 0; saveState(); render(); }));
-    cols.append(col1, col2);
+  S.editId = null; S.draft = null;
+  S.month = F.month;
+  D = nd; save();
+  closeSheets();
+  burst(10);
+});
 
-    card.append(top, cols);
-    potManage.appendChild(card);
+$("#entry-del").addEventListener("click", () => {
+  const id = S.editId;
+  if (!id) return;
+  const inRec = D.recurring.find((r) => r.id === id);
+  if (inRec) { const r = { ...inRec, rec: true }; S.editId = null; closeSheets(); askChoice(r, "del"); return; }
+  const mk = S.month;
+  const nd = clone();
+  const removed = (nd.months[mk]?.entries || []).find((e) => e.id === id);
+  nd.months[mk].entries = (nd.months[mk].entries || []).filter((e) => e.id !== id);
+  S.editId = null;
+  closeSheets();
+  commit(nd, (removed?.label || "Post") + " verwijderd", () => {
+    const b = clone();
+    b.months[mk] = b.months[mk] || { entries: [], skip: [] };
+    if (removed) b.months[mk].entries.push(removed);
+    return b;
+  });
+});
+
+/* ---------- Overboeken ---------- */
+const T = { amount: "", from: null, to: null, month: null, day: 1, repeat: false };
+function openTransfer() {
+  T.amount = ""; T.month = clampMonth(S.month); T.day = Math.min(new Date().getDate(), dim(T.month));
+  T.from = D.pots[0]?.id || null;
+  T.to = D.pots[1]?.id || D.pots[0]?.id || null;
+  T.repeat = false;
+  $("#tf-error").hidden = true;
+  syncTransfer();
+  openSheet("sh-transfer");
+}
+function syncTransfer() {
+  $("#tf-amount").value = T.amount;
+  $("#tf-day").value = String(T.day);
+  $("#tf-month").textContent = MN[parseK(T.month).m] + " " + parseK(T.month).y;
+  $("#tf-repeat").setAttribute("aria-checked", String(T.repeat));
+  const fromP = D.pots.find((p) => p.id === T.from), toP = D.pots.find((p) => p.id === T.to);
+  $("#tf-summary").textContent = fromP && toP ? `Van ${fromP.label} naar ${toP.label}` : "Kies twee potjes";
+  $("#tf-from").innerHTML = D.pots.map((p) => `<button type="button" class="opt box" role="radio" aria-checked="${T.from === p.id}" data-from="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span><span class="sub">${fmt(end(T.month, p.id))}</span></button>`).join("");
+  $("#tf-to").innerHTML = D.pots.filter((p) => p.id !== T.from).map((p) => `<button type="button" class="opt" role="radio" aria-checked="${T.to === p.id}" data-to="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
+  $("#tf-from").querySelectorAll("[data-from]").forEach((b) => b.addEventListener("click", () => {
+    T.from = b.dataset.from;
+    if (T.to === T.from) T.to = D.pots.find((p) => p.id !== T.from)?.id || null;
+    syncTransfer();
+  }));
+  $("#tf-to").querySelectorAll("[data-to]").forEach((b) => b.addEventListener("click", () => { T.to = b.dataset.to; syncTransfer(); }));
+}
+$("#open-transfer").addEventListener("click", () => { haptic(8); openTransfer(); });
+$("#tf-amount").addEventListener("input", (e) => { T.amount = e.target.value; });
+$("#tf-day").addEventListener("input", (e) => {
+  const v = Math.floor(Number(e.target.value));
+  T.day = Number.isFinite(v) && v >= 1 ? Math.min(v, 31) : 1;
+});
+$("#tf-repeat").addEventListener("click", () => { T.repeat = !T.repeat; syncTransfer(); });
+$("#sh-transfer").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const amount = parseAmount(T.amount);
+  const err = $("#tf-error");
+  if (!Number.isFinite(amount) || amount <= 0) { err.textContent = "Vul een geldig bedrag in."; err.hidden = false; return; }
+  if (!T.from || !T.to || T.from === T.to) { err.textContent = "Kies twee verschillende potjes."; err.hidden = false; return; }
+  const fromP = D.pots.find((p) => p.id === T.from), toP = D.pots.find((p) => p.id === T.to);
+  const rec = { kind: "move", group: "over", label: `Naar ${toP.label}`, amount, day: T.day, potId: T.from, toPot: T.to };
+  const nd = clone();
+  if (T.repeat) nd.recurring.push({ id: uid(), fromMonth: T.month, ...rec });
+  else {
+    nd.months[T.month] = nd.months[T.month] || { entries: [], skip: [] };
+    nd.months[T.month].entries.push({ id: uid(), ...rec });
+  }
+  S.month = T.month;
+  D = nd; save();
+  closeSheets();
+  toast(`${fmt(amount)} van ${fromP.label} naar ${toP.label}`);
+  burst(8);
+});
+
+/* ---------- Belegging ---------- */
+const IV = { id: null, label: "", value: "", monthly: "" };
+function openInvest(inv) {
+  if (inv) {
+    IV.id = inv.id; IV.label = inv.label; IV.value = String(inv.value); IV.monthly = String(inv.monthly || 0);
+    $("#iv-title").textContent = "Belegging bewerken";
+    $("#iv-sub").textContent = inv.updated ? "Laatst bijgewerkt " + inv.updated : "Werk de waarde handmatig bij";
+    $("#iv-del").hidden = false;
+    $("#iv-save").textContent = "Opslaan";
+  } else {
+    IV.id = null; IV.label = ""; IV.value = ""; IV.monthly = "";
+    $("#iv-title").textContent = "Belegging toevoegen";
+    $("#iv-sub").textContent = "Werk de waarde handmatig bij";
+    $("#iv-del").hidden = true;
+    $("#iv-save").textContent = "Toevoegen";
+  }
+  $("#iv-error").hidden = true;
+  syncInvest();
+  openSheet("sh-invest");
+}
+function syncInvest() {
+  $("#iv-label").value = IV.label;
+  $("#iv-value").value = IV.value;
+  $("#iv-monthly").value = IV.monthly;
+  const cur = parseAmount(IV.value) || 0;
+  const nudges = [-5, -1, 1, 5].map((pct) => ({ pct, v: Math.round(cur * (1 + pct / 100)) }));
+  $("#iv-nudges").innerHTML = cur > 0
+    ? nudges.map((n) => `<button type="button" class="qbtn" data-val="${n.v}" style="color:${n.pct < 0 ? "var(--neg)" : "var(--pos)"}">${n.pct > 0 ? "+" : ""}${n.pct}%</button>`).join("")
+    : "";
+  $("#iv-nudges").querySelectorAll("[data-val]").forEach((b) => b.addEventListener("click", () => { IV.value = b.dataset.val; syncInvest(); }));
+
+  $("#iv-monthly-quick").innerHTML = [0, 100, 250, 500].map((a) => {
+    const on = String(a) === String(parseAmount(IV.monthly) || 0);
+    return `<button type="button" class="qbtn" data-m="${a}" style="${on ? "background:var(--hero);border-color:transparent;color:#fff" : ""}">${a === 0 ? "geen" : fmt(a)}</button>`;
+  }).join("");
+  $("#iv-monthly-quick").querySelectorAll("[data-m]").forEach((b) => b.addEventListener("click", () => { IV.monthly = b.dataset.m; syncInvest(); }));
+
+  const m = parseAmount(IV.monthly) || 0;
+  $("#iv-hint").textContent = m > 0
+    ? `Met ${fmt(m)} per maand leg je er ${fmt(m * 12)} per jaar bij. Dit telt mee in je vermogen, niet in je spaargeld.`
+    : "Vul een maandelijkse inleg in om te zien hoeveel je er per jaar bij legt.";
+}
+$("#iv-label").addEventListener("input", (e) => { IV.label = e.target.value; });
+$("#iv-value").addEventListener("input", (e) => { IV.value = e.target.value; });
+$("#iv-monthly").addEventListener("input", (e) => { IV.monthly = e.target.value; });
+$("#add-invest").addEventListener("click", () => openInvest(null));
+$("#sh-invest").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const label = IV.label.trim();
+  const value = parseAmount(IV.value);
+  const monthly = parseAmount(IV.monthly);
+  const err = $("#iv-error");
+  if (!label) { err.textContent = "Vul een naam in."; err.hidden = false; return; }
+  if (!Number.isFinite(value) || value < 0) { err.textContent = "Vul een geldige waarde in."; err.hidden = false; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const nd = clone();
+  if (IV.id) {
+    const x = nd.investments.find((i) => i.id === IV.id);
+    if (x) { x.label = label; x.value = value; x.monthly = Number.isFinite(monthly) ? monthly : 0; x.updated = today; }
+  } else {
+    nd.investments.push({ id: uid(), label, value, monthly: Number.isFinite(monthly) ? monthly : 0, updated: today });
+  }
+  D = nd; save();
+  closeSheets();
+  burst(8);
+});
+$("#iv-del").addEventListener("click", () => {
+  if (!IV.id) return;
+  const nd = clone();
+  const idx = nd.investments.findIndex((i) => i.id === IV.id);
+  const removed = idx >= 0 ? nd.investments.splice(idx, 1)[0] : null;
+  closeSheets();
+  commit(nd, (removed?.label || "Belegging") + " verwijderd", () => {
+    const b = clone();
+    if (removed) b.investments.splice(idx, 0, removed);
+    return b;
+  });
+});
+
+/* ---------- Keuze bij terugkerende post ---------- */
+let choiceCtx = null;
+function askChoice(r, mode) {
+  choiceCtx = { r, mode, month: S.month };
+  $("#choice-title").textContent = mode === "del" ? "Verwijderen" : "Verzetten";
+  $("#choice-body").textContent = `“${r.label}” is een terugkerende post. Wat wil je doen?`;
+  $("#choice-once").textContent = mode === "del" ? "Alleen deze maand overslaan" : "Alleen deze maand verzetten";
+  $("#choice-all").textContent = mode === "del" ? "Elke maand verwijderen" : "Vanaf nu elke maand later";
+  openSheet("sh-choice");
+}
+$("#choice-once").addEventListener("click", () => {
+  const { r, month } = choiceCtx;
+  const nd = clone();
+  nd.months[month] = nd.months[month] || { entries: [], skip: [] };
+  if (!nd.months[month].skip.includes(r.id)) nd.months[month].skip.push(r.id);
+  if (choiceCtx.mode === "move") {
+    const nk = addM(month, 1);
+    nd.months[nk] = nd.months[nk] || { entries: [], skip: [] };
+    nd.months[nk].entries.push({ ...r, id: uid(), rec: undefined });
+  }
+  closeSheets();
+  commit(nd, choiceCtx.mode === "del" ? "Overgeslagen deze maand" : `${r.label} → volgende maand`, () => clone());
+});
+$("#choice-all").addEventListener("click", () => {
+  const { r, month, mode } = choiceCtx;
+  const nd = clone();
+  if (mode === "del") {
+    nd.recurring = nd.recurring.filter((x) => x.id !== r.id);
+  } else {
+    const x = nd.recurring.find((y) => y.id === r.id);
+    if (x) x.day = Math.min(31, (x.day || 1) + 7);
+  }
+  closeSheets();
+  commit(nd, mode === "del" ? `${r.label} verwijderd` : `${r.label} een week later`, () => clone());
+});
+
+/* ---------- Maandkiezer ---------- */
+function openPicker(forWhat, current) {
+  S.pickerFor = forWhat;
+  S.pickerYear = parseK(current || S.month).y;
+  renderPicker(current);
+  openSheet("sh-picker");
+}
+function renderPicker(current) {
+  $("#mp-year").textContent = String(S.pickerYear);
+  const list = months();
+  const min = list[0], max = S.pickerFor === "goal" ? "9999-12" : list[11];
+  $("#mp-grid").innerHTML = Array.from({ length: 12 }, (_, i) => {
+    const k = key(S.pickerYear, i);
+    const dis = k < min || k > max;
+    return `<button type="button" class="mp-cell" data-k="${k}" aria-selected="${k === current}" ${dis ? "disabled" : ""}>${MS[i]}</button>`;
+  }).join("");
+  $("#mp-grid").querySelectorAll("[data-k]").forEach((b) => b.addEventListener("click", () => pickMonth(b.dataset.k)));
+}
+$("#mp-prev").addEventListener("click", () => { S.pickerYear--; renderPicker(null); });
+$("#mp-next").addEventListener("click", () => { S.pickerYear++; renderPicker(null); });
+
+function pickMonth(k) {
+  const what = S.pickerFor;
+  haptic(6);
+  if (what === "entry") {
+    F.month = k;
+    S.pickerFor = null;
+    $("#sh-picker").hidden = true;
+    openSheet("sh-entry");
+    syncEntry();
+    return;
+  }
+  if (what === "start") {
+    const nd = clone();
+    nd.startMonth = k;
+    D = nd; save();
+    S.month = clampMonth(S.month);
+    $("#sh-picker").hidden = true;
+    openSheet("sh-settings");
+    renderSettings();
+    render();
+    return;
+  }
+  if (what && what.startsWith("goal:")) {
+    const id = what.slice(5);
+    const nd = clone();
+    const p = nd.pots.find((x) => x.id === id);
+    if (p) p.goalDate = k;
+    D = nd; save();
+    $("#sh-picker").hidden = true;
+    openSheet("sh-settings");
+    renderSettings();
+    render();
+    return;
+  }
+  // maandnavigatie
+  S.month = clampMonth(k);
+  closeSheets();
+  switchTab("maand");
+}
+$("#month-title").addEventListener("click", () => openPicker("nav", S.month));
+
+/* ---------- Instellingen ---------- */
+function renderSettings() {
+  applyTheme(themePref());
+  const nowK = clampMonth(todayKey());
+  $("#pot-total").textContent = fmt(end(nowK)) + " totaal";
+  $("#start-month-label").textContent = MN[parseK(D.startMonth).m] + " " + parseK(D.startMonth).y;
+  $("#backup-label").textContent = D.lastBackup ? "Laatste back-up: " + D.lastBackup : "Nog geen back-up gemaakt";
+
+  const box = $("#pot-manage");
+  box.innerHTML = D.pots.map((p) => `<div class="pot-edit" data-pid="${p.id}">
+      <div class="pe-top">
+        <button type="button" class="pe-ico" data-icon aria-label="Ander icoon">${p.icon}</button>
+        <input class="pe-name" data-name value="${esc(p.label)}" aria-label="Naam potje" />
+        <button type="button" class="pe-del" data-rm aria-label="Potje verwijderen">×</button>
+      </div>
+      <div class="pe-grid">
+        <label class="pe-money"><span class="k">Start</span><span class="c">€</span><input data-start inputmode="numeric" aria-label="Beginsaldo" value="${p.startBalance || ""}" /></label>
+        <label class="pe-money"><span class="k">Doel</span><span class="c">€</span><input data-goal inputmode="numeric" placeholder="geen" aria-label="Doelbedrag" value="${p.goal || ""}" /></label>
+      </div>
+      <button type="button" class="pe-goaldate" data-gd>
+        <span class="l">Doel klaar in</span>
+        <span class="v">${p.goalDate ? MS[parseK(p.goalDate).m] + " " + parseK(p.goalDate).y : "geen datum"}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+      </button>
+    </div>`).join("");
+
+  box.querySelectorAll(".pot-edit").forEach((card) => {
+    const id = card.dataset.pid;
+    const pot = () => D.pots.find((p) => p.id === id);
+    card.querySelector("[data-icon]").addEventListener("click", () => {
+      const p = pot(); if (!p) return;
+      const i = POT_ICONS.indexOf(p.icon);
+      const nd = clone();
+      nd.pots.find((x) => x.id === id).icon = POT_ICONS[(i + 1) % POT_ICONS.length];
+      D = nd; save(); renderSettings(); render();
+    });
+    card.querySelector("[data-name]").addEventListener("change", (e) => {
+      const nd = clone();
+      nd.pots.find((x) => x.id === id).label = e.target.value.trim() || "Potje";
+      D = nd; save(); render();
+    });
+    card.querySelector("[data-start]").addEventListener("change", (e) => {
+      const v = parseAmount(e.target.value);
+      const nd = clone();
+      nd.pots.find((x) => x.id === id).startBalance = Number.isFinite(v) ? v : 0;
+      D = nd; save(); renderSettings(); render();
+    });
+    card.querySelector("[data-goal]").addEventListener("change", (e) => {
+      const v = parseAmount(e.target.value);
+      const nd = clone();
+      nd.pots.find((x) => x.id === id).goal = Number.isFinite(v) && v > 0 ? v : 0;
+      D = nd; save(); render();
+    });
+    card.querySelector("[data-gd]").addEventListener("click", () => {
+      $("#sh-settings").hidden = true;
+      openPicker("goal:" + id, pot()?.goalDate || null);
+    });
+    card.querySelector("[data-rm]").addEventListener("click", () => {
+      if (D.pots.length <= 1) { toast("Je hebt minstens één potje nodig"); return; }
+      const nd = clone();
+      const idx = nd.pots.findIndex((p) => p.id === id);
+      const removed = nd.pots.splice(idx, 1)[0];
+      D = nd; save(); renderSettings(); render();
+      toast(`${removed.label} verwijderd`, () => {
+        const b = clone(); b.pots.splice(idx, 0, removed); D = b; save(); renderSettings(); render();
+      });
+    });
   });
 }
-$("#pot-add").addEventListener("click", () => { state.pots.push({ id: uid(), label: "Nieuw potje", startBalance: 0, goal: 0, icon: "🐷" }); haptic(10); saveState(); renderPotManage(); render(); });
-
-function openSettings() { renderPotManage(); sStartMonth.value = state.startMonth; openOverlay(settingsOverlay); }
-$("#btn-settings").addEventListener("click", openSettings);
-$("#hint-setup").addEventListener("click", openSettings);
-
-function commitSettings() {
-  if (/^\d{4}-\d{2}$/.test(sStartMonth.value)) { state.startMonth = sStartMonth.value; viewMonth = clampToStart(viewMonth); }
-  saveState(); render();
-}
-sStartMonth.addEventListener("change", commitSettings);
-settingsOverlay.querySelector("[data-close]").addEventListener("click", commitSettings);
-
-/* ---------- Export / import / reset ---------- */
-$("#btn-export").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = `budget-backup-${currentMonthKey()}.json`; a.click();
-  URL.revokeObjectURL(url);
+$("#pot-add").addEventListener("click", () => {
+  const nd = clone();
+  nd.pots.push({ id: uid(), label: "Nieuw potje", icon: POT_ICONS[nd.pots.length % POT_ICONS.length], startBalance: 0, goal: 0, goalDate: null });
+  D = nd; save(); haptic(10); renderSettings(); render();
 });
+$("#start-month").addEventListener("click", () => { $("#sh-settings").hidden = true; openPicker("start", D.startMonth); });
+function openSettings() { renderSettings(); openSheet("sh-settings"); }
+$("#btn-settings").addEventListener("click", openSettings);
+$("#empty-setup").addEventListener("click", openSettings);
+
+/* Back-up */
+function doExport() {
+  const blob = new Blob([JSON.stringify(D, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `huishoudboekje-${todayKey()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  const nd = clone();
+  nd.lastBackup = new Date().toISOString().slice(0, 10);
+  D = nd; save(); render(); renderSettings();
+  toast("Back-up gemaakt");
+}
+$("#btn-export").addEventListener("click", doExport);
+$("#backup-now").addEventListener("click", doExport);
+$("#backup-later").addEventListener("click", () => {
+  const nd = clone(); nd.backupDismissed = true; D = nd; save(); render();
+});
+
 const importFile = $("#import-file");
 $("#btn-import").addEventListener("click", () => importFile.click());
 importFile.addEventListener("change", async () => {
@@ -1068,46 +1293,130 @@ importFile.addEventListener("change", async () => {
   try {
     const data = JSON.parse(await file.text());
     if (typeof data !== "object" || !data) throw new Error("ongeldig");
-    state = { ...defaultState(), ...data };
-    if (!Array.isArray(state.pots) || state.pots.length === 0) state.pots = DEFAULT_POTS.map((p) => ({ ...p }));
-    state.pots = state.pots.map((p) => ({ goal: 0, icon: guessIcon(p.label), ...p }));
-    if (!Array.isArray(state.recentLabels)) state.recentLabels = [];
-    selectedPot = "all"; viewMonth = clampToStart(currentMonthKey());
-    saveState(); render(); renderPotManage(); closeOverlay(settingsOverlay); toast("Back-up geïmporteerd");
+    D = migrate(data);
+    S.month = clampMonth(todayKey());
+    S.pot = null;
+    save();
+    closeSheets();
+    toast("Back-up geïmporteerd");
   } catch { toast("Kon dit bestand niet lezen"); }
   finally { importFile.value = ""; }
 });
 $("#btn-reset").addEventListener("click", () => {
-  const snapshot = JSON.stringify(state);
-  state = defaultState(); selectedPot = "all"; viewMonth = currentMonthKey();
-  saveState(); render(); closeOverlay(settingsOverlay);
-  toast("Alles gewist", () => { state = JSON.parse(snapshot); selectedPot = "all"; viewMonth = clampToStart(currentMonthKey()); saveState(); render(); });
+  const snap = JSON.stringify(D);
+  D = defaultState();
+  S.month = clampMonth(todayKey()); S.pot = null;
+  save();
+  closeSheets();
+  toast("Alles gewist", () => { D = migrate(JSON.parse(snap)); save(); render(); });
 });
 
 /* ============================================================
-   Toast
+   FAB + snelmenu
    ============================================================ */
-const toastEl = $("#toast");
-const toastText = $("#toast-text");
-const toastAction = $("#toast-action");
-let toastTimer = null;
-function toast(msg, onUndo) {
-  clearTimeout(toastTimer);
-  toastText.textContent = msg;
-  if (onUndo) { toastAction.textContent = "Ongedaan maken"; toastAction.style.display = ""; toastAction.onclick = () => { clearTimeout(toastTimer); toastEl.hidden = true; onUndo(); }; }
-  else { toastAction.style.display = "none"; toastAction.onclick = null; }
-  toastEl.hidden = false;
-  toastTimer = setTimeout(() => (toastEl.hidden = true), 5000);
+const quick = $("#quick"), quickScrim = $("#quick-scrim");
+function openQuick() {
+  const items = D.recurring.filter((r) => r.kind === "out").slice(0, 3);
+  const src = items.length ? items : D.recentLabels.slice(0, 3).map((l) => ({ label: l, amount: 0, category: "overig" }));
+  $("#quick-items").innerHTML = src.length ? src.map((r, i) => `<button type="button" class="quick-item" data-q="${i}">
+      <span class="quick-tile" aria-hidden="true">${CATS[r.category] ? CATS[r.category].icon : "💶"}</span>
+      <span class="quick-label">${esc(r.label)}</span>
+      <span class="quick-amt tnum">${r.amount ? fmt(r.amount) : ""}</span>
+    </button>`).join("") : `<div class="group-empty" style="margin:4px 0">Nog geen vaste posten om te herhalen.</div>`;
+  $("#quick-items").querySelectorAll("[data-q]").forEach((b) => b.addEventListener("click", () => {
+    const r = src[+b.dataset.q];
+    closeQuick();
+    openEntry(null, S.month);
+    F.kind = "out"; F.label = r.label; F.amount = r.amount ? String(r.amount) : "";
+    F.category = r.category || "overig";
+    if (r.potId) F.potId = r.potId;
+    syncEntry();
+  }));
+  quick.hidden = false; quickScrim.hidden = false;
 }
+function closeQuick() { quick.hidden = true; quickScrim.hidden = true; }
+quickScrim.addEventListener("click", closeQuick);
+$("#quick-all").addEventListener("click", () => { closeQuick(); openEntry(null, S.month); });
 
-/* ---------- utils ---------- */
-function isTouch() { return window.matchMedia("(pointer: coarse)").matches; }
+(() => {
+  const fab = $("#fab");
+  let timer = null, longFired = false;
+  fab.addEventListener("pointerdown", () => {
+    longFired = false;
+    timer = setTimeout(() => { longFired = true; haptic(18); openQuick(); }, 450);
+  });
+  const cancel = () => { clearTimeout(timer); };
+  fab.addEventListener("pointerup", cancel);
+  fab.addEventListener("pointerleave", cancel);
+  fab.addEventListener("pointercancel", cancel);
+  fab.addEventListener("click", () => {
+    if (longFired) { longFired = false; return; }
+    haptic(10);
+    if (S.tab === "vermogen") openInvest(null);
+    else openEntry(null, S.month);
+  });
+})();
+
+/* Waarschuwing oplossen: vul aan uit het rijkste andere potje */
+$("#warn-fix").addEventListener("click", () => {
+  const warn = firstWarning();
+  if (!warn) return;
+  const need = Math.ceil(Math.abs(warn.v) / 50) * 50;
+  const wk = key(warn.d.getFullYear(), warn.d.getMonth());
+  const src = D.pots.filter((p) => p.id !== warn.pot.id).sort((a, b) => end(wk, b.id) - end(wk, a.id))[0];
+  if (!src) { toast("Geen ander potje om uit te halen"); return; }
+  openTransfer();
+  T.from = src.id; T.to = warn.pot.id; T.amount = String(need);
+  T.month = clampMonth(wk); T.day = Math.max(1, warn.d.getDate() - 1);
+  syncTransfer();
+});
 
 /* ============================================================
-   Init + service worker
+   Toast · confetti · loader
    ============================================================ */
-switchTab("overzicht");
+const toastEl = $("#toast"), toastText = $("#toast-text"), toastUndo = $("#toast-undo");
+let toastTimer = null;
+function toast(msg, undo) {
+  clearTimeout(toastTimer);
+  toastText.textContent = msg;
+  if (undo) {
+    toastUndo.hidden = false;
+    toastUndo.onclick = () => { clearTimeout(toastTimer); toastEl.hidden = true; undo(); };
+  } else { toastUndo.hidden = true; toastUndo.onclick = null; }
+  toastEl.hidden = false;
+  toastTimer = setTimeout(() => { toastEl.hidden = true; }, 5000);
+}
+
+function burst(n) {
+  if (REDUCED) return;
+  const chars = ["💶", "🪙", "💰", "€", "💶", "🪙"];
+  const box = $("#conf");
+  box.innerHTML = Array.from({ length: n }, (_, i) => {
+    const left = Math.round(Math.random() * 92) + 2;
+    const size = 18 + Math.round(Math.random() * 16);
+    const dur = (1.5 + Math.random() * 0.9).toFixed(2);
+    const delay = (Math.random() * 0.5).toFixed(2);
+    const spin = (0.9 + Math.random() * 0.9).toFixed(2);
+    return `<div style="left:${left}%;animation:confFall ${dur}s cubic-bezier(.35,.6,.5,1) ${delay}s both">
+      <i style="font-size:${size}px;animation:confSpin ${spin}s linear ${delay}s infinite">${chars[i % chars.length]}</i></div>`;
+  }).join("");
+  clearTimeout(burst._t);
+  burst._t = setTimeout(() => { box.innerHTML = ""; }, 2900);
+}
+
+const loader = $("#loader");
+function runLoader(ms) {
+  loader.hidden = false;
+  clearTimeout(runLoader._t);
+  runLoader._t = setTimeout(() => { loader.hidden = true; }, ms || 1500);
+}
+$("#coin").addEventListener("click", () => runLoader(1600));
+
+/* ============================================================
+   Init
+   ============================================================ */
 render();
+if (REDUCED) loader.hidden = true; else runLoader(1500);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });

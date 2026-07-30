@@ -1,4 +1,3 @@
-// Maakt referentie-screenshots voor DESIGN-BRIEF.md (licht + donker).
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -9,110 +8,108 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(root, "design-refs");
 fs.mkdirSync(OUT, { recursive: true });
 const EXE = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-const MIME = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png" };
+const MIME = {
+  ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json",
+  ".webmanifest": "application/manifest+json", ".png": "image/png", ".gif": "image/gif", ".woff2": "font/woff2",
+};
 
 const server = http.createServer((rq, rs) => {
   let p = decodeURIComponent(rq.url.split("?")[0]);
   if (p === "/") p = "/index.html";
   const f = path.join(root, p);
-  if (!f.startsWith(root) || !fs.existsSync(f)) { rs.writeHead(404); return rs.end("nf"); }
+  if (!f.startsWith(root) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { rs.writeHead(404); return rs.end("nf"); }
   rs.writeHead(200, { "Content-Type": MIME[path.extname(f)] || "application/octet-stream" });
   fs.createReadStream(f).pipe(rs);
 });
 await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}/`;
 
-// Realistische voorbeeldstaat: potjes met doelen, geplande aankopen, belegging
-const seed = (monthKey, next1, next2) => ({
-  version: 4,
-  startMonth: monthKey,
-  pots: [
-    { id: "algemeen", label: "Algemeen", startBalance: 12500, goal: 20000, icon: "🐷" },
-    { id: "vakantie", label: "Vakantie", startBalance: 1800, goal: 4000, icon: "🏖️" },
-    { id: "auto", label: "Auto", startBalance: 3200, goal: 12000, icon: "🚗" },
-  ],
-  recurring: [
-    { id: "r1", kind: "in", label: "Salaris Mitchel", amount: 1400, day: 25, potId: "algemeen", fromMonth: monthKey },
-    { id: "r2", kind: "in", label: "Sparen vakantie", amount: 200, day: 25, potId: "vakantie", fromMonth: monthKey },
-    { id: "r3", kind: "in", label: "Sparen auto", amount: 150, day: 25, potId: "auto", fromMonth: monthKey },
-  ],
-  months: {
-    [monthKey]: {
-      entries: [
-        { id: "e1", kind: "out", label: "Kinderwagen", amount: 1150, day: 10, potId: "algemeen", category: "baby" },
-        { id: "e2", kind: "out", label: "Babykamer verven", amount: 320, day: 14, potId: "algemeen", category: "baby" },
-        { id: "e3", kind: "out", label: "Nieuwe bank", amount: 2400, day: 18, potId: "algemeen", category: "huis" },
-      ],
-      skip: [],
-    },
-    [next1]: {
-      entries: [
-        { id: "e4", kind: "out", label: "Autoverzekering", amount: 680, day: 5, potId: "auto", category: "overig" },
-        { id: "e5", kind: "out", label: "Wieg + matras", amount: 430, day: 12, potId: "algemeen", category: "baby" },
-      ],
-      skip: [],
-    },
-    [next2]: {
-      entries: [
-        { id: "e6", kind: "out", label: "Vliegtickets", amount: 2600, day: 8, potId: "vakantie", category: "overig" },
-      ],
-      skip: [],
-    },
-  },
-  investments: [
-    { id: "i1", label: "Meesman", value: 18400 },
-    { id: "i2", label: "DEGIRO", value: 6750 },
-  ],
-  recentLabels: ["Salaris Mitchel", "Boodschappen", "Kinderwagen"],
-});
+const browser = await chromium.launch({ executablePath: EXE });
+const errors = [];
 
-const _now = new Date();
-const mk = (n) => {
-  const x = new Date(_now.getFullYear(), _now.getMonth() + n, 1);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}`;
-};
-const mKey = mk(0), mNext1 = mk(1), mNext2 = mk(2);
-
-async function shoot(theme) {
-  const page = await browser.newPage({ viewport: { width: 402, height: 880 }, deviceScaleFactor: 2 });
+async function newPage(w = 390, h = 844, theme = "light") {
+  const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
   await page.addInitScript((t) => { localStorage.setItem("budget-theme", t); }, theme);
-  await page.goto(base, { waitUntil: "networkidle" });
-
-  await page.evaluate((json) => {
-    localStorage.setItem("budget-glass-v1", json);
-  }, JSON.stringify(seed(mKey, mNext1, mNext2)));
-  await page.reload({ waitUntil: "networkidle" });
-  await page.waitForTimeout(900);
-
-  const suffix = theme === "dark" ? "-dark" : "";
-  await page.screenshot({ path: path.join(OUT, `overzicht${suffix}.png`), fullPage: true });
-
-  await page.click('.tab-btn[data-tab="maand"]');
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(OUT, `maand${suffix}.png`), fullPage: true });
-
-  await page.click('.tab-btn[data-tab="vermogen"]');
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(OUT, `vermogen${suffix}.png`), fullPage: true });
-
-  // Invoer-sheet
-  await page.click('.tab-btn[data-tab="maand"]');
-  await page.click('[data-add="out"]');
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: path.join(OUT, `sheet-invoer${suffix}.png`) });
-  await page.keyboard.press("Escape");
-
-  // Instellingen-sheet
-  await page.click("#btn-settings");
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: path.join(OUT, `sheet-instellingen${suffix}.png`) });
-
-  await page.close();
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
+  page.on("requestfailed", (r) => errors.push("requestfailed: " + r.url()));
+  return page;
 }
 
-const browser = await chromium.launch({ executablePath: EXE });
+// Realistische staat: potjes met doelen, vaste lasten, verdeling, beleggingen
+function seed() {
+  const d = new Date();
+  const k = (n) => { const x = new Date(d.getFullYear(), d.getMonth() + n, 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}`; };
+  return {
+    version: 5,
+    startMonth: k(0),
+    pots: [
+      { id: "alg", label: "Algemeen", icon: "🪙", startBalance: 2500, goal: 0, goalDate: null },
+      { id: "spaar", label: "Sparen", icon: "🐖", startBalance: 12000, goal: 25000, goalDate: k(23) },
+      { id: "vak", label: "Vakantie", icon: "🏖️", startBalance: 1500, goal: 4000, goalDate: k(11) },
+      { id: "pers", label: "Persoonlijk", icon: "👤", startBalance: 800, goal: 0, goalDate: null },
+    ],
+    recurring: [
+      { id: "i1", kind: "in", group: "in", label: "Salaris Mitchel", amount: 3662, day: 25, potId: "alg", fromMonth: k(0) },
+      { id: "i2", kind: "in", group: "in", label: "Salaris partner", amount: 3350, day: 24, potId: "alg", fromMonth: k(0) },
+      { id: "u1", kind: "out", label: "Hypotheek", amount: 1800, day: 1, potId: "alg", category: "huis", fromMonth: k(0) },
+      { id: "u2", kind: "out", label: "Zorgverzekering", amount: 350, day: 1, potId: "alg", category: "verzekering", review: true, fromMonth: k(0) },
+      { id: "u3", kind: "out", label: "Gas / elektra", amount: 150, day: 2, potId: "alg", category: "huis", fromMonth: k(0) },
+      { id: "u4", kind: "out", label: "Boodschappen", amount: 500, day: 5, potId: "alg", category: "bood", fromMonth: k(0) },
+      { id: "u5", kind: "out", label: "Ziggo", amount: 50, day: 4, potId: "alg", category: "abo", review: true, fromMonth: k(0) },
+      { id: "o1", kind: "move", group: "over", label: "Naar Sparen", amount: 1000, day: 26, potId: "alg", toPot: "spaar", fromMonth: k(0) },
+      { id: "o2", kind: "move", group: "over", label: "Naar Vakantie", amount: 500, day: 26, potId: "alg", toPot: "vak", fromMonth: k(0) },
+      { id: "o3", kind: "out", group: "over", label: "Beleggen", amount: 500, day: 26, potId: "alg", category: "overig", fromMonth: k(0) },
+    ],
+    months: {
+      [k(1)]: { entries: [{ id: "e1", kind: "out", label: "Vliegtickets Portugal", amount: 1240, day: 20, potId: "vak", category: "overig" }], skip: [] },
+      [k(2)]: { entries: [{ id: "e2", kind: "in", label: "Vakantiegeld", amount: 2100, day: 22, potId: "alg" }], skip: [] },
+      [k(3)]: { entries: [{ id: "e3", kind: "out", label: "APK + winterbanden", amount: 340, day: 9, potId: "alg", category: "vervoer" }], skip: [] },
+    },
+    investments: [
+      { id: "v1", label: "Meesman wereldwijd", value: 18400, monthly: 500, updated: "2026-07-28" },
+      { id: "v2", label: "DEGIRO ETF", value: 7250, monthly: 0, updated: "2026-06-30" },
+    ],
+    recentLabels: ["Boodschappen", "Tandarts", "Benzine"],
+    backupDismissed: false,
+    lastBackup: null,
+  };
+}
+
+async function load(page, withData = true) {
+  await page.goto(base, { waitUntil: "networkidle" });
+  if (withData) {
+    await page.evaluate((j) => localStorage.setItem("budget-glass-v1", j), JSON.stringify(seed()));
+    await page.reload({ waitUntil: "networkidle" });
+  }
+  // laadscherm wegwachten
+  await page.waitForSelector("#loader[hidden]", { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(700);
+}
+
+
+async function shoot(theme) {
+  const p = await newPage(390, 844, theme);
+  await load(p);
+  const sfx = theme === "dark" ? "-dark" : "";
+  await p.screenshot({ path: path.join(OUT, `overzicht${sfx}.png`), fullPage: true });
+  await p.click('.tab[data-tab="maand"]'); await p.waitForTimeout(700);
+  await p.screenshot({ path: path.join(OUT, `maand${sfx}.png`), fullPage: true });
+  await p.click('.tab[data-tab="vermogen"]'); await p.waitForTimeout(700);
+  await p.screenshot({ path: path.join(OUT, `vermogen${sfx}.png`), fullPage: true });
+  await p.click('.tab[data-tab="maand"]'); await p.click("#fab"); await p.waitForTimeout(500);
+  await p.fill("#f-amount", "120"); await p.fill("#f-label", "Boodschappen"); await p.waitForTimeout(500);
+  await p.screenshot({ path: path.join(OUT, `sheet-invoer${sfx}.png`) });
+  await p.keyboard.press("Escape"); await p.waitForTimeout(250);
+  await p.click("#open-transfer"); await p.waitForTimeout(450);
+  await p.screenshot({ path: path.join(OUT, `sheet-overboeken${sfx}.png`) });
+  await p.keyboard.press("Escape"); await p.waitForTimeout(250);
+  await p.click("#btn-settings"); await p.waitForTimeout(450);
+  await p.screenshot({ path: path.join(OUT, `sheet-instellingen${sfx}.png`) });
+  await p.close();
+}
 await shoot("light");
 await shoot("dark");
 await browser.close();
 server.close();
-console.log("Referentie-screenshots in design-refs/:", fs.readdirSync(OUT).join(", "));
+console.log("design-refs/:", fs.readdirSync(OUT).sort().join(", "));

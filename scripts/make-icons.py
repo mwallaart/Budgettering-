@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genereer PWA-iconen: dennengroen squircle, witte € met subtiele groei-lijn."""
+"""PWA-iconen in de Huishoudboekje-stijl: gouden munt op dennengroen."""
 import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
@@ -7,10 +7,15 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "icons")
 os.makedirs(OUT, exist_ok=True)
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
-# Gradient (donker dennengroen -> smaragd)
-TOP = (21, 60, 48)     # #153C30
-BOT = (46, 125, 91)    # #2E7D5B
-MINT = (150, 220, 186) # groei-lijn
+# Achtergrond: hero-gradient uit het ontwerp
+TOP = (28, 83, 65)     # #1C5341
+BOT = (15, 50, 39)     # #0F3227
+# Munt: goudtinten uit het ontwerp
+GOLD_LIGHT = (247, 230, 174)   # #F7E6AE
+GOLD_MID = (216, 180, 92)      # #D8B45C
+GOLD_DARK = (181, 135, 44)     # #B5872C
+GOLD_RING = (230, 193, 95)     # #E6C15F
+INK = (107, 78, 20)            # #6B4E14
 
 
 def lerp(a, b, t):
@@ -24,80 +29,77 @@ def rounded_mask(size, radius, ss=4):
     return m.resize((size, size), Image.LANCZOS)
 
 
-def draw_trend(dr, big):
-    """Subtiele stijgende lijn met pijlpunt, achter de glyph."""
-    pts = [(0.13, 0.66), (0.33, 0.55), (0.5, 0.61), (0.7, 0.40), (0.85, 0.27)]
-    P = [(x * big, y * big) for x, y in pts]
-    col = MINT + (70,)
-    dr.line(P, fill=col, width=int(big * 0.028), joint="curve")
-    # pijlpunt
-    ex, ey = P[-1]
-    dx, dy = ex - P[-2][0], ey - P[-2][1]
-    ln = (dx * dx + dy * dy) ** 0.5 or 1
-    ux, uy = dx / ln, dy / ln
-    s = big * 0.075
-    left = (ex - ux * s - uy * s * 0.6, ey - uy * s + ux * s * 0.6)
-    right = (ex - ux * s + uy * s * 0.6, ey - uy * s - ux * s * 0.6)
-    dr.polygon([(ex, ey), left, right], fill=MINT + (95,))
+def coin(big, cx, cy, r):
+    """Gouden munt met ring, verloop en glans-highlight."""
+    layer = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    # buitenring
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=GOLD_RING + (255,))
+    # binnenvlak met verticaal verloop
+    ir = int(r * 0.88)
+    inner = Image.new("RGBA", (ir * 2, ir * 2), (0, 0, 0, 0))
+    ip = inner.load()
+    for y in range(ir * 2):
+        c = lerp(GOLD_LIGHT, GOLD_DARK, min(1.0, y / (ir * 2) * 1.15))
+        for x in range(ir * 2):
+            ip[x, y] = c + (255,)
+    mask = Image.new("L", (ir * 2, ir * 2), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, ir * 2 - 1, ir * 2 - 1], fill=255)
+    inner.putalpha(mask)
+    layer.alpha_composite(inner, (cx - ir, cy - ir))
+
+    # zachte glans linksboven
+    hi = Image.new("L", (big, big), 0)
+    ImageDraw.Draw(hi).ellipse([cx - r * 0.85, cy - r * 1.0, cx + r * 0.15, cy - r * 0.1], fill=90)
+    hi = hi.filter(ImageFilter.GaussianBlur(r * 0.18))
+    white = Image.new("RGBA", (big, big), (255, 255, 255, 255))
+    white.putalpha(hi)
+    layer.alpha_composite(white)
+    return layer
 
 
-def make_icon(size, radius_ratio, pad_ratio=0.0, glyph_ratio=0.52):
+def make_icon(size, radius_ratio, coin_ratio=0.62):
     ss = 4
     big = size * ss
-    grad = Image.new("RGBA", (big, big))
-    px = grad.load()
+    img = Image.new("RGBA", (big, big))
+    px = img.load()
     for y in range(big):
         c = lerp(TOP, BOT, y / big)
         for x in range(big):
             px[x, y] = c + (255,)
 
-    # glass-highlight
-    hi = Image.new("L", (big, big), 0)
-    hd = ImageDraw.Draw(hi)
-    hd.ellipse([-big * 0.3, -big * 0.5, big * 0.9, big * 0.5], fill=80)
-    hi = hi.filter(ImageFilter.GaussianBlur(big * 0.06))
-    white = Image.new("RGBA", (big, big), (255, 255, 255, 255))
-    grad = Image.composite(white, grad, hi.point(lambda v: int(v * 0.4)))
+    # subtiele diagonale textuur, zoals de hero-kaart
+    tex = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    td = ImageDraw.Draw(tex)
+    step = max(6, int(big * 0.035))
+    for i in range(-big, big * 2, step):
+        td.line([(i, 0), (i + big, big)], fill=(255, 255, 255, 12), width=max(1, big // 400))
+    img.alpha_composite(tex)
 
-    dr = ImageDraw.Draw(grad)
-    draw_trend(dr, big)
+    cx = cy = big // 2
+    r = int(big * coin_ratio / 2)
+    img.alpha_composite(coin(big, cx, cy, r))
 
+    # € in de munt
+    d = ImageDraw.Draw(img)
     try:
-        font = ImageFont.truetype(FONT, int(big * glyph_ratio))
+        font = ImageFont.truetype(FONT, int(r * 1.15))
     except OSError:
         font = ImageFont.load_default()
-    bbox = dr.textbbox((0, 0), "€", font=font)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    tx = (big - tw) / 2 - bbox[0]
-    ty = (big - th) / 2 - bbox[1]
-    dr.text((tx, ty + big * 0.02), "€", font=font, fill=(255, 255, 255, 240))
+    bbox = d.textbbox((0, 0), "€", font=font)
+    d.text((cx - (bbox[2] - bbox[0]) / 2 - bbox[0], cy - (bbox[3] - bbox[1]) / 2 - bbox[1]),
+           "€", font=font, fill=INK + (255,))
 
-    grad = grad.resize((size, size), Image.LANCZOS)
-
-    if pad_ratio > 0:
-        inner = int(size * (1 - pad_ratio * 2))
-        tile = grad.resize((inner, inner), Image.LANCZOS)
-        tile.putalpha(rounded_mask(inner, int(inner * radius_ratio)))
-        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        off = (size - inner) // 2
-        canvas.alpha_composite(tile, (off, off))
-        return canvas
-    grad.putalpha(rounded_mask(size, int(size * radius_ratio)))
-    return grad
-
-
-def make_maskable(size):
-    icon = make_icon(size, radius_ratio=0.001, glyph_ratio=0.4)
-    bg = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    bg.alpha_composite(icon)
-    return bg
+    img = img.resize((size, size), Image.LANCZOS)
+    img.putalpha(rounded_mask(size, max(1, int(size * radius_ratio))))
+    return img
 
 
 targets = {
     "icon-192.png": make_icon(192, 0.22),
     "icon-512.png": make_icon(512, 0.22),
-    "apple-touch-icon.png": make_icon(180, 0.0, glyph_ratio=0.52),
-    "maskable-512.png": make_maskable(512),
+    "apple-touch-icon.png": make_icon(180, 0.001),   # iOS maskeert zelf
+    "maskable-512.png": make_icon(512, 0.001, coin_ratio=0.46),
 }
 for name, im in targets.items():
     im.save(os.path.join(OUT, name))
