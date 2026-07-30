@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+--bg:#EDE6D6;--desk:radial-gradient(120% 80% at 50% 0%,#F7F2E4 0%,#EAE2CF 60%,#E2D9C3 100%);
+--app0:#FDFBF3;--app1:#F6F1E3;--card:#FFFDF6;--sheet:#FDFBF3;--load:radial-gradient(110% 70% at 50% 22%,#FDFCF6,#F3EEE0 70%,#EAE3D2);
+--line:rgba(80,62,20,.11);--line2:rgba(80,62,20,.16);
+--ink:#16211C;--ink2:rgba(22,33,28,.62);--ink3:rgba(22,33,28,.54);--ink4:rgba(22,33,28,.42);
+--fill1:rgba(22,33,28,.05);--fill2:rgba(22,33,28,.10);--fill3:rgba(22,33,28,.18);
+--tint:#F4F0E0;--tint2:#F7EFE3;--field:#FAF6EA;
+--pos:#2A6A50;--posSoft:#4E9A76;--neg:#A64B31;--negSoft:#DDA491;
+--gold:#B98F1E;--gold2:#E0C266;--brand:#1F5744;--accent:#1F5744;
+--hero:linear-gradient(150deg,#33805F 0%,#1C5341 46%,#0F3227 100%);
+--glass:rgba(255,253,246,.55);--glassEdge:rgba(255,255,255,.7);--glassOn:rgba(255,255,255,.72);--glassShade:rgba(24,40,32,.16);
+}
+:root[data-theme="dark"]{
+--bg:#0A120F;--desk:radial-gradient(120% 80% at 50% 0%,#16211C 0%,#0C1512 60%,#080E0C 100%);
+--app0:#0F1915;--app1:#0B1310;--card:#1A2620;--sheet:#152019;--load:radial-gradient(110% 70% at 50% 22%,#1B2822,#111B16 70%,#0B1310);
+--line:rgba(224,194,102,.16);--line2:rgba(224,194,102,.26);
+--ink:#EAF1EC;--ink2:rgba(234,241,236,.68);--ink3:rgba(234,241,236,.58);--ink4:rgba(234,241,236,.44);
+--fill1:rgba(255,255,255,.06);--fill2:rgba(255,255,255,.11);--fill3:rgba(255,255,255,.2);
+--tint:#243129;--tint2:#2C2A22;--field:#1E2B24;
+--pos:#54DFA8;--posSoft:#3E9E77;--neg:#FF9077;--negSoft:#8C4E3C;
+--gold:#E5C777;--gold2:#F0D680;--brand:#2C7159;--accent:#6FD9AC;
+--hero:linear-gradient(150deg,#3D9375 0%,#256853 46%,#17493A 100%);
+--glass:rgba(30,44,37,.52);--glassEdge:rgba(255,255,255,.14);--glassOn:rgba(255,255,255,.14);--glassShade:rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:Manrope,-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--ink)}
+input,button{font-family:inherit;color:var(--ink)}
+input::placeholder{color:var(--ink4)}
+input:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.noscroll::-webkit-scrollbar{width:0;height:0}
+a{color:var(--accent)}a:hover{color:var(--gold)}
+@keyframes sheetUp{from{transform:translateY(101%)}to{transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes shine{0%{transform:translateX(-140%) rotate(18deg)}55%{transform:translateX(240%) rotate(18deg)}100%{transform:translateX(240%) rotate(18deg)}}
+@keyframes confFall{0%{transform:translateY(-30px);opacity:0}12%{opacity:1}100%{transform:translateY(760px);opacity:0}}
+@keyframes confSpin{0%{transform:rotate(0deg) scale(1)}100%{transform:rotate(540deg) scale(.7)}}
+@keyframes barFill{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes popIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes swipeHint{0%,55%{transform:translateX(0)}70%{transform:translateX(-28px)}85%{transform:translateX(-9px)}100%{transform:translateX(0)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height:100dvh;display:flex;align-items:flex-start;justify-content:center;padding:28px 16px 40px;background:var(--desk)">
+<div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+<div style="padding:11px;border-radius:62px;background:linear-gradient(160deg,#2a2c29,#111311);box-shadow:0 30px 70px -20px rgba(20,30,25,.55),0 2px 0 rgba(255,255,255,.35) inset">
+<div style="position:relative;width:{{ phoneW }}px;height:{{ phoneH }}px;border-radius:52px;overflow:hidden;background:linear-gradient(180deg,var(--app0) 0%,var(--app1) 100%);display:flex;flex-direction:column">
+
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 30px 4px;flex:none">
+<div style="font-size:15px;font-weight:700;letter-spacing:-.01em">9:41</div>
+<div style="display:flex;align-items:center;gap:6px">
+<div style="display:flex;align-items:flex-end;gap:2px;height:11px"><div style="width:3px;height:5px;border-radius:1px;background:var(--ink)"></div><div style="width:3px;height:7px;border-radius:1px;background:var(--ink)"></div><div style="width:3px;height:9px;border-radius:1px;background:var(--ink)"></div><div style="width:3px;height:11px;border-radius:1px;background:var(--ink4)"></div></div>
+<div style="width:24px;height:12px;border-radius:4px;border:1.4px solid var(--ink3);padding:1.6px"><div style="width:70%;height:100%;border-radius:2px;background:var(--ink)"></div></div>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;padding:10px 20px 12px;flex:none">
+<button type="button" aria-label="Logo · speel de animatie opnieuw af" onClick="{{ replayLoader }}" style="flex:none;position:relative;width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.5);padding:0;cursor:pointer;overflow:hidden;background:conic-gradient(from 210deg,#E6C15F,#B9892E 18%,#F3DC98 35%,#9E7223 55%,#EBCB74 72%,#B9892E 88%,#E6C15F);box-shadow:0 8px 18px -8px rgba(120,86,20,.8)">
+<div style="position:absolute;inset:4px;border-radius:50%;background:linear-gradient(160deg,#F7E6AE,#D8B45C 55%,#B5872C);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(255,255,255,.75),inset 0 -2px 3px rgba(120,86,20,.35)">
+<span style="font-size:18px;font-weight:800;color:#6B4E14;letter-spacing:-.02em">€</span>
+</div>
+<div style="position:absolute;top:-30%;left:0;width:38%;height:160%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.85),rgba(255,255,255,0));animation:shine 3.6s cubic-bezier(.22,1,.36,1) infinite"></div>
+</button>
+<div style="flex:1 1 0;min-width:0">
+<div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink4)">Huishoudboekje</div>
+<div style="font-size:19px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pageTitle }}</div>
+</div>
+<button type="button" aria-label="Instellingen" onClick="{{ openSettings }}" style="flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M4 8h8"></path><path d="M16.5 8H20"></path><path d="M4 16h4.5"></path><path d="M13 16h7"></path><circle cx="14.2" cy="8" r="2.2"></circle><circle cx="10.7" cy="16" r="2.2"></circle></svg>
+</button>
+</div>
+
+<div class="noscroll" style="flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:2px 18px 186px">
+
+<sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:14px;animation:riseIn .32s cubic-bezier(.22,1,.36,1)">
+
+<div role="button" tabindex="0" onClick="{{ togglePrivacy }}" style="position:relative;overflow:hidden;border-radius:30px;padding:22px 22px 20px;background:var(--hero);box-shadow:0 18px 34px -20px rgba(21,59,47,.85);cursor:pointer">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 88% 8%,rgba(255,255,255,.20),rgba(255,255,255,0) 55%)"></div>
+<div style="position:absolute;inset:0;opacity:.5;background:repeating-linear-gradient(58deg,rgba(255,255,255,.09) 0 1px,rgba(255,255,255,0) 1px 7px),repeating-radial-gradient(circle at 82% 84%,rgba(255,255,255,.10) 0 1px,rgba(255,255,255,0) 1px 9px)"></div>
+<div style="position:absolute;right:-14px;bottom:-42px;font-family:'Instrument Serif',Georgia,serif;font-size:170px;line-height:1;color:rgba(255,255,255,.07);animation:floatY 6s ease-in-out infinite">€</div>
+<div style="position:absolute;inset:9px;border-radius:22px;border:1px solid rgba(255,255,255,.14)"></div>
+<div style="position:relative">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62)">Spaargeld nu</div>
+<div style="font-size:10.5px;font-weight:700;color:rgba(255,255,255,.5)">{{ privacyHint }}</div>
+</div>
+<div style="font-family:'Instrument Serif',Georgia,serif;font-size:56px;line-height:1.02;letter-spacing:-.02em;color:#fff;margin-top:8px;font-variant-numeric:tabular-nums">{{ heroSavings }}</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px">
+<div style="padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:12.5px;font-weight:600">{{ heroDelta }} deze maand</div>
+<div style="padding:7px 12px;border-radius:999px;background:rgba(224,194,102,.22);border:1px solid rgba(240,214,128,.5);color:#F8EDCB;font-size:12.5px;font-weight:700">Veilig {{ safeAmount }}</div>
+<div style="padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.09);color:rgba(255,255,255,.8);font-size:12.5px;font-weight:600">{{ potCount }} potjes</div>
+</div>
+</div>
+</div>
+
+<sc-if value="{{ hasWarning }}" hint-placeholder-val="{{ false }}">
+<div style="padding:14px 16px;border-radius:20px;background:linear-gradient(rgba(180,85,58,.10),rgba(180,85,58,.10)),var(--card);border:1px solid rgba(180,85,58,.28)">
+<div style="display:flex;gap:12px;align-items:flex-start">
+<div style="font-size:17px;line-height:1.2">⚠️</div>
+<div style="flex:1 1 0;min-width:0">
+<div style="font-size:13.5px;font-weight:700;color:var(--neg)">{{ warnTitle }}</div>
+<div style="font-size:12.5px;line-height:1.45;color:var(--ink2);margin-top:2px">{{ warnBody }}</div>
+</div>
+</div>
+<button type="button" onClick="{{ fixWarning }}" style="width:100%;min-height:44px;margin-top:12px;border-radius:14px;border:none;background:var(--brand);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer">{{ warnAction }}</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ showBackupBanner }}" hint-placeholder-val="{{ false }}">
+<div style="padding:14px 16px;border-radius:20px;background:linear-gradient(rgba(216,180,92,.14),rgba(216,180,92,.14)),var(--card);border:1px solid rgba(216,180,92,.4)">
+<div style="display:flex;gap:12px;align-items:flex-start">
+<div style="font-size:17px;line-height:1.2">🪙</div>
+<div style="flex:1 1 0;min-width:0"><div style="font-size:13.5px;font-weight:700">Nog geen back-up</div><div style="font-size:12.5px;line-height:1.45;color:var(--ink2);margin-top:2px">Je data staat alleen op deze iPhone.</div></div>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:8px;margin-top:12px">
+<button type="button" onClick="{{ doExport }}" style="min-height:44px;border-radius:14px;border:none;background:var(--brand);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer">Back-up maken</button>
+<button type="button" onClick="{{ dismissBackup }}" style="min-height:44px;border-radius:14px;border:1px solid var(--line2);background:var(--card);font-size:13.5px;font-weight:700;cursor:pointer">Later</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="padding:22px;border-radius:24px;background:var(--card);border:1px dashed var(--line2);text-align:center">
+<div style="width:104px;height:104px;margin:0 auto;border-radius:26px;overflow:hidden;background:linear-gradient(160deg,#1C5341,#0F3227)"><img src="uploads/Make%20It%20Rain%20Money%20GIF.gif" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+<div style="font-size:15px;font-weight:700;margin-top:12px">Nog niets ingericht</div>
+<div style="font-size:13px;line-height:1.5;color:var(--ink2);margin-top:4px">Maak eerst je potjes aan en zet je vaste inkomsten en lasten klaar.</div>
+<button type="button" onClick="{{ openSettings }}" style="margin-top:14px;min-height:44px;padding:0 20px;border-radius:14px;border:none;background:var(--brand);color:#fff;font-size:14px;font-weight:700;cursor:pointer">Potjes instellen</button>
+</div>
+</sc-if>
+
+<div style="border-radius:26px;background:var(--card);border:1px solid var(--line);padding:18px 16px 12px">
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+<div style="min-width:0">
+<div style="font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">{{ focusDate }}</div>
+<div style="font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:3px;font-variant-numeric:tabular-nums;color:{{ focusColor }}">{{ focusValue }}</div>
+</div>
+<div style="flex:none;padding:6px 11px;border-radius:999px;background:var(--fill1);color:var(--accent);font-size:11.5px;font-weight:700">12 maanden</div>
+</div>
+<div role="img" aria-label="Cashflow per dag" onPointerDown="{{ scrubDown }}" onPointerMove="{{ scrubMove }}" onPointerUp="{{ scrubUp }}" style="margin-top:12px;touch-action:none;cursor:ew-resize">
+<svg viewBox="0 0 320 132" preserveAspectRatio="none" style="width:100%;height:132px;display:block;overflow:visible">
+<defs>
+<linearGradient id="cfArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--posSoft)" stop-opacity=".30"></stop><stop offset="100%" stop-color="var(--posSoft)" stop-opacity="0"></stop></linearGradient>
+<clipPath id="cfClip"><path d="{{ areaPath }}"></path></clipPath>
+</defs>
+<line x1="0" y1="1" x2="320" y2="1" stroke="var(--fill1)" stroke-width="1"></line>
+<line x1="0" y1="44" x2="320" y2="44" stroke="var(--fill1)" stroke-width="1"></line>
+<line x1="0" y1="88" x2="320" y2="88" stroke="var(--fill1)" stroke-width="1"></line>
+<path d="{{ areaPath }}" fill="url(#cfArea)"></path>
+<rect x="0" y="{{ zeroY }}" width="320" height="132" fill="rgba(180,85,58,.30)" clip-path="url(#cfClip)"></rect>
+<line x1="0" y1="{{ zeroY }}" x2="320" y2="{{ zeroY }}" stroke="var(--negSoft)" stroke-width="1" stroke-dasharray="3 3"></line>
+<path d="{{ linePath }}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+<line x1="{{ nowX }}" y1="0" x2="{{ nowX }}" y2="132" stroke="var(--ink4)" stroke-width="1" stroke-dasharray="2 4"></line>
+<line x1="{{ focusX }}" y1="0" x2="{{ focusX }}" y2="132" stroke="var(--gold2)" stroke-width="1"></line>
+<circle cx="{{ focusX }}" cy="{{ focusY }}" r="5" fill="var(--card)" stroke="var(--accent)" stroke-width="2.4" vector-effect="non-scaling-stroke"></circle>
+</svg>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:8px;padding-bottom:4px">
+<sc-for list="{{ chartLabels }}" as="lab" hint-placeholder-count="6">
+<div style="font-size:10.5px;font-weight:600;color:var(--ink4);letter-spacing:.04em">{{ lab.t }}</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:6px 4px 0">
+<div style="font-size:15px;font-weight:700;letter-spacing:-.01em">Per maand</div>
+<div style="font-size:11.5px;font-weight:600;color:var(--ink4)">saldo aan het eind</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ monthRows }}" as="m" hint-placeholder-count="6">
+<div role="button" tabindex="0" onClick="{{ m.open }}" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:20px;background:var(--card);border:1px solid var(--line);cursor:pointer;min-height:44px">
+<div style="flex:1 1 0;min-width:0">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="font-size:14.5px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}</div>
+<sc-if value="{{ m.isNow }}" hint-placeholder-val="{{ false }}"><div style="flex:none;padding:2px 7px;border-radius:999px;background:var(--brand);color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.08em">NU</div></sc-if>
+</div>
+<div style="display:flex;gap:3px;margin-top:9px;height:5px">
+<div style="width:{{ m.inPct }}%;border-radius:999px;background:var(--posSoft);min-width:2px"></div>
+<div style="width:{{ m.outPct }}%;border-radius:999px;background:var(--negSoft);min-width:2px"></div>
+</div>
+<div style="font-size:11.5px;font-weight:600;color:var(--ink3);margin-top:7px;font-variant-numeric:tabular-nums">{{ m.flow }}</div>
+</div>
+<div style="flex:none;text-align:right">
+<div style="font-size:17px;font-weight:800;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:{{ m.color }}">{{ m.end }}</div>
+<div style="font-size:10.5px;font-weight:600;color:var(--ink4);margin-top:2px">{{ m.netLabel }}</div>
+</div>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block;color:var(--ink4)"><path d="M9.5 5.5L16 12l-6.5 6.5"></path></svg>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMonth }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:14px;animation:riseIn .32s cubic-bezier(.22,1,.36,1)">
+
+<div style="display:flex;align-items:center;gap:10px">
+<button type="button" onClick="{{ goOverview }}" style="display:flex;align-items:center;gap:7px;min-height:44px;padding:0 14px 0 10px;border-radius:999px;border:1px solid var(--line2);background:var(--card);font-size:13px;font-weight:700;cursor:pointer">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M14.5 5.5L8 12l6.5 6.5"></path></svg>Overzicht</button>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px">
+<button type="button" aria-label="Vorige maand" onClick="{{ prevMonth }}" style="flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M14.5 5.5L8 12l6.5 6.5"></path></svg></button>
+<button type="button" onClick="{{ openMonthPicker }}" style="flex:1 1 0;min-width:0;height:44px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:15px;font-weight:700;letter-spacing:-.01em;cursor:pointer">{{ monthTitle }}</button>
+<button type="button" aria-label="Volgende maand" onClick="{{ nextMonth }}" style="flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M9.5 5.5L16 12l-6.5 6.5"></path></svg></button>
+</div>
+
+<div class="noscroll" style="display:flex;gap:10px;overflow-x:auto;padding:2px 18px 2px 0;margin-right:-18px;scroll-snap-type:x proximity">
+<sc-for list="{{ potChips }}" as="p" hint-placeholder-count="4">
+<div role="button" tabindex="0" onClick="{{ p.select }}" style="flex:none;width:138px;scroll-snap-align:start;padding:13px 14px;border-radius:20px;background:{{ p.bg }};border:1px solid {{ p.border }};cursor:pointer">
+<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:17px">{{ p.icon }}</div><div style="font-size:10px;font-weight:700;color:{{ p.metaColor }}">{{ p.pctLabel }}</div></div>
+<div style="font-size:12.5px;font-weight:700;margin-top:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ p.fg }}">{{ p.label }}</div>
+<div style="font-size:15.5px;font-weight:800;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums;color:{{ p.amtColor }}">{{ p.amount }}</div>
+<sc-if value="{{ p.hasGoal }}" hint-placeholder-val="{{ true }}">
+<div style="margin-top:9px;height:4px;border-radius:999px;background:{{ p.trackColor }};overflow:hidden"><div style="width:{{ p.pct }}%;height:100%;border-radius:999px;background:{{ p.barColor }}"></div></div>
+<div style="font-size:10px;font-weight:600;margin-top:6px;color:{{ p.metaColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.goalLabel }}</div>
+<div style="font-size:10px;font-weight:700;margin-top:3px;color:{{ p.paceColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.paceLabel }}</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+
+<div style="position:relative;overflow:hidden;border-radius:28px;padding:20px;background:var(--hero);box-shadow:0 18px 34px -20px rgba(21,59,47,.85)">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 88% 8%,rgba(255,255,255,.18),rgba(255,255,255,0) 55%)"></div>
+<div style="position:absolute;inset:0;opacity:.5;background:repeating-linear-gradient(58deg,rgba(255,255,255,.09) 0 1px,rgba(255,255,255,0) 1px 7px)"></div>
+<div style="position:absolute;inset:9px;border-radius:20px;border:1px solid rgba(255,255,255,.14)"></div>
+<div style="position:relative">
+<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62)">Saldo einde maand · {{ scopeLabel }}</div>
+<div style="font-family:'Instrument Serif',Georgia,serif;font-size:48px;line-height:1.04;letter-spacing:-.02em;margin-top:8px;font-variant-numeric:tabular-nums;color:{{ monthEndColor }}">{{ monthEnd }}</div>
+<div style="font-size:12.5px;font-weight:600;color:rgba(255,255,255,.7);margin-top:8px">Begin van de maand {{ monthBegin }}</div>
+</div>
+</div>
+
+<div style="border-radius:26px;background:var(--card);border:1px solid var(--line);padding:18px 16px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+<div style="min-width:0"><div style="font-size:15px;font-weight:700;letter-spacing:-.01em">Huishoudboekje</div><div style="font-size:11.5px;font-weight:600;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ safeLine }} · <span style="font-weight:800;color:{{ safeColor }}">{{ safeAmount }}</span></div></div>
+<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">vaste maand</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:14px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-size:13px;font-weight:600;color:var(--ink2)">Inkomsten</div><div style="font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--pos)">{{ bIn }}</div></div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-size:13px;font-weight:600;color:var(--ink2)">Vaste lasten</div><div style="font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--neg)">− {{ bFixed }}</div></div>
+<div style="height:1px;background:var(--line)"></div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-size:13.5px;font-weight:800">Te besteden</div><div style="font-size:19px;font-weight:800;letter-spacing:-.025em;font-variant-numeric:tabular-nums">{{ bLeft }}</div></div>
+</div>
+<div style="display:flex;gap:3px;margin-top:14px;height:10px">
+<sc-for list="{{ allocBar }}" as="a" hint-placeholder-count="5">
+<div style="width:{{ a.pct }}%;border-radius:999px;background:{{ a.color }};min-width:3px"></div>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+<sc-for list="{{ allocRows }}" as="a" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="flex:none;width:9px;height:9px;border-radius:3px;background:{{ a.color }}"></div>
+<div style="flex:1 1 0;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.label }}</div>
+<div style="flex:none;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums">{{ a.amount }}</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding:12px 14px;border-radius:16px;background:linear-gradient(rgba(216,180,92,.16),rgba(216,180,92,.16)),var(--card);border:1px solid rgba(216,180,92,.4)">
+<div style="font-size:13px;font-weight:700">Over te besteden</div>
+<div style="font-size:17px;font-weight:800;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:{{ bRestColor }}">{{ bRest }}</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+<div style="padding:14px 15px;border-radius:20px;background:linear-gradient(rgba(46,115,89,.10),rgba(46,115,89,.10)),var(--card);border:1px solid rgba(46,115,89,.2)">
+<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">Binnen</div>
+<div style="font-size:19px;font-weight:800;letter-spacing:-.025em;margin-top:4px;color:var(--pos);font-variant-numeric:tabular-nums">{{ monthIn }}</div>
+</div>
+<div style="padding:14px 15px;border-radius:20px;background:linear-gradient(rgba(180,85,58,.10),rgba(180,85,58,.10)),var(--card);border:1px solid rgba(180,85,58,.22)">
+<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">Eruit</div>
+<div style="font-size:19px;font-weight:800;letter-spacing:-.025em;margin-top:4px;color:var(--neg);font-variant-numeric:tabular-nums">{{ monthOut }}</div>
+</div>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{ openTransfer }}" style="min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--card);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M4 9h13"></path><path d="M14 6l3 3-3 3"></path><path d="M20 15H7"></path><path d="M10 12l-3 3 3 3"></path></svg>Overboeken</button>
+<sc-for list="{{ catChips }}" as="c" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:7px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:12px;font-weight:700"><span>{{ c.icon }}</span><span style="color:var(--ink2)">{{ c.label }}</span><span style="font-variant-numeric:tabular-nums">{{ c.amount }}</span></div>
+</sc-for>
+</div>
+
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+<div style="display:flex;flex-direction:column;gap:8px">
+<button type="button" onClick="{{ g.toggle }}" aria-expanded="{{ g.open }}" style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 6px;border:none;background:transparent;cursor:pointer;text-align:left">
+<div style="flex:1 1 0;min-width:0">
+<div style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.title }}</div>
+<div style="font-size:11px;font-weight:600;color:var(--ink4);margin-top:1px">{{ g.countLabel }}</div>
+</div>
+<div style="flex:none;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ g.totalColor }}">{{ g.total }}</div>
+<div style="flex:none;transform:rotate({{ g.rot }}deg);transition:transform .22s cubic-bezier(.22,1,.36,1);color:var(--ink4)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M6 9.5l6 6 6-6"></path></svg></div>
+</button>
+<sc-if value="{{ g.open }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+<div style="position:relative;border-radius:18px;overflow:hidden">
+<div style="position:absolute;inset:0;display:flex;gap:6px;justify-content:flex-end">
+<button type="button" onClick="{{ r.move }}" style="width:72px;border-radius:18px;border:none;background:var(--tint2);color:var(--ink);font-size:11.5px;font-weight:700;cursor:pointer">Verzet →</button>
+<button type="button" onClick="{{ r.del }}" style="width:72px;border-radius:18px;border:none;background:linear-gradient(rgba(180,85,58,.22),rgba(180,85,58,.22)),var(--card);color:var(--neg);font-size:11.5px;font-weight:700;cursor:pointer">Wissen</button>
+</div>
+<div role="button" tabindex="0" onPointerDown="{{ r.onDown }}" onPointerMove="{{ r.onMove }}" onPointerUp="{{ r.onUp }}" onKeyDown="{{ r.onKey }}" style="position:relative;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:18px;background:{{ r.rowBg }};border:1px solid {{ r.rowLine }};transform:translateX({{ r.dx }}px);transition:transform .22s cubic-bezier(.22,1,.36,1);animation:{{ r.hintAnim }};touch-action:pan-y;cursor:pointer">
+<div style="flex:none;width:38px;height:38px;border-radius:12px;background:{{ r.tile }};display:flex;align-items:center;justify-content:center;font-size:17px">{{ r.icon }}</div>
+<div style="flex:1 1 0;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.label }}</div>
+<sc-if value="{{ r.review }}" hint-placeholder-val="{{ false }}"><div title="Te herzien" style="flex:none;width:7px;height:7px;border-radius:50%;background:var(--gold2)"></div></sc-if>
+</div>
+<div style="font-size:11.5px;font-weight:500;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</div>
+</div>
+<div style="flex:none;font-size:14.5px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ r.color }}">{{ r.amount }}</div>
+<button type="button" aria-label="Acties voor deze post" onClick="{{ r.openActions }}" style="flex:none;width:26px;min-height:36px;border:none;background:transparent;cursor:pointer;color:var(--ink4);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:block"><circle cx="6" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="18" cy="12" r="1.6"></circle></svg></button>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ g.empty }}" hint-placeholder-val="{{ false }}">
+<div style="padding:16px;border-radius:18px;background:var(--fill1);font-size:13px;color:var(--ink3);text-align:center">{{ g.emptyText }}</div>
+</sc-if>
+</div>
+</sc-for>
+
+<div style="display:flex;align-items:center;gap:8px;padding:4px 4px 0">
+<div style="width:7px;height:7px;border-radius:50%;background:var(--gold2)"></div>
+<div style="font-size:11.5px;font-weight:600;color:var(--ink4)">= te herzien · veeg een regel naar links voor acties, tik om te bewerken</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isWealth }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:14px;animation:riseIn .32s cubic-bezier(.22,1,.36,1)">
+<div role="button" tabindex="0" onClick="{{ togglePrivacy }}" style="position:relative;overflow:hidden;border-radius:30px;padding:22px;background:var(--hero);box-shadow:0 18px 34px -20px rgba(21,59,47,.85);cursor:pointer">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 88% 8%,rgba(255,255,255,.20),rgba(255,255,255,0) 55%)"></div>
+<div style="position:absolute;inset:0;opacity:.5;background:repeating-linear-gradient(58deg,rgba(255,255,255,.09) 0 1px,rgba(255,255,255,0) 1px 7px),repeating-radial-gradient(circle at 82% 84%,rgba(255,255,255,.10) 0 1px,rgba(255,255,255,0) 1px 9px)"></div>
+<div style="position:absolute;right:-14px;bottom:-42px;font-family:'Instrument Serif',Georgia,serif;font-size:170px;line-height:1;color:rgba(255,255,255,.07);animation:floatY 6s ease-in-out infinite">€</div>
+<div style="position:absolute;inset:9px;border-radius:22px;border:1px solid rgba(255,255,255,.14)"></div>
+<div style="position:relative">
+<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62)">Totaal vermogen</div>
+<div style="font-family:'Instrument Serif',Georgia,serif;font-size:56px;line-height:1.02;letter-spacing:-.02em;color:#fff;margin-top:8px;font-variant-numeric:tabular-nums">{{ totalWealth }}</div>
+<div style="font-size:12.5px;font-weight:600;color:rgba(255,255,255,.7);margin-top:8px">Spaargeld + beleggingen · {{ investMonthly }} per maand erbij</div>
+</div>
+</div>
+
+<div style="border-radius:26px;background:var(--card);border:1px solid var(--line);padding:18px 16px">
+<div style="font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">Verdeling</div>
+<div style="display:flex;gap:3px;margin-top:12px;height:12px">
+<sc-for list="{{ allocSegs }}" as="s" hint-placeholder-count="3">
+<div style="width:{{ s.pct }}%;border-radius:999px;background:{{ s.color }};min-width:4px"></div>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:14px">
+<sc-for list="{{ allocSegs }}" as="s" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="flex:none;width:9px;height:9px;border-radius:3px;background:{{ s.color }}"></div>
+<div style="flex:1 1 0;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.label }}</div>
+<div style="flex:none;font-size:12px;font-weight:600;color:var(--ink4);font-variant-numeric:tabular-nums">{{ s.pctLabel }}</div>
+<div style="flex:none;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums">{{ s.amount }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:6px 4px 0"><div style="font-size:15px;font-weight:700">Beleggingen</div><div style="font-size:11.5px;font-weight:600;color:var(--ink4)">handmatig bijwerken</div></div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ investRows }}" as="r" hint-placeholder-count="3">
+<div role="button" tabindex="0" onClick="{{ r.edit }}" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--line);cursor:pointer">
+<div style="flex:none;width:38px;height:38px;border-radius:12px;background:var(--tint);display:flex;align-items:center;justify-content:center;font-size:17px">📈</div>
+<div style="flex:1 1 0;min-width:0"><div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.label }}</div><div style="font-size:11.5px;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</div></div>
+<div style="flex:none;text-align:right">
+<div style="font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums">{{ r.amount }}</div>
+<div style="font-size:10.5px;font-weight:600;color:var(--ink4);margin-top:2px">{{ r.pctLabel }}</div>
+</div>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block;color:var(--ink4)"><path d="M9.5 5.5L16 12l-6.5 6.5"></path></svg>
+</div>
+</sc-for>
+<button type="button" onClick="{{ openNewInvest }}" style="min-height:52px;border-radius:18px;border:1.5px dashed var(--line2);background:var(--fill1);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer">+ Belegging toevoegen</button>
+</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:6px 4px 0"><div style="font-size:15px;font-weight:700">Spaargeld per potje</div></div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ potRows }}" as="r" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--card);border:1px solid var(--line)">
+<div style="flex:none;width:38px;height:38px;border-radius:12px;background:var(--tint);display:flex;align-items:center;justify-content:center;font-size:17px">{{ r.icon }}</div>
+<div style="flex:1 1 0;min-width:0"><div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.label }}</div><div style="font-size:11.5px;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.goalLabel }}</div></div>
+<div style="flex:none;font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ r.color }}">{{ r.amount }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="border-radius:26px;background:var(--card);border:1px solid var(--line);padding:18px 16px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-size:15px;font-weight:700">Jaar per categorie</div><div style="font-size:11.5px;font-weight:600;color:var(--ink4)">12 maanden</div></div>
+<div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+<sc-for list="{{ yearCats }}" as="c" hint-placeholder-count="4">
+<div>
+<div style="display:flex;align-items:center;gap:10px">
+<div style="flex:none;font-size:15px">{{ c.icon }}</div>
+<div style="flex:1 1 0;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.label }}</div>
+<div style="flex:none;font-size:11.5px;font-weight:600;color:var(--ink4);font-variant-numeric:tabular-nums">{{ c.pctLabel }}</div>
+<div style="flex:none;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums">{{ c.amount }}</div>
+</div>
+<div style="margin-top:6px;height:5px;border-radius:999px;background:var(--fill1);overflow:hidden"><div style="width:{{ c.pct }}%;height:100%;border-radius:999px;background:{{ c.color }}"></div></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+
+<sc-if value="{{ quickOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeQuick }}" style="position:absolute;inset:0;background:rgba(16,28,23,.28);animation:fadeIn .18s ease"></div>
+<div style="position:absolute;right:20px;bottom:194px;width:250px;padding:8px;border-radius:22px;background:var(--sheet);border:1px solid var(--line2);box-shadow:0 20px 40px -18px rgba(16,28,23,.55);animation:popIn .2s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column;gap:4px">
+<div style="padding:8px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">Snel toevoegen</div>
+<sc-for list="{{ quickItems }}" as="q" hint-placeholder-count="3">
+<button type="button" onClick="{{ q.add }}" style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 10px;border-radius:14px;border:none;background:transparent;cursor:pointer;text-align:left">
+<div style="flex:none;width:34px;height:34px;border-radius:11px;background:var(--tint);display:flex;align-items:center;justify-content:center;font-size:15px">{{ q.icon }}</div>
+<div style="flex:1 1 0;min-width:0;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ q.label }}</div>
+<div style="flex:none;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--neg)">{{ q.amount }}</div>
+</button>
+</sc-for>
+<button type="button" onClick="{{ openEntry }}" style="min-height:44px;border-radius:14px;border:1px solid var(--line2);background:var(--card);font-size:13px;font-weight:700;cursor:pointer;margin-top:4px">Alle opties…</button>
+</div>
+</sc-if>
+
+<button type="button" aria-label="Toevoegen · houd vast voor snelinvoer" onPointerDown="{{ fabDown }}" onPointerUp="{{ fabUp }}" onPointerLeave="{{ fabUp }}" onClick="{{ fabClick }}" style="position:absolute;right:20px;bottom:122px;width:60px;height:60px;border-radius:50%;border:2px solid rgba(224,194,102,.75);background:linear-gradient(150deg,#2E7359,#173F32);cursor:pointer;box-shadow:0 14px 26px -10px rgba(23,63,50,.75);display:flex;align-items:center;justify-content:center;z-index:20">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" style="display:block"><path d="M12 5.5v13"></path><path d="M5.5 12h13"></path></svg>
+</button>
+
+<div style="position:absolute;left:0;right:0;bottom:0;height:120px;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,0),var(--app1) 78%);opacity:.75;z-index:9"></div>
+<div style="position:absolute;left:14px;right:14px;bottom:22px;padding:6px;border-radius:30px;z-index:10;background:var(--glass);backdrop-filter:blur(30px) saturate(200%);-webkit-backdrop-filter:blur(30px) saturate(200%);border:1px solid var(--glassEdge);box-shadow:0 18px 40px -16px var(--glassShade),0 1px 0 rgba(255,255,255,.5) inset,0 -1px 0 rgba(255,255,255,.14) inset">
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px">
+<button type="button" onClick="{{ tabA.go }}" aria-current="{{ tabA.current }}" style="min-height:54px;border:1px solid {{ tabA.edge }};border-radius:24px;background:{{ tabA.bg }};color:{{ tabA.fg }};font-size:11.5px;font-weight:{{ tabA.weight }};cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:{{ tabA.shadow }};transition:background .26s cubic-bezier(.22,1,.36,1),box-shadow .26s ease">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><rect x="3.6" y="3.6" width="7.2" height="7.2" rx="2.2"></rect><rect x="13.2" y="3.6" width="7.2" height="7.2" rx="2.2"></rect><rect x="3.6" y="13.2" width="7.2" height="7.2" rx="2.2"></rect><rect x="13.2" y="13.2" width="7.2" height="7.2" rx="2.2"></rect></svg>
+Overzicht
+</button>
+<button type="button" onClick="{{ tabB.go }}" aria-current="{{ tabB.current }}" style="min-height:54px;border:1px solid {{ tabB.edge }};border-radius:24px;background:{{ tabB.bg }};color:{{ tabB.fg }};font-size:11.5px;font-weight:{{ tabB.weight }};cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:{{ tabB.shadow }};transition:background .26s cubic-bezier(.22,1,.36,1),box-shadow .26s ease">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><rect x="3.5" y="5.2" width="17" height="15.3" rx="3.2"></rect><path d="M3.5 10.2h17"></path><path d="M8.2 3.5v3.2"></path><path d="M15.8 3.5v3.2"></path></svg>
+Maand
+</button>
+<button type="button" onClick="{{ tabC.go }}" aria-current="{{ tabC.current }}" style="min-height:54px;border:1px solid {{ tabC.edge }};border-radius:24px;background:{{ tabC.bg }};color:{{ tabC.fg }};font-size:11.5px;font-weight:{{ tabC.weight }};cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:{{ tabC.shadow }};transition:background .26s cubic-bezier(.22,1,.36,1),box-shadow .26s ease">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M4 19.5h16"></path><path d="M5 15.2l4.4-5.2 3.4 2.9L19.5 5.5"></path></svg>
+Vermogen
+</button>
+</div>
+</div>
+
+<sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(10,20,16,.42);backdrop-filter:blur(3px);animation:fadeIn .2s ease;z-index:30"></div>
+</sc-if>
+
+<sc-if value="{{ entryOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Post" style="position:absolute;left:0;right:0;bottom:0;top:10%;z-index:31;display:flex;flex-direction:column;border-radius:30px 30px 0 0;background:var(--sheet);box-shadow:0 -18px 50px -20px rgba(16,28,23,.5);animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both">
+<div style="flex:none;display:flex;justify-content:center;padding:10px 0 2px"><div style="width:38px;height:4px;border-radius:999px;background:var(--fill3)"></div></div>
+<div class="noscroll" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px 20px 16px">
+<div style="font-size:19px;font-weight:800;letter-spacing:-.02em">{{ entryTitle }}</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;border-radius:16px;background:var(--fill1);margin-top:14px">
+<button type="button" onClick="{{ setOut }}" style="min-height:44px;border:none;border-radius:12px;background:{{ outTabBg }};color:{{ outTabFg }};font-size:13.5px;font-weight:700;cursor:pointer">Uitgave</button>
+<button type="button" onClick="{{ setIn }}" style="min-height:44px;border:none;border-radius:12px;background:{{ inTabBg }};color:{{ inTabFg }};font-size:13.5px;font-weight:700;cursor:pointer">Inkomst</button>
+</div>
+
+<div style="margin-top:16px;display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:18px;background:var(--card);border:1px solid var(--line2)">
+<div style="flex:none;font-size:26px;font-weight:700;color:var(--ink4)">€</div>
+<input inputmode="decimal" aria-label="Bedrag" placeholder="0" value="{{ fAmount }}" onChange="{{ onAmount }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:34px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums">
+</div>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+<sc-for list="{{ quickAmounts }}" as="q" hint-placeholder-count="5">
+<button type="button" onClick="{{ q.set }}" style="min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--card);font-size:13px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums">{{ q.label }}</button>
+</sc-for>
+</div>
+
+<sc-if value="{{ hasDraft }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:14px;padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--line2)">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">Wat als…</div>
+<div style="font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ previewDeltaColor }}">{{ previewDelta }}</div>
+</div>
+<svg viewBox="0 0 300 54" preserveAspectRatio="none" style="width:100%;height:54px;margin-top:10px;display:block;overflow:visible">
+<path d="{{ basePath }}" fill="none" stroke="var(--ink4)" stroke-width="1.4" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"></path>
+<path d="{{ previewPath }}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+</svg>
+<div style="font-size:11.5px;font-weight:600;color:{{ previewLowColor }};margin-top:8px">Laagste stand {{ previewLow }} op {{ previewLowDate }}</div>
+</div>
+</sc-if>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Omschrijving</div>
+<input aria-label="Omschrijving" placeholder="Bijv. Boodschappen" value="{{ fLabel }}" onChange="{{ onLabel }}" style="width:100%;min-width:0;min-height:48px;padding:0 14px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:16px;font-weight:600;outline:none">
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+<sc-for list="{{ recentLabels }}" as="r" hint-placeholder-count="4">
+<button type="button" onClick="{{ r.set }}" style="min-height:38px;padding:0 12px;border-radius:999px;border:1px solid var(--line2);background:var(--card);font-size:12.5px;font-weight:600;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.label }}</button>
+</sc-for>
+</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Potje</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{ potOptions }}" as="p" hint-placeholder-count="4">
+<button type="button" onClick="{{ p.set }}" style="min-height:44px;padding:0 14px;border-radius:999px;border:1px solid {{ p.border }};background:{{ p.bg }};color:{{ p.fg }};font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px;max-width:100%"><span>{{ p.icon }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.label }}</span></button>
+</sc-for>
+</div>
+
+<sc-if value="{{ isOut }}" hint-placeholder-val="{{ true }}">
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Categorie</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{ catOptions }}" as="c" hint-placeholder-count="3">
+<button type="button" onClick="{{ c.set }}" style="min-height:44px;padding:0 14px;border-radius:999px;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px"><span>{{ c.icon }}</span>{{ c.label }}</button>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Wanneer</div>
+<div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px">
+<button type="button" onClick="{{ openMonthPicker }}" style="min-height:48px;padding:0 14px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:15px;font-weight:700;cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fMonthLabel }}</button>
+<div style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 12px;border-radius:16px;border:1px solid var(--line2);background:var(--card)">
+<input inputmode="numeric" aria-label="Dag van de maand" value="{{ fDay }}" onChange="{{ onDay }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums">
+<span style="flex:none;font-size:12.5px;font-weight:600;color:var(--ink4)">e</span>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px 16px;border-radius:18px;background:var(--card);border:1px solid var(--line2)">
+<div style="flex:1 1 0;min-width:0"><div style="font-size:14px;font-weight:700">Elke maand herhalen</div><div style="font-size:11.5px;color:var(--ink3);margin-top:2px">Vanaf {{ fMonthLabel }}</div></div>
+<button type="button" role="switch" aria-checked="{{ fRepeat }}" onClick="{{ toggleRepeat }}" style="flex:none;width:54px;height:32px;border-radius:999px;border:none;background:{{ switchBg }};cursor:pointer;padding:3px;display:flex;justify-content:{{ switchJustify }};transition:background .2s ease">
+<div style="width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)"></div>
+</button>
+</div>
+
+<button type="button" onClick="{{ openTransfer }}" style="width:100%;min-height:48px;margin-top:12px;border-radius:16px;border:1px dashed var(--line2);background:transparent;color:var(--accent);font-size:13.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M4 9h13"></path><path d="M14 6l3 3-3 3"></path><path d="M20 15H7"></path><path d="M10 12l-3 3 3 3"></path></svg>Overboeken tussen potjes</button>
+</div>
+<div style="flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:10px;padding:12px 20px 26px;border-top:1px solid var(--line);background:var(--sheet)">
+<button type="button" onClick="{{ closeSheet }}" style="min-height:52px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:15px;font-weight:700;cursor:pointer">Annuleer</button>
+<button type="button" onClick="{{ saveEntry }}" style="min-height:52px;border-radius:16px;border:none;background:linear-gradient(150deg,#2E7359,#173F32);color:#fff;font-size:15px;font-weight:800;cursor:pointer">{{ saveLabel }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ transferOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Overboeken" style="position:absolute;left:0;right:0;bottom:0;top:18%;z-index:31;display:flex;flex-direction:column;border-radius:30px 30px 0 0;background:var(--sheet);box-shadow:0 -18px 50px -20px rgba(16,28,23,.5);animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both">
+<div style="flex:none;display:flex;justify-content:center;padding:10px 0 2px"><div style="width:38px;height:4px;border-radius:999px;background:var(--fill3)"></div></div>
+<div class="noscroll" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px 20px 16px">
+<div style="font-size:19px;font-weight:800;letter-spacing:-.02em">Overboeken</div>
+<div style="font-size:12.5px;font-weight:600;color:var(--ink3);margin-top:4px">{{ tfSummary }}</div>
+
+<div style="margin-top:16px;display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:18px;background:var(--card);border:1px solid var(--line2)">
+<div style="flex:none;font-size:26px;font-weight:700;color:var(--ink4)">€</div>
+<input inputmode="decimal" aria-label="Bedrag" placeholder="0" value="{{ tfAmount }}" onChange="{{ onTfAmount }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:34px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums">
+</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Van</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{ tfFromOptions }}" as="p" hint-placeholder-count="4">
+<button type="button" onClick="{{ p.set }}" style="min-height:48px;padding:0 14px;border-radius:16px;border:1px solid {{ p.border }};background:{{ p.bg }};color:{{ p.fg }};font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;max-width:100%"><span>{{ p.icon }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.label }}</span><span style="opacity:.65;font-variant-numeric:tabular-nums">{{ p.sub }}</span></button>
+</sc-for>
+</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Naar</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{ tfToOptions }}" as="p" hint-placeholder-count="4">
+<button type="button" onClick="{{ p.set }}" style="min-height:44px;padding:0 14px;border-radius:999px;border:1px solid {{ p.border }};background:{{ p.bg }};color:{{ p.fg }};font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px;max-width:100%"><span>{{ p.icon }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.label }}</span></button>
+</sc-for>
+</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Wanneer</div>
+<div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px">
+<div style="display:flex;align-items:center;min-height:48px;padding:0 14px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ tfMonthLabel }}</div>
+<div style="display:flex;align-items:center;gap:8px;min-height:48px;padding:0 12px;border-radius:16px;border:1px solid var(--line2);background:var(--card)">
+<input inputmode="numeric" aria-label="Dag" value="{{ tfDay }}" onChange="{{ onTfDay }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums">
+<span style="flex:none;font-size:12.5px;font-weight:600;color:var(--ink4)">e</span>
+</div>
+</div>
+</div>
+<div style="flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:10px;padding:12px 20px 26px;border-top:1px solid var(--line);background:var(--sheet)">
+<button type="button" onClick="{{ closeSheet }}" style="min-height:52px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:15px;font-weight:700;cursor:pointer">Annuleer</button>
+<button type="button" onClick="{{ saveTransfer }}" style="min-height:52px;border-radius:16px;border:none;background:linear-gradient(150deg,#2E7359,#173F32);color:#fff;font-size:15px;font-weight:800;cursor:pointer">Overboeken</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ choiceOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Keuze" style="position:absolute;left:0;right:0;bottom:0;z-index:31;border-radius:30px 30px 0 0;background:var(--sheet);padding:10px 20px 28px;animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both">
+<div style="display:flex;justify-content:center;padding:0 0 10px"><div style="width:38px;height:4px;border-radius:999px;background:var(--fill3)"></div></div>
+<div style="font-size:17px;font-weight:800;letter-spacing:-.02em">{{ choiceTitle }}</div>
+<div style="font-size:12.5px;line-height:1.45;color:var(--ink3);margin-top:4px">{{ choiceBody }}</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+<button type="button" onClick="{{ choiceOnce }}" style="min-height:52px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:14.5px;font-weight:700;cursor:pointer">{{ choiceOnceLabel }}</button>
+<button type="button" onClick="{{ choiceAll }}" style="min-height:52px;border-radius:16px;border:1px solid rgba(180,85,58,.3);background:linear-gradient(rgba(180,85,58,.10),rgba(180,85,58,.10)),var(--card);color:var(--neg);font-size:14.5px;font-weight:800;cursor:pointer">Elke maand verwijderen</button>
+<button type="button" onClick="{{ closeSheet }}" style="min-height:48px;border-radius:16px;border:none;background:transparent;color:var(--ink3);font-size:13.5px;font-weight:700;cursor:pointer">Annuleer</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ investOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Belegging" style="position:absolute;left:0;right:0;bottom:0;top:18%;z-index:31;display:flex;flex-direction:column;border-radius:30px 30px 0 0;background:var(--sheet);box-shadow:0 -18px 50px -20px rgba(16,28,23,.5);animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both">
+<div style="flex:none;display:flex;justify-content:center;padding:10px 0 2px"><div style="width:38px;height:4px;border-radius:999px;background:var(--fill3)"></div></div>
+<div class="noscroll" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px 20px 16px">
+<div style="font-size:19px;font-weight:800;letter-spacing:-.02em">{{ investTitle }}</div>
+<div style="font-size:12.5px;font-weight:600;color:var(--ink3);margin-top:4px">{{ investSub }}</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:18px 0 8px">Naam</div>
+<input aria-label="Naam belegging" placeholder="Bijv. Meesman wereldwijd" value="{{ ivLabel }}" onChange="{{ onIvLabel }}" style="width:100%;min-width:0;min-height:48px;padding:0 14px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:16px;font-weight:600;outline:none">
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Huidige waarde</div>
+<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:18px;background:var(--card);border:1px solid var(--line2)">
+<div style="flex:none;font-size:26px;font-weight:700;color:var(--ink4)">€</div>
+<input inputmode="decimal" aria-label="Huidige waarde" placeholder="0" value="{{ ivValue }}" onChange="{{ onIvValue }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:32px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums">
+</div>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+<sc-for list="{{ ivNudges }}" as="n" hint-placeholder-count="4">
+<button type="button" onClick="{{ n.set }}" style="min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--card);font-size:13px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums;color:{{ n.color }}">{{ n.label }}</button>
+</sc-for>
+</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Maandelijkse inleg</div>
+<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:18px;background:var(--card);border:1px solid var(--line2)">
+<div style="flex:none;font-size:20px;font-weight:700;color:var(--ink4)">€</div>
+<input inputmode="numeric" aria-label="Maandelijkse inleg" placeholder="0" value="{{ ivMonthly }}" onChange="{{ onIvMonthly }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums">
+<div style="flex:none;font-size:12.5px;font-weight:600;color:var(--ink4)">per maand</div>
+</div>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+<sc-for list="{{ ivMonthlyQuick }}" as="q" hint-placeholder-count="4">
+<button type="button" onClick="{{ q.set }}" style="min-height:40px;padding:0 14px;border-radius:999px;border:1px solid {{ q.border }};background:{{ q.bg }};color:{{ q.fg }};font-size:13px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums">{{ q.label }}</button>
+</sc-for>
+</div>
+<div style="margin-top:10px;padding:12px 14px;border-radius:16px;background:linear-gradient(rgba(216,180,92,.14),rgba(216,180,92,.14)),var(--card);border:1px solid rgba(216,180,92,.35);font-size:12px;line-height:1.45;color:var(--ink2)">{{ ivHint }}</div>
+
+<sc-if value="{{ ivEditing }}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{ delInvest }}" style="width:100%;min-height:50px;margin-top:18px;border-radius:16px;border:1px solid rgba(180,85,58,.3);background:linear-gradient(rgba(180,85,58,.08),rgba(180,85,58,.08)),var(--card);color:var(--neg);font-size:14px;font-weight:800;cursor:pointer">Belegging verwijderen</button>
+</sc-if>
+</div>
+<div style="flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:10px;padding:12px 20px 26px;border-top:1px solid var(--line);background:var(--sheet)">
+<button type="button" onClick="{{ closeSheet }}" style="min-height:52px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:15px;font-weight:700;cursor:pointer">Annuleer</button>
+<button type="button" onClick="{{ saveInvest }}" style="min-height:52px;border-radius:16px;border:none;background:linear-gradient(150deg,#2E7359,#173F32);color:#fff;font-size:15px;font-weight:800;cursor:pointer">{{ ivSaveLabel }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Instellingen" style="position:absolute;left:0;right:0;bottom:0;top:8%;z-index:31;display:flex;flex-direction:column;border-radius:30px 30px 0 0;background:var(--sheet);box-shadow:0 -18px 50px -20px rgba(16,28,23,.5);animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both">
+<div style="flex:none;display:flex;justify-content:center;padding:10px 0 2px"><div style="width:38px;height:4px;border-radius:999px;background:var(--fill3)"></div></div>
+<div class="noscroll" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px 20px 16px">
+<div style="font-size:19px;font-weight:800;letter-spacing:-.02em">Instellingen</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:18px 0 8px">Weergave</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border-radius:16px;background:var(--fill1)">
+<sc-for list="{{ themeOptions }}" as="t" hint-placeholder-count="3">
+<button type="button" onClick="{{ t.set }}" style="min-height:44px;border:none;border-radius:12px;background:{{ t.bg }};color:{{ t.fg }};font-size:13px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis">{{ t.label }}</button>
+</sc-for>
+</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin:20px 0 8px">
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4)">Potjes</div>
+<div style="font-size:11.5px;font-weight:600;color:var(--ink4)">{{ potTotalLabel }}</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{ potEdits }}" as="p" hint-placeholder-count="4">
+<div style="padding:12px;border-radius:20px;background:var(--card);border:1px solid var(--line)">
+<div style="display:flex;align-items:center;gap:10px">
+<button type="button" aria-label="Ander icoon" onClick="{{ p.cycleIcon }}" style="flex:none;width:44px;height:44px;border-radius:14px;border:1px solid var(--line2);background:var(--field);font-size:19px;cursor:pointer">{{ p.icon }}</button>
+<input aria-label="Naam potje" value="{{ p.label }}" onChange="{{ p.onName }}" style="flex:1 1 0;min-width:0;width:100%;min-height:44px;padding:0 12px;border-radius:14px;border:1px solid var(--line2);background:var(--card);font-size:16px;font-weight:700;outline:none">
+<button type="button" aria-label="Potje verwijderen" onClick="{{ p.remove }}" style="flex:none;width:44px;height:44px;border-radius:14px;border:1px solid rgba(180,85,58,.28);background:linear-gradient(rgba(180,85,58,.08),rgba(180,85,58,.08)),var(--card);color:var(--neg);font-size:17px;font-weight:700;cursor:pointer;line-height:1">×</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px">
+<label style="display:flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:14px;border:1px solid var(--line2);background:var(--field)">
+<span style="flex:none;font-size:11px;font-weight:700;color:var(--ink4);text-transform:uppercase;letter-spacing:.06em">Start</span>
+<span style="flex:none;font-size:13px;font-weight:700;color:var(--ink4)">€</span>
+<input inputmode="numeric" aria-label="Beginsaldo" value="{{ p.start }}" onChange="{{ p.onStart }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums">
+</label>
+<label style="display:flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:14px;border:1px solid var(--line2);background:var(--field)">
+<span style="flex:none;font-size:11px;font-weight:700;color:var(--ink4);text-transform:uppercase;letter-spacing:.06em">Doel</span>
+<span style="flex:none;font-size:13px;font-weight:700;color:var(--ink4)">€</span>
+<input inputmode="numeric" aria-label="Doelbedrag" placeholder="geen" value="{{ p.goal }}" onChange="{{ p.onGoal }}" style="flex:1 1 0;min-width:0;width:100%;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums">
+</label>
+</div>
+<button type="button" onClick="{{ p.setGoalDate }}" style="width:100%;min-height:44px;margin-top:8px;padding:0 12px;border-radius:14px;border:1px solid var(--line2);background:var(--card);cursor:pointer;display:flex;align-items:center;gap:10px">
+<span style="flex:1 1 0;min-width:0;text-align:left;font-size:13px;font-weight:600;color:var(--ink2)">Doel klaar in</span>
+<span style="flex:none;font-size:13px;font-weight:700">{{ p.goalDateLabel }}</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block;color:var(--ink4)"><path d="M9.5 5.5L16 12l-6.5 6.5"></path></svg>
+</button>
+</div>
+</sc-for>
+<button type="button" onClick="{{ addPot }}" style="min-height:52px;border-radius:18px;border:1.5px dashed var(--line2);background:var(--fill1);color:var(--accent);font-size:14px;font-weight:700;cursor:pointer">+ Potje toevoegen</button>
+</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Startmaand</div>
+<button type="button" onClick="{{ openStartPicker }}" style="width:100%;min-height:52px;padding:0 16px;border-radius:18px;border:1px solid var(--line2);background:var(--card);cursor:pointer;display:flex;align-items:center;gap:12px">
+<div style="flex:1 1 0;min-width:0;text-align:left"><div style="font-size:14px;font-weight:700">{{ startMonthLabel }}</div><div style="font-size:11.5px;color:var(--ink3);margin-top:2px">Vóór deze maand reken je niet</div></div>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block;color:var(--ink4)"><path d="M9.5 5.5L16 12l-6.5 6.5"></path></svg>
+</button>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin:20px 0 8px">Back-up</div>
+<div style="padding:14px 16px;border-radius:20px;background:linear-gradient(rgba(216,180,92,.14),rgba(216,180,92,.14)),var(--card);border:1px solid rgba(216,180,92,.4)">
+<div style="display:flex;gap:10px;align-items:flex-start">
+<div style="font-size:17px;line-height:1.2">🪙</div>
+<div style="flex:1 1 0;min-width:0;font-size:12.5px;line-height:1.45;color:var(--ink2)">Alles staat lokaal op deze iPhone. Verwijder je de app, dan is je data weg.</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px">
+<button type="button" onClick="{{ doExport }}" style="min-height:48px;border-radius:14px;border:none;background:var(--brand);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer">Exporteren</button>
+<button type="button" onClick="{{ doImport }}" style="min-height:48px;border-radius:14px;border:1px solid var(--line2);background:var(--card);font-size:13.5px;font-weight:700;cursor:pointer">Importeren</button>
+</div>
+<div style="font-size:11.5px;font-weight:600;color:var(--ink4);margin-top:10px">{{ backupLabel }}</div>
+</div>
+
+<button type="button" onClick="{{ wipeAll }}" style="width:100%;min-height:52px;margin-top:20px;border-radius:18px;border:1px solid rgba(180,85,58,.3);background:linear-gradient(rgba(180,85,58,.07),rgba(180,85,58,.07)),var(--card);color:var(--neg);font-size:14px;font-weight:800;cursor:pointer">Alles wissen</button>
+<div style="font-size:11.5px;line-height:1.45;color:var(--ink4);margin-top:8px;text-align:center">Versie 2.0 · alle bedragen in euro · nl-NL</div>
+</div>
+<div style="flex:none;padding:12px 20px 26px;border-top:1px solid var(--line);background:var(--sheet)">
+<button type="button" onClick="{{ closeSheet }}" style="width:100%;min-height:52px;border-radius:16px;border:none;background:linear-gradient(150deg,#2E7359,#173F32);color:#fff;font-size:15px;font-weight:800;cursor:pointer">Klaar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-label="Kies maand" style="position:absolute;left:0;right:0;bottom:0;z-index:32;border-radius:30px 30px 0 0;background:var(--sheet);padding:10px 20px 28px;animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both;box-shadow:0 -18px 50px -20px rgba(16,28,23,.5)">
+<div style="display:flex;justify-content:center;padding:0 0 10px"><div style="width:38px;height:4px;border-radius:999px;background:var(--fill3)"></div></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+<button type="button" aria-label="Vorig jaar" onClick="{{ prevYear }}" style="width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M14.5 5.5L8 12l6.5 6.5"></path></svg></button>
+<div style="font-size:17px;font-weight:800;letter-spacing:-.01em">{{ pickerYear }}</div>
+<button type="button" aria-label="Volgend jaar" onClick="{{ nextYear }}" style="width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:var(--card);cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none;display:block"><path d="M9.5 5.5L16 12l-6.5 6.5"></path></svg></button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px">
+<sc-for list="{{ pickerMonths }}" as="p" hint-placeholder-count="12">
+<button type="button" disabled="{{ p.disabled }}" onClick="{{ p.pick }}" style="min-height:48px;border-radius:14px;border:1px solid {{ p.border }};background:{{ p.bg }};color:{{ p.fg }};font-size:13.5px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis">{{ p.label }}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:18px;right:18px;bottom:198px;z-index:35;display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:18px;background:rgba(16,28,23,.95);color:#fff;box-shadow:0 16px 30px -14px rgba(16,28,23,.7);animation:riseIn .26s cubic-bezier(.22,1,.36,1)">
+<div style="flex:1 1 0;min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ toast }}</div>
+<button type="button" onClick="{{ undo }}" style="flex:none;min-height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer">Ongedaan maken</button>
+</div>
+</sc-if>
+
+<div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:40">
+<sc-for list="{{ confetti }}" as="c" hint-placeholder-count="0">
+<div style="position:absolute;top:-40px;left:{{ c.left }}%;animation:confFall {{ c.dur }}s cubic-bezier(.35,.6,.5,1) {{ c.delay }}s both">
+<div style="font-size:{{ c.size }}px;line-height:1;animation:confSpin {{ c.spin }}s linear {{ c.delay }}s infinite">{{ c.char }}</div>
+</div>
+</sc-for>
+</div>
+
+<sc-if value="{{ loading }}" hint-placeholder-val="{{ true }}">
+<div aria-label="Laden" style="position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;background:var(--load)">
+<div style="position:relative;width:188px;height:188px;border-radius:40px;overflow:hidden;background:linear-gradient(160deg,#1C5341,#0F3227);box-shadow:0 26px 50px -26px rgba(24,50,39,.85),inset 0 0 0 1px rgba(224,194,102,.35)">
+<img src="uploads/Make%20It%20Rain%20Money%20GIF.gif" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+<div style="position:absolute;inset:0;background:radial-gradient(90% 70% at 50% 20%,rgba(255,255,255,0),rgba(15,50,39,.35))"></div>
+<div style="position:absolute;top:-30%;left:0;width:34%;height:160%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.28),rgba(255,255,255,0));animation:shine 2.8s cubic-bezier(.22,1,.36,1) infinite"></div>
+<div style="position:absolute;inset:8px;border-radius:32px;border:1px solid rgba(224,194,102,.28)"></div>
+</div>
+<div style="text-align:center">
+<div style="font-family:'Instrument Serif',Georgia,serif;font-size:30px;letter-spacing:-.01em">Even tellen…</div>
+<div style="font-size:12.5px;font-weight:600;color:var(--ink3);margin-top:4px">Je potjes en cashflow worden bijgewerkt</div>
+</div>
+<div style="width:150px;height:4px;border-radius:999px;background:var(--fill2);overflow:hidden">
+<div style="height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold2),var(--brand));transform-origin:left;animation:barFill 1.6s cubic-bezier(.4,.1,.2,1) both"></div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</div>
+<div style="font-size:11.5px;font-weight:600;color:var(--ink4);letter-spacing:.02em">Prototype · veeg regels, houd de + vast, sleep de grafiek</div>
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;dataState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;normaal&quot;,&quot;leeg&quot;,&quot;krap&quot;],&quot;default&quot;:&quot;normaal&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo-status&quot;},&quot;privacyMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo-status&quot;},&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;iPhone 15 (390)&quot;,&quot;iPhone SE (320)&quot;],&quot;default&quot;:&quot;iPhone 15 (390)&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo-status&quot;}}">
+const MN = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+const MS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+const START = '2026-07';
+const TODAY = new Date(2026, 6, 30);
+const CATS = { huis: { icon: '🏠', label: 'Huis' }, vervoer: { icon: '🚗', label: 'Vervoer' }, verzekering: { icon: '🛡️', label: 'Verzekering' }, abo: { icon: '📺', label: 'Abonnement' }, bood: { icon: '🛒', label: 'Boodschappen' }, overig: { icon: '🏷️', label: 'Overig' } };
+const key = (y, m) => y + '-' + String(m + 1).padStart(2, '0');
+const parseK = k => ({ y: +k.slice(0, 4), m: +k.slice(5, 7) - 1 });
+const addM = (k, n) => { const p = parseK(k); const d = new Date(p.y, p.m + n, 1); return key(d.getFullYear(), d.getMonth()); };
+const dim = k => { const p = parseK(k); return new Date(p.y, p.m + 1, 0).getDate(); };
+const ALLOC_COLORS = ['var(--brand)', 'var(--posSoft)', 'var(--gold)', 'var(--gold2)', 'var(--ink4)'];
+
+function baseData() {
+  return {
+    pots: [
+      { id: 'alg', label: 'Algemeen', icon: '🪙', startBalance: 2500 },
+      { id: 'spaar', label: 'Sparen', icon: '🐖', startBalance: 12000, goal: 25000, goalDate: '2028-06' },
+      { id: 'vak', label: 'Vakantie', icon: '🏖️', startBalance: 1500, goal: 4000, goalDate: '2027-06' },
+      { id: 'pers', label: 'Persoonlijk', icon: '👤', startBalance: 800 }
+    ],
+    recurring: [
+      { id: 'i1', kind: 'in', group: 'in', label: 'Salaris Mitch', amount: 3662, day: 25, potId: 'alg' },
+      { id: 'i2', kind: 'in', group: 'in', label: 'Salaris Leo', amount: 3350, day: 24, potId: 'alg' },
+      { id: 'u1', kind: 'out', label: 'Hypotheek', amount: 1800, day: 1, potId: 'alg', category: 'huis' },
+      { id: 'u2', kind: 'out', label: 'Zorgverzekering', amount: 350, day: 1, potId: 'alg', category: 'verzekering', review: true },
+      { id: 'u3', kind: 'out', label: 'Gas / elektra', amount: 150, day: 2, potId: 'alg', category: 'huis', review: true },
+      { id: 'u4', kind: 'out', label: 'Autoverzekering', amount: 80, day: 2, potId: 'alg', category: 'vervoer' },
+      { id: 'u5', kind: 'out', label: 'Simyo', amount: 8, day: 5, potId: 'alg', category: 'abo' },
+      { id: 'u6', kind: 'out', label: 'Odido telefoon', amount: 25, day: 5, potId: 'alg', category: 'abo' },
+      { id: 'u7', kind: 'out', label: 'Telefoon Leo', amount: 15, day: 5, potId: 'alg', category: 'abo' },
+      { id: 'u8', kind: 'out', label: 'Inshared (woonverzekering)', amount: 30, day: 3, potId: 'alg', category: 'verzekering', review: true },
+      { id: 'u9', kind: 'out', label: 'Gemeentebelastingen', amount: 98, day: 8, potId: 'alg', category: 'huis' },
+      { id: 'u10', kind: 'out', label: 'Ziggo', amount: 50, day: 4, potId: 'alg', category: 'abo', review: true },
+      { id: 'u11', kind: 'out', label: 'Wegenbelasting', amount: 80, day: 10, potId: 'alg', category: 'vervoer' },
+      { id: 'u12', kind: 'out', label: 'Vitens (water)', amount: 20, day: 10, potId: 'alg', category: 'huis' },
+      { id: 'u13', kind: 'out', label: 'ANWB', amount: 15, day: 12, potId: 'alg', category: 'vervoer', review: true },
+      { id: 'u14', kind: 'out', label: 'Spotify', amount: 10, day: 8, potId: 'alg', category: 'abo' },
+      { id: 'u15', kind: 'out', label: 'Boodschappen', amount: 500, day: 5, potId: 'alg', category: 'bood' },
+      { id: 'u16', kind: 'out', label: "Benzine / cadeau's", amount: 250, day: 15, potId: 'alg', category: 'vervoer' },
+      { id: 'o1', kind: 'move', group: 'over', label: 'Sparen', amount: 1000, day: 26, potId: 'alg', toPot: 'spaar' },
+      { id: 'o2', kind: 'move', group: 'over', label: 'Vakantiepotje', amount: 500, day: 26, potId: 'alg', toPot: 'vak' },
+      { id: 'o3', kind: 'out', group: 'over', label: 'Beleggen', amount: 500, day: 26, potId: 'alg', category: 'overig', invest: true },
+      // amount blijft in sync met de maandelijkse inleg van de beleggingen
+      { id: 'o4', kind: 'move', group: 'over', label: 'Persoonlijk besteden', amount: 1500, day: 26, potId: 'alg', toPot: 'pers' }
+    ],
+    months: {
+      '2026-08': { entries: [
+        { id: 'e1', kind: 'out', label: 'Vliegtickets Portugal (2 pers.)', amount: 1240, day: 20, potId: 'vak', category: 'overig' },
+        { id: 'e2', kind: 'out', label: 'Tandarts controle', amount: 180, day: 12, potId: 'alg', category: 'overig' }
+      ] },
+      '2026-09': { entries: [{ id: 'e3', kind: 'in', label: 'Vakantiegeld', amount: 2100, day: 22, potId: 'alg' }] },
+      '2026-10': { entries: [{ id: 'e4', kind: 'out', label: 'APK + winterbanden', amount: 340, day: 9, potId: 'alg', category: 'vervoer' }] },
+      '2026-11': { entries: [] },
+      '2026-12': { entries: [{ id: 'e5', kind: 'out', label: "Kerst & cadeau's", amount: 420, day: 15, potId: 'pers', category: 'overig' }] }
+    },
+    investments: [
+      { id: 'v1', label: 'Meesman wereldwijd', value: 18400, monthly: 500, updated: '2026-07-28' },
+      { id: 'v2', label: 'DEGIRO ETF-portefeuille', value: 7250, monthly: 0, updated: '2026-06-30' },
+      { id: 'v3', label: 'Pensioenpot Brand New Day', value: 4100, monthly: 0, updated: '2026-05-31' }
+    ],
+    recentLabels: ['Boodschappen', 'Benzine', 'Uit eten', 'Kleding', 'Zorgkosten'],
+    quick: [
+      { label: 'Boodschappen', amount: 85, kind: 'out', potId: 'alg', category: 'bood' },
+      { label: 'Benzine', amount: 60, kind: 'out', potId: 'alg', category: 'vervoer' },
+      { label: 'Uit eten', amount: 45, kind: 'out', potId: 'pers', category: 'overig' }
+    ]
+  };
+}
+
+function stateData(mode) {
+  const d = baseData();
+  if (mode === 'leeg') return { pots: [], recurring: [], months: {}, investments: [], recentLabels: [], quick: [] };
+  if (mode === 'krap') {
+    d.pots = d.pots.map(p => ({ ...p, startBalance: Math.round(p.startBalance * 0.18) }));
+    d.recurring = d.recurring.map(r => r.kind === 'in' ? { ...r, amount: Math.round(r.amount * 0.55) } : r);
+  }
+  return d;
+}
+
+class Component extends DCLogic {
+  state = {
+    tab: 'overzicht', month: START, pot: null, sheet: null, picker: null, pickerYear: 2026,
+    focus: null, toast: null, lastAdded: null, lastDel: null, lastMove: null, lastWipe: null,
+    form: { kind: 'out', amount: '', label: '', potId: 'alg', category: 'bood', month: START, day: 15, repeat: false, editId: null, editRec: false },
+    tf: { from: 'alg', to: 'spaar', amount: '', month: START, day: 26 },
+    data: null, loading: true, confetti: [], shown: null, tgt: null,
+    theme: 'systeem', startMonth: START, backup: null, swipe: null, quick: false, choice: null,
+    privacy: null, backupDismissed: false, collapsed: { fixed: true }, hintDone: false,
+    inv: { id: null, label: '', value: '', monthly: '' }
+  };
+
+  componentDidMount() {
+    this.setState({ data: stateData(this.props.dataState || 'normaal') });
+    this._lt = setTimeout(() => this.setState({ loading: false }), 1800);
+    this.applyTheme();
+  }
+  componentWillUnmount() { clearTimeout(this._lt); clearTimeout(this._ct); clearTimeout(this._qt); cancelAnimationFrame(this._raf); }
+  componentDidUpdate(prev) {
+    if (prev.dataState !== this.props.dataState) this.setState({ data: stateData(this.props.dataState || 'normaal'), pot: null, toast: null });
+    this.tween();
+    this.applyTheme();
+  }
+  applyTheme() {
+    const t = this.state.theme;
+    const dark = t === 'donker' || (t === 'systeem' && window.matchMedia('(prefers-color-scheme:dark)').matches);
+    const el = document.documentElement;
+    if (dark) el.setAttribute('data-theme', 'dark'); else el.removeAttribute('data-theme');
+  }
+  buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms || 12); } catch (e) {} }
+  syncInvest(nd) {
+    const sum = (nd.investments || []).reduce((a, i) => a + (+i.monthly || 0), 0);
+    const i = nd.recurring.findIndex(r => r.invest);
+    if (sum > 0) {
+      if (i >= 0) nd.recurring[i].amount = sum;
+      else nd.recurring.push({ id: 'o3', kind: 'out', group: 'over', label: 'Beleggen', amount: sum, day: 26, potId: 'alg', category: 'overig', invest: true });
+    } else if (i >= 0) nd.recurring.splice(i, 1);
+    return nd;
+  }
+  get d() { return this.state.data || stateData(this.props.dataState || 'normaal'); }
+  months() { return Array.from({ length: 12 }, (_, i) => addM(this.state.startMonth || START, i)); }
+
+  fmt(n, dec) {
+    if (this.state.privacy != null ? this.state.privacy : this.props.privacyMode) return '€ ••••';
+    return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', minimumFractionDigits: dec ? 2 : 0, maximumFractionDigits: dec ? 2 : 0 }).format(n).replace(/\u00a0/g, ' ');
+  }
+  delta(p, potId) {
+    if (p.kind === 'in') return p.amount;
+    if (p.kind === 'out') return -p.amount;
+    if (!potId) return 0;
+    if (p.potId === potId) return -p.amount;
+    if (p.toPot === potId) return p.amount;
+    return 0;
+  }
+  posts(mk, potId) {
+    const d = this.d, mo = d.months[mk] || { entries: [], skip: [] };
+    const sm = this.state.startMonth || START;
+    const rec = d.recurring.filter(r => (r.fromMonth || sm) <= mk && !(mo.skip || []).includes(r.id)).map(r => ({ ...r, rec: true }));
+    let all = rec.concat(mo.entries || []);
+    const eid = this.state.sheet === 'entry' && this.state.form.editId;
+    if (eid) all = all.filter(p => p.id !== eid);
+    if (this._draft && this._draft.month === mk) all = all.concat([this._draft]);
+    if (potId) all = all.filter(p => p.potId === potId || p.toPot === potId);
+    return all;
+  }
+  net(mk, potId) {
+    let inc = 0, out = 0;
+    this.posts(mk, potId).forEach(p => { const v = this.delta(p, potId); if (v > 0) inc += v; else out += -v; });
+    return { inc, out, net: inc - out };
+  }
+  startSum(potId) { return this.d.pots.filter(p => !potId || p.id === potId).reduce((s, p) => s + p.startBalance, 0); }
+  begin(mk, potId) {
+    let b = this.startSum(potId);
+    for (const k of this.months()) { if (k >= mk) break; b += this.net(k, potId).net; }
+    return b;
+  }
+  end(mk, potId) { return this.begin(mk, potId) + this.net(mk, potId).net; }
+  series(potId) {
+    let bal = this.startSum(potId); const pts = [];
+    for (const mk of this.months()) {
+      const p = parseK(mk), n = dim(mk), posts = this.posts(mk, potId);
+      for (let day = 1; day <= n; day++) {
+        posts.forEach(po => { if (Math.min(po.day, n) === day) bal += this.delta(po, potId); });
+        pts.push({ d: new Date(p.y, p.m, day), v: bal, mk });
+      }
+    }
+    return pts;
+  }
+  pace(p, atKey) {
+    if (!p.goal || !p.goalDate) return null;
+    const bal = this.end(atKey, p.id);
+    const per = this.d.recurring.reduce((s, r) => s + this.delta(r, p.id), 0);
+    const a = parseK(atKey), b = parseK(p.goalDate);
+    const left = Math.max(0, (b.y - a.y) * 12 + (b.m - a.m));
+    return { left, diff: Math.round(bal + per * left - p.goal), per, date: MS[b.m] + ' ' + b.y };
+  }
+  targets() {
+    const nk = key(TODAY.getFullYear(), TODAY.getMonth());
+    return { s: this.end(nk), w: this.end(nk) + this.d.investments.reduce((a, i) => a + i.value, 0), m: this.end(this.state.month, this.state.pot) };
+  }
+  tween() {
+    const t = this.targets(), prev = this.state.tgt;
+    if (prev && prev.s === t.s && prev.w === t.w && prev.m === t.m) return;
+    const from = this.state.shown || t;
+    cancelAnimationFrame(this._raf);
+    if (window.matchMedia('(prefers-reduced-motion:reduce)').matches) { this.setState({ tgt: t, shown: t }); return; }
+    const t0 = performance.now(), dur = 520;
+    const step = now => {
+      const q = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - q, 3);
+      this.setState({ shown: { s: from.s + (t.s - from.s) * e, w: from.w + (t.w - from.w) * e, m: from.m + (t.m - from.m) * e } });
+      if (q < 1) this._raf = requestAnimationFrame(step);
+    };
+    this.setState({ tgt: t });
+    this._raf = requestAnimationFrame(step);
+  }
+  burst(n) {
+    const chars = ['💶', '🪙', '💰', '€', '💶', '🪙'];
+    const parts = Array.from({ length: n }, (_, i) => ({
+      id: Date.now() + '-' + i, left: Math.round(Math.random() * 92) + 2, size: 18 + Math.round(Math.random() * 16),
+      dur: (1.5 + Math.random() * 0.9).toFixed(2), delay: (Math.random() * 0.5).toFixed(2),
+      spin: (0.9 + Math.random() * 0.9).toFixed(2), char: chars[i % chars.length]
+    }));
+    clearTimeout(this._ct);
+    this.setState({ confetti: parts });
+    this._ct = setTimeout(() => this.setState({ confetti: [] }), 2900);
+  }
+  openEditRow(r, mk) {
+    this.setState({
+      sheet: 'entry', swipe: null,
+      form: { kind: r.kind === 'in' ? 'in' : 'out', amount: String(r.amount), label: r.label, potId: r.potId, category: r.category || 'overig', month: mk, day: r.day, repeat: !!r.rec, editId: r.id, editRec: !!r.rec }
+    });
+  }
+
+  renderVals() {
+    const d = this.d, st = this.state, f = st.form;
+    const fAmt = parseFloat(String(f.amount).replace(/\./g, '').replace(',', '.')) || 0;
+    this._draft = (st.sheet === 'entry' && fAmt > 0) ? { id: '__draft', kind: f.kind, label: f.label || 'Concept', amount: fAmt, day: f.day, potId: f.potId, category: f.category, month: f.month, draft: true } : null;
+
+    const isEmpty = d.pots.length === 0;
+    const nowKey = key(TODAY.getFullYear(), TODAY.getMonth());
+    const MLIST = this.months();
+    const mk = st.month, mp = parseK(mk);
+
+    const series = this.series(null);
+    const nowIdx = Math.max(0, series.findIndex(p => p.d >= TODAY));
+    const fi = Math.min(series.length - 1, Math.max(0, st.focus == null ? nowIdx : st.focus));
+    const vals = series.map(p => p.v);
+    let lo = Math.min(0, ...vals), hi = Math.max(1, ...vals);
+    if (hi === lo) hi = lo + 1;
+    const pd = (hi - lo) * 0.12; lo -= pd; hi += pd;
+    const X = i => (series.length < 2 ? 0 : (i / (series.length - 1)) * 320);
+    const Y = v => 128 - ((v - lo) / (hi - lo)) * 124;
+    const line = series.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(2) + ' ' + Y(p.v).toFixed(2)).join(' ');
+    const area = line + ' L320 132 L0 132 Z';
+    const fp = series[fi] || { d: TODAY, v: 0, mk: nowKey };
+
+    let baseSeries = series;
+    if (this._draft) { const dr = this._draft; this._draft = null; baseSeries = this.series(null); this._draft = dr; }
+    const PX = i => (series.length < 2 ? 0 : (i / (series.length - 1)) * 300);
+    const PY = v => 50 - ((v - lo) / (hi - lo)) * 46;
+    const lowPt = series.reduce((a, p) => (p.v < a.v ? p : a), series[0] || { v: 0, d: TODAY });
+    const endDelta = (series.length && baseSeries.length) ? series[series.length - 1].v - baseSeries[baseSeries.length - 1].v : 0;
+    const horizon = new Date(TODAY.getTime() + 45 * 86400000);
+    const spendPot = d.pots.length ? d.pots[0].id : null;
+    const spendSeries = spendPot ? this.series(spendPot) : series;
+    const win = spendSeries.filter(p => p.d >= TODAY && p.d <= horizon);
+    const safePt = win.length ? win.reduce((a, p) => (p.v < a.v ? p : a), win[0]) : { v: 0, d: TODAY };
+    const safeLabel = spendPot ? (d.pots[0].label) : '';
+
+    let warn = null;
+    for (const p of d.pots) {
+      const s = this.series(p.id).find(x => x.v < 0 && x.d >= TODAY);
+      if (s && (!warn || s.d < warn.d)) warn = { pot: p, d: s.d, v: s.v };
+    }
+
+    const monthRows = MLIST.map(k => {
+      const n = this.net(k), e = this.end(k), tot = Math.max(1, n.inc + n.out), p = parseK(k);
+      return {
+        name: MN[p.m] + (p.y !== 2026 ? ' ' + p.y : ''), isNow: k === nowKey,
+        inPct: (n.inc / tot) * 100, outPct: (n.out / tot) * 100,
+        flow: this.fmt(n.inc) + ' in · ' + this.fmt(n.out) + ' uit',
+        end: this.fmt(e), color: e < 0 ? 'var(--neg)' : 'var(--ink)',
+        netLabel: (n.net >= 0 ? '+ ' : '− ') + this.fmt(Math.abs(n.net)),
+        open: () => this.setState({ tab: 'maand', month: k, pot: null })
+      };
+    });
+
+    const ps = this.posts(mk, st.pot);
+    const totIn = ps.filter(p => p.kind === 'in').reduce((s, p) => s + p.amount, 0);
+    const fixedPosts = ps.filter(p => p.kind !== 'in' && p.group !== 'over');
+    const overPosts = ps.filter(p => p.group === 'over');
+    const totFixed = fixedPosts.reduce((s, p) => s + p.amount, 0);
+    const totOver = overPosts.reduce((s, p) => s + p.amount, 0);
+    const left = totIn - totFixed, rest = left - totOver;
+
+    const swipeRow = r => {
+      const pot = d.pots.find(p => p.id === r.potId);
+      const toPot = r.toPot ? d.pots.find(p => p.id === r.toPot) : null;
+      const meta = [r.day + 'e', toPot ? pot.label + ' → ' + toPot.label : (pot ? pot.label : '—')]
+        .concat(r.rec ? ['↻ maandelijks'] : ['eenmalig'])
+        .concat(r.category && CATS[r.category] ? [CATS[r.category].label] : []).join(' · ');
+      const dx = st.swipe && st.swipe.id === r.id ? st.swipe.dx : 0;
+      const moveNext = () => {
+        if (r.rec) { this.setState({ choice: { id: r.id, month: mk, mode: 'move' }, sheet: 'choice', swipe: null }); return; }
+        const nd = JSON.parse(JSON.stringify(d));
+        nd.months[mk].entries = (nd.months[mk].entries || []).filter(e2 => e2.id !== r.id);
+        const nk = addM(mk, 1);
+        nd.months[nk] = nd.months[nk] || { entries: [] };
+        nd.months[nk].entries.push({ ...r, rec: undefined });
+        this.buzz();
+        this.setState({ data: nd, swipe: null, lastDel: null, lastMove: { id: r.id, from: mk, to: nk }, toast: r.label + ' → ' + MN[parseK(nk).m] });
+      };
+      const del = () => {
+        if (r.rec) { this.setState({ choice: { id: r.id, month: mk, mode: 'del' }, sheet: 'choice', swipe: null }); return; }
+        const nd = JSON.parse(JSON.stringify(d));
+        nd.months[mk].entries = (nd.months[mk].entries || []).filter(e2 => e2.id !== r.id);
+        this.buzz();
+        this.setState({ data: nd, swipe: null, lastMove: null, lastDel: { entry: r, month: mk }, toast: r.label + ' verwijderd' });
+      };
+      const sign = r.kind === 'in' ? '+ ' : r.kind === 'move' ? '⇄ ' : '− ';
+      return {
+        id: r.id, icon: r.kind === 'move' ? '⇄' : (pot ? pot.icon : '💶'), label: r.label, meta, review: !!r.review,
+        amount: sign + this.fmt(r.amount), dx,
+        color: r.kind === 'in' ? 'var(--pos)' : r.kind === 'move' ? 'var(--ink)' : 'var(--neg)',
+        tile: r.kind === 'in' ? 'var(--tint)' : 'var(--tint2)',
+        rowBg: r.draft ? 'linear-gradient(rgba(216,180,92,.18),rgba(216,180,92,.18)),var(--card)' : 'var(--card)',
+        rowLine: r.draft ? 'rgba(216,180,92,.5)' : 'var(--line)',
+        onDown: e => { this._sw = { x: e.clientX, id: r.id, dx }; if (!st.hintDone) this.setState({ hintDone: true }); },
+        openActions: () => this.setState({ swipe: dx < -70 ? null : { id: r.id, dx: -152 }, hintDone: true }),
+        onKey: e => { if (e.key === 'Enter') { e.preventDefault(); this.openEditRow(r, mk); } },
+        onMove: e => {
+          if (!this._sw || this._sw.id !== r.id || !e.buttons) return;
+          const nx = Math.max(-158, Math.min(90, this._sw.dx + (e.clientX - this._sw.x)));
+          if (Math.abs(nx - dx) > 1) this.setState({ swipe: { id: r.id, dx: nx } });
+        },
+        onUp: () => {
+          if (!this._sw || this._sw.id !== r.id) return;
+          const started = this._sw.dx;
+          this._sw = null;
+          if (dx > 60) { moveNext(); return; }
+          if (dx < -70) { this.setState({ swipe: { id: r.id, dx: -152 } }); return; }
+          if (dx === 0 && started === 0) { this.openEditRow(r, mk); return; }
+          this.setState({ swipe: null });
+        },
+        move: moveNext, del
+      };
+    };
+
+    const groups = [
+      { key: 'in', title: 'Inkomsten', rows: ps.filter(p => p.kind === 'in' && p.rec).map(swipeRow), total: this.fmt(totIn), totalColor: 'var(--pos)', emptyText: 'Geen inkomsten in dit potje.' },
+      { key: 'fixed', title: 'Vaste lasten', rows: fixedPosts.filter(p => p.rec).map(swipeRow), total: '− ' + this.fmt(fixedPosts.filter(p => p.rec).reduce((s, p) => s + p.amount, 0)), totalColor: 'var(--neg)', emptyText: 'Geen vaste lasten.' },
+      { key: 'over', title: 'Verdeling van wat overblijft', rows: overPosts.map(swipeRow), total: this.fmt(totOver), totalColor: 'var(--ink)', emptyText: 'Nog niets verdeeld.' },
+      { key: 'once', title: 'Eenmalig deze maand', rows: ps.filter(p => !p.rec).map(swipeRow), total: this.fmt(ps.filter(p => !p.rec).reduce((s, p) => s + (p.kind === 'in' ? p.amount : -p.amount), 0)), totalColor: 'var(--ink)', emptyText: 'Nog geen eenmalige posten deze maand.' }
+    ].map(g => {
+      const open = !st.collapsed[g.key];
+      return { ...g, open, empty: open && g.rows.length === 0, rot: open ? 180 : 0,
+        countLabel: g.rows.length === 1 ? '1 post' : g.rows.length + ' posten',
+        rows: g.rows.map((r, i) => ({ ...r, hintAnim: (!st.hintDone && g.key === 'in' && i === 0) ? 'swipeHint 2.8s cubic-bezier(.22,1,.36,1) 1.4s 2' : 'none' })),
+        toggle: () => this.setState({ collapsed: { ...st.collapsed, [g.key]: open }, swipe: null }) };
+    });
+
+    const allocRows = overPosts.map((p, i) => ({ label: p.label, amount: this.fmt(p.amount), color: ALLOC_COLORS[i % ALLOC_COLORS.length] }));
+    const allocBar = allocRows.map((a, i) => ({ pct: left > 0 ? (overPosts[i].amount / left) * 100 : 0, color: a.color }))
+      .concat(rest > 0 && left > 0 ? [{ pct: (rest / left) * 100, color: 'var(--fill2)' }] : []);
+
+    const catAgg = {};
+    ps.filter(p => p.kind === 'out' && p.category && !p.rec).forEach(p => { catAgg[p.category] = (catAgg[p.category] || 0) + p.amount; });
+
+    const potChips = [{ id: null, label: 'Alle potjes', icon: '◎', balance: this.end(mk), goal: null, pace: null }]
+      .concat(d.pots.map(p => ({ id: p.id, label: p.label, icon: p.icon, balance: this.end(mk, p.id), goal: p.goal, pace: this.pace(p, mk) })))
+      .map(p => {
+        const act = st.pot === p.id, neg = p.balance < 0;
+        const pct = p.goal ? Math.max(0, Math.min(100, (p.balance / p.goal) * 100)) : 0;
+        return {
+          select: () => this.setState({ pot: p.id }), icon: p.icon, label: p.label,
+          bg: act ? 'linear-gradient(150deg,#2E7359,#1B5041)' : 'var(--card)',
+          border: act ? 'transparent' : 'var(--line)',
+          fg: act ? 'rgba(255,255,255,.82)' : 'var(--ink2)',
+          amtColor: act ? '#fff' : (neg ? 'var(--neg)' : 'var(--ink)'),
+          metaColor: act ? 'rgba(255,255,255,.62)' : 'var(--ink4)',
+          trackColor: act ? 'rgba(255,255,255,.22)' : 'var(--fill2)',
+          barColor: act ? 'var(--gold2)' : 'var(--gold)',
+          hasGoal: !!p.goal, pct, pctLabel: p.goal ? Math.round(pct) + '%' : '',
+          goalLabel: p.goal ? 'van ' + this.fmt(p.goal) : '',
+          paceLabel: p.pace ? (p.pace.diff >= 0 ? 'op schema · ' : Math.abs(p.pace.diff) > 0 ? 'achter · ' : '') + this.fmt(Math.abs(p.pace.diff)) + ' · ' + p.pace.date : '',
+          paceColor: p.pace ? (p.pace.diff >= 0 ? (act ? 'var(--gold2)' : 'var(--pos)') : (act ? '#FFC2AE' : 'var(--neg)')) : 'transparent',
+          amount: this.fmt(p.balance)
+        };
+      });
+
+    const savings = this.end(nowKey);
+    const invTotal = d.investments.reduce((s, i) => s + i.value, 0);
+    const wealth = savings + invTotal;
+    const invMonthly = d.investments.reduce((s, i) => s + (+i.monthly || 0), 0);
+    const iv = st.inv, ivVal = parseFloat(String(iv.value).replace(/\./g, '').replace(',', '.')) || 0;
+    const allocSegs = [{ label: 'Spaargeld', value: savings }].concat(d.investments.map(i => ({ label: i.label, value: i.value })))
+      .map((s, i) => ({ ...s, pct: wealth ? (Math.max(0, s.value) / wealth) * 100 : 0, pctLabel: wealth ? Math.round((s.value / wealth) * 100) + '%' : '0%', amount: this.fmt(s.value), color: ALLOC_COLORS[i % ALLOC_COLORS.length] }));
+
+    const tabs = [['overzicht', 'Overzicht'], ['maand', 'Maand'], ['vermogen', 'Vermogen']].map(([id, label]) => {
+      const act = st.tab === id;
+      return { label, go: () => this.setState({ tab: id, swipe: null }), current: act ? 'page' : undefined,
+        bg: act ? 'var(--glassOn)' : 'transparent', edge: act ? 'var(--glassEdge)' : 'transparent',
+        shadow: act ? '0 6px 14px -8px var(--glassShade),0 1px 0 rgba(255,255,255,.6) inset' : 'none',
+        fg: act ? 'var(--accent)' : 'var(--ink3)', weight: act ? 800 : 600, dot: act ? 'var(--accent)' : 'transparent', dotW: act ? 18 : 4 };
+    });
+
+    const setF = (k, v) => this.setState({ form: { ...f, [k]: v } });
+    const fmp = parseK(f.month);
+    const scrubTo = e => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      this.setState({ focus: Math.round(t * (series.length - 1)) });
+    };
+
+    return {
+      loading: st.loading, confetti: st.confetti,
+      replayLoader: () => { clearTimeout(this._lt); this.setState({ loading: true }); this._lt = setTimeout(() => this.setState({ loading: false }), 1800); },
+      isEmpty,
+      phoneW: this.props.device === 'iPhone SE (320)' ? 320 : 390,
+      phoneH: this.props.device === 'iPhone SE (320)' ? 700 : 844,
+      safeAmount: this.fmt(Math.max(0, safePt.v)),
+      safeLine: 'Veilig uit ' + safeLabel + ' tot ' + safePt.d.getDate() + ' ' + MS[safePt.d.getMonth()],
+      safeColor: safePt.v < 0 ? 'var(--neg)' : 'var(--ink)',
+      pageTitle: st.tab === 'overzicht' ? 'Overzicht' : st.tab === 'maand' ? MN[mp.m] + ' ' + mp.y : 'Vermogen',
+      isOverview: st.tab === 'overzicht', isMonth: st.tab === 'maand', isWealth: st.tab === 'vermogen',
+      heroSavings: this.fmt(st.shown ? st.shown.s : savings),
+      heroDelta: (this.net(nowKey).net >= 0 ? '+ ' : '− ') + this.fmt(Math.abs(this.net(nowKey).net)),
+      potCount: d.pots.length,
+      privacyHint: (st.privacy != null ? st.privacy : !!this.props.privacyMode) ? 'tik om te tonen' : 'tik om te verbergen',
+      togglePrivacy: () => this.setState({ privacy: !(st.privacy != null ? st.privacy : !!this.props.privacyMode) }),
+      hasWarning: !!warn,
+      warnTitle: warn ? warn.pot.label + ' komt onder nul' : '',
+      warnBody: warn ? 'Op ' + warn.d.getDate() + ' ' + MN[warn.d.getMonth()] + ' staat dit potje op ' + this.fmt(warn.v) + '.' : '',
+      warnAction: warn ? 'Aanvullen vanuit een ander potje' : '',
+      fixWarning: () => {
+        if (!warn) return;
+        const need = Math.ceil(Math.abs(warn.v) / 50) * 50;
+        const wk = key(warn.d.getFullYear(), warn.d.getMonth());
+        const src = d.pots.filter(p => p.id !== warn.pot.id).sort((a, b) => this.end(wk, b.id) - this.end(wk, a.id))[0];
+        const nk2 = key(TODAY.getFullYear(), TODAY.getMonth());
+        const day = wk === nk2 ? Math.min(28, Math.max(TODAY.getDate(), Math.max(1, warn.d.getDate() - 1))) : Math.max(1, warn.d.getDate() - 1);
+        this.setState({ sheet: 'transfer', tab: 'maand', month: wk, tf: { from: src ? src.id : 'alg', to: warn.pot.id, amount: String(need), month: wk, day } });
+      },
+      showBackupBanner: !st.backup && !st.backupDismissed && !isEmpty,
+      dismissBackup: () => this.setState({ backupDismissed: true }),
+      areaPath: area, linePath: line, zeroY: Y(0).toFixed(2),
+      nowX: X(nowIdx).toFixed(2), focusX: X(fi).toFixed(2), focusY: Y(fp.v).toFixed(2),
+      focusDate: fp.d.getDate() + ' ' + MN[fp.d.getMonth()] + ' ' + fp.d.getFullYear(),
+      focusValue: this.fmt(fp.v), focusColor: fp.v < 0 ? 'var(--neg)' : 'var(--ink)',
+      chartLabels: [0, 2, 4, 6, 8, 10].map(i => ({ t: MS[parseK(MLIST[i]).m] })),
+      scrubDown: e => { e.currentTarget.setPointerCapture(e.pointerId); scrubTo(e); },
+      scrubMove: e => { if (e.buttons) scrubTo(e); },
+      scrubUp: () => this.setState({ tab: 'maand', month: fp.mk, pot: null }),
+      monthRows,
+      goOverview: () => this.setState({ tab: 'overzicht', swipe: null }),
+      prevMonth: () => this.setState({ month: mk > (st.startMonth || START) ? addM(mk, -1) : mk, swipe: null }),
+      nextMonth: () => this.setState({ month: addM(mk, 1), swipe: null }),
+      monthTitle: MN[mp.m] + ' ' + mp.y,
+      scopeLabel: st.pot ? (d.pots.find(p => p.id === st.pot) || {}).label : 'alle potjes',
+      monthEnd: this.fmt(st.shown ? st.shown.m : this.end(mk, st.pot)),
+      monthEndColor: this.end(mk, st.pot) < 0 ? '#FFB2A0' : '#fff',
+      monthBegin: this.fmt(this.begin(mk, st.pot)),
+      monthIn: this.fmt(this.net(mk, st.pot).inc), monthOut: this.fmt(this.net(mk, st.pot).out),
+      bIn: this.fmt(totIn), bFixed: this.fmt(totFixed), bLeft: this.fmt(left),
+      bRest: this.fmt(rest), bRestColor: rest < 0 ? 'var(--neg)' : 'var(--ink)',
+      allocRows, allocBar,
+      potChips, groups,
+      catChips: Object.keys(catAgg).map(k => ({ icon: CATS[k].icon, label: CATS[k].label, amount: this.fmt(catAgg[k]) })),
+      totalWealth: this.fmt(st.shown ? st.shown.w : wealth), allocSegs,
+      investMonthly: this.fmt(invMonthly),
+      investRows: d.investments.map(i => ({
+        label: i.label, amount: this.fmt(i.value),
+        pctLabel: (wealth ? Math.round((i.value / wealth) * 100) : 0) + '% van vermogen',
+        meta: (+i.monthly ? this.fmt(i.monthly) + ' per maand' : 'geen maandinleg') + (i.updated ? ' · bijgewerkt ' + (+i.updated.slice(8)) + ' ' + MS[+i.updated.slice(5, 7) - 1] : ''),
+        edit: () => this.setState({ sheet: 'invest', inv: { id: i.id, label: i.label, value: String(i.value), monthly: String(+i.monthly || 0) } })
+      })),
+      investOpen: st.sheet === 'invest',
+      openNewInvest: () => this.setState({ sheet: 'invest', inv: { id: null, label: '', value: '', monthly: '' } }),
+      investTitle: iv.id ? 'Belegging bijwerken' : 'Nieuwe belegging',
+      investSub: iv.id ? 'Werk de waarde bij zoals die nu in je app staat' : 'Voeg een rekening of fonds toe',
+      ivEditing: !!iv.id, ivSaveLabel: iv.id ? 'Bijwerken' : 'Toevoegen',
+      ivLabel: iv.label, ivValue: iv.value, ivMonthly: iv.monthly,
+      onIvLabel: e => this.setState({ inv: { ...iv, label: e.target.value } }),
+      onIvValue: e => this.setState({ inv: { ...iv, value: e.target.value.replace(/[^0-9,.]/g, '') } }),
+      onIvMonthly: e => this.setState({ inv: { ...iv, monthly: e.target.value.replace(/\D/g, '') } }),
+      ivNudges: [-500, -100, 100, 500].map(n => ({
+        label: (n > 0 ? '+ ' : '− ') + '€ ' + Math.abs(n), color: n > 0 ? 'var(--pos)' : 'var(--neg)',
+        set: () => this.setState({ inv: { ...iv, value: String(Math.max(0, Math.round(ivVal + n))) } })
+      })),
+      ivMonthlyQuick: [0, 100, 250, 500].map(v => ({
+        label: v ? '€ ' + v : 'geen', set: () => this.setState({ inv: { ...iv, monthly: String(v) } }),
+        bg: (+iv.monthly || 0) === v ? 'var(--brand)' : 'var(--card)',
+        fg: (+iv.monthly || 0) === v ? '#fff' : 'var(--ink)',
+        border: (+iv.monthly || 0) === v ? 'transparent' : 'var(--line2)'
+      })),
+      ivHint: (+iv.monthly || 0) > 0
+        ? 'Elke 26e gaat ' + this.fmt(+iv.monthly) + ' vanuit Algemeen naar deze belegging. Die post staat automatisch onder “Verdeling van wat overblijft”.'
+        : 'Zonder maandinleg verandert de waarde alleen als je die hier zelf bijwerkt.',
+      saveInvest: () => {
+        if (!String(iv.label).trim()) { this.setState({ toast: 'Vul een naam in' }); return; }
+        const nd = JSON.parse(JSON.stringify(d));
+        const mon = +iv.monthly || 0;
+        let grew = false;
+        if (iv.id) {
+          const t = nd.investments.find(x => x.id === iv.id);
+          if (t) { grew = ivVal > t.value; t.label = iv.label.trim(); t.value = ivVal; t.monthly = mon; t.updated = '2026-07-30'; }
+        } else {
+          nd.investments.push({ id: 'v' + Date.now(), label: iv.label.trim(), value: ivVal, monthly: mon, updated: '2026-07-30' });
+          grew = ivVal > 0;
+        }
+        this.syncInvest(nd); this.buzz(18);
+        if (grew) this.burst(14);
+        this.setState({ data: nd, sheet: null, tab: 'vermogen', toast: iv.label.trim() + ' bijgewerkt' });
+      },
+      delInvest: () => {
+        const nd = JSON.parse(JSON.stringify(d));
+        nd.investments = nd.investments.filter(x => x.id !== iv.id);
+        this.syncInvest(nd); this.buzz();
+        this.setState({ data: nd, sheet: null, toast: iv.label + ' verwijderd' });
+      },
+      potRows: d.pots.map(p => {
+        const b = this.end(nowKey, p.id), pc = this.pace(p, nowKey);
+        return { icon: p.icon, label: p.label, amount: this.fmt(b), color: b < 0 ? 'var(--neg)' : 'var(--ink)',
+          goalLabel: p.goal ? Math.round(Math.max(0, b / p.goal) * 100) + '% van ' + this.fmt(p.goal) + (pc ? (pc.diff >= 0 ? ' · op schema voor ' + pc.date : ' · ' + this.fmt(Math.abs(pc.diff)) + ' achter') : '') : 'geen doel' };
+      }),
+      yearCats: (() => {
+        const agg = {};
+        MLIST.forEach(k => this.posts(k).forEach(p => { if (p.kind === 'out' && p.category) agg[p.category] = (agg[p.category] || 0) + p.amount; }));
+        const keys = Object.keys(agg).sort((a, b) => agg[b] - agg[a]);
+        const top = keys.length ? agg[keys[0]] : 1;
+        const tot = keys.reduce((s, k) => s + agg[k], 0) || 1;
+        return keys.map((k, i) => ({ icon: CATS[k].icon, label: CATS[k].label, amount: this.fmt(agg[k]), pct: (agg[k] / top) * 100, pctLabel: Math.round((agg[k] / tot) * 100) + '%', color: ALLOC_COLORS[i % ALLOC_COLORS.length] }));
+      })(),
+      tabA: tabs[0], tabB: tabs[1], tabC: tabs[2],
+      sheetOpen: !!st.sheet, entryOpen: st.sheet === 'entry', pickerOpen: st.sheet === 'picker',
+      settingsOpen: st.sheet === 'settings', transferOpen: st.sheet === 'transfer', choiceOpen: st.sheet === 'choice',
+      openEntry: () => this.setState({ sheet: 'entry', quick: false, form: { ...f, editId: null, editRec: false, month: st.tab === 'maand' ? mk : nowKey } }),
+      openSettings: () => this.setState({ sheet: 'settings' }),
+      openMonthPicker: () => this.setState({ sheet: 'picker', picker: st.sheet === 'entry' ? 'form' : 'nav', pickerYear: st.sheet === 'entry' ? fmp.y : mp.y }),
+      closeSheet: () => this.setState({ sheet: null, choice: null, form: { ...f, editId: null, editRec: false } }),
+      entryTitle: f.editId ? 'Post bewerken' : 'Nieuwe post',
+      saveLabel: f.editId ? 'Bijwerken' : 'Opslaan',
+      isOut: f.kind === 'out', fAmount: f.amount, fLabel: f.label, fDay: String(f.day), fRepeat: f.repeat,
+      fMonthLabel: MN[fmp.m] + ' ' + fmp.y,
+      setOut: () => setF('kind', 'out'), setIn: () => setF('kind', 'in'),
+      outTabBg: f.kind === 'out' ? 'var(--card)' : 'transparent', outTabFg: f.kind === 'out' ? 'var(--ink)' : 'var(--ink3)',
+      inTabBg: f.kind === 'in' ? 'var(--card)' : 'transparent', inTabFg: f.kind === 'in' ? 'var(--ink)' : 'var(--ink3)',
+      onAmount: e => setF('amount', e.target.value.replace(/[^0-9,.]/g, '')),
+      onLabel: e => setF('label', e.target.value),
+      onDay: e => setF('day', Math.max(1, Math.min(28, +e.target.value.replace(/\D/g, '') || 1))),
+      quickAmounts: [25, 50, 100, 250, 500].map(v => ({ label: '€ ' + v, set: () => setF('amount', String(v)) })),
+      recentLabels: (d.recentLabels || []).map(l => ({ label: l, set: () => setF('label', l) })),
+      potOptions: d.pots.map(p => ({ icon: p.icon, label: p.label, set: () => setF('potId', p.id), bg: f.potId === p.id ? 'var(--brand)' : 'var(--card)', fg: f.potId === p.id ? '#fff' : 'var(--ink)', border: f.potId === p.id ? 'transparent' : 'var(--line2)' })),
+      catOptions: Object.keys(CATS).map(k => ({ icon: CATS[k].icon, label: CATS[k].label, set: () => setF('category', k), bg: f.category === k ? 'var(--brand)' : 'var(--card)', fg: f.category === k ? '#fff' : 'var(--ink)', border: f.category === k ? 'transparent' : 'var(--line2)' })),
+      toggleRepeat: () => setF('repeat', !f.repeat),
+      switchBg: f.repeat ? 'var(--brand)' : 'var(--fill3)', switchJustify: f.repeat ? 'flex-end' : 'flex-start',
+      hasDraft: !!this._draft,
+      previewPath: series.map((p, i) => (i ? 'L' : 'M') + PX(i).toFixed(1) + ' ' + PY(p.v).toFixed(1)).join(' '),
+      basePath: baseSeries.map((p, i) => (i ? 'L' : 'M') + PX(i).toFixed(1) + ' ' + PY(p.v).toFixed(1)).join(' '),
+      previewDelta: (endDelta >= 0 ? '+ ' : '− ') + this.fmt(Math.abs(endDelta)) + ' over 12 mnd',
+      previewDeltaColor: endDelta >= 0 ? 'var(--pos)' : 'var(--neg)',
+      previewLow: this.fmt(lowPt.v), previewLowDate: lowPt.d.getDate() + ' ' + MS[lowPt.d.getMonth()],
+      previewLowColor: lowPt.v < 0 ? 'var(--neg)' : 'var(--ink3)',
+      saveEntry: () => {
+        if (!fAmt) { this.setState({ toast: 'Vul eerst een bedrag in' }); return; }
+        const nd = JSON.parse(JSON.stringify(d));
+        const base = { kind: f.kind, label: f.label || (f.kind === 'in' ? 'Inkomst' : 'Uitgave'), amount: fAmt, day: f.day, potId: f.potId, category: f.kind === 'out' ? f.category : undefined };
+        if (f.editId) {
+          if (f.editRec) { const i = nd.recurring.findIndex(r => r.id === f.editId); if (i >= 0) nd.recurring[i] = { ...nd.recurring[i], ...base }; }
+          else Object.keys(nd.months).forEach(k => { nd.months[k].entries = (nd.months[k].entries || []).map(e2 => e2.id === f.editId ? { ...e2, ...base } : e2); });
+          this.buzz(18);
+          this.setState({ data: nd, sheet: null, toast: base.label + ' bijgewerkt', form: { ...f, editId: null, editRec: false, amount: '', label: '' } });
+          return;
+        }
+        const id = 'n' + Date.now();
+        const entry = { id, ...base };
+        if (f.repeat) nd.recurring.push({ ...entry, fromMonth: f.month });
+        else { nd.months[f.month] = nd.months[f.month] || { entries: [] }; nd.months[f.month].entries.push(entry); }
+        this.buzz(18);
+        this.setState({ data: nd, sheet: null, tab: 'maand', month: f.month, pot: null, lastAdded: { id, month: f.month, repeat: f.repeat }, lastDel: null, lastMove: null, toast: entry.label + ' toegevoegd', form: { ...f, amount: '', label: '' } });
+        if (f.kind === 'in') this.burst(Math.min(28, 12 + Math.round(fAmt / 100)));
+      },
+      quickOpen: st.quick,
+      closeQuick: () => this.setState({ quick: false }),
+      fabDown: () => { this._qt = setTimeout(() => { this.buzz(20); this.setState({ quick: true }); }, 420); },
+      fabUp: () => clearTimeout(this._qt),
+      fabClick: () => {
+        if (st.quick) { this.setState({ quick: false }); return; }
+        if (st.tab === 'vermogen') { this.setState({ sheet: 'invest', inv: { id: null, label: '', value: '', monthly: '' } }); return; }
+        this.setState({ sheet: 'entry', form: { ...f, editId: null, editRec: false, month: st.tab === 'maand' ? mk : nowKey } });
+      },
+      quickItems: (d.quick || []).map(q => ({
+        icon: (d.pots.find(p => p.id === q.potId) || {}).icon || '💶', label: q.label, amount: this.fmt(q.amount),
+        add: () => {
+          const nd = JSON.parse(JSON.stringify(d));
+          const tk = st.tab === 'maand' ? mk : nowKey, id = 'q' + Date.now();
+          nd.months[tk] = nd.months[tk] || { entries: [] };
+          nd.months[tk].entries.push({ id, kind: q.kind, label: q.label, amount: q.amount, day: Math.min(28, TODAY.getDate()), potId: q.potId, category: q.category });
+          this.buzz(18);
+          this.setState({ data: nd, quick: false, tab: 'maand', month: tk, lastAdded: { id, month: tk, repeat: false }, lastDel: null, lastMove: null, toast: q.label + ' toegevoegd' });
+          if (q.kind === 'in') this.burst(16);
+        }
+      })),
+      openTransfer: () => this.setState({ sheet: 'transfer', quick: false, tf: { ...st.tf, month: mk } }),
+      tfAmount: st.tf.amount, tfDay: String(st.tf.day),
+      tfMonthLabel: (() => { const t = parseK(st.tf.month); return MN[t.m] + ' ' + t.y; })(),
+      tfSummary: (() => { const a = d.pots.find(p => p.id === st.tf.from) || {}, b = d.pots.find(p => p.id === st.tf.to) || {}; return (a.label || '?') + ' → ' + (b.label || '?'); })(),
+      onTfAmount: e => this.setState({ tf: { ...st.tf, amount: e.target.value.replace(/[^0-9,.]/g, '') } }),
+      onTfDay: e => this.setState({ tf: { ...st.tf, day: Math.max(1, Math.min(28, +e.target.value.replace(/\D/g, '') || 1)) } }),
+      tfFromOptions: d.pots.map(p => ({ icon: p.icon, label: p.label, sub: this.fmt(this.end(mk, p.id)), set: () => this.setState({ tf: { ...st.tf, from: p.id } }), bg: st.tf.from === p.id ? 'var(--brand)' : 'var(--card)', fg: st.tf.from === p.id ? '#fff' : 'var(--ink)', border: st.tf.from === p.id ? 'transparent' : 'var(--line2)' })),
+      tfToOptions: d.pots.map(p => ({ icon: p.icon, label: p.label, set: () => this.setState({ tf: { ...st.tf, to: p.id } }), bg: st.tf.to === p.id ? 'var(--brand)' : 'var(--card)', fg: st.tf.to === p.id ? '#fff' : 'var(--ink)', border: st.tf.to === p.id ? 'transparent' : 'var(--line2)' })),
+      saveTransfer: () => {
+        const amt = parseFloat(String(st.tf.amount).replace(/\./g, '').replace(',', '.')) || 0;
+        if (!amt || st.tf.from === st.tf.to) { this.setState({ toast: amt ? 'Kies twee verschillende potjes' : 'Vul een bedrag in' }); return; }
+        const nd = JSON.parse(JSON.stringify(d));
+        const from = nd.pots.find(p => p.id === st.tf.from), to = nd.pots.find(p => p.id === st.tf.to);
+        nd.months[st.tf.month] = nd.months[st.tf.month] || { entries: [] };
+        nd.months[st.tf.month].entries.push({ id: 't' + Date.now(), kind: 'move', label: 'Overboeking', amount: amt, day: st.tf.day, potId: from.id, toPot: to.id });
+        this.buzz(18); this.burst(14);
+        this.setState({ data: nd, sheet: null, tab: 'maand', month: st.tf.month, pot: null, toast: this.fmt(amt) + ' naar ' + to.label, tf: { ...st.tf, amount: '' } });
+      },
+      choiceTitle: st.choice && st.choice.mode === 'move' ? 'Terugkerende post verzetten' : 'Terugkerende post verwijderen',
+      choiceBody: 'Deze post komt elke maand terug. Wat wil je doen?',
+      choiceOnceLabel: st.choice && st.choice.mode === 'move' ? 'Alleen deze maand verzetten' : 'Alleen deze maand overslaan',
+      choiceOnce: () => {
+        const c = st.choice; if (!c) return;
+        const nd = JSON.parse(JSON.stringify(d));
+        nd.months[c.month] = nd.months[c.month] || { entries: [] };
+        nd.months[c.month].skip = (nd.months[c.month].skip || []).concat([c.id]);
+        if (c.mode === 'move') {
+          const r = nd.recurring.find(x => x.id === c.id), nk = addM(c.month, 1);
+          nd.months[nk] = nd.months[nk] || { entries: [] };
+          nd.months[nk].entries.push({ id: 'm' + Date.now(), kind: r.kind, label: r.label, amount: r.amount, day: r.day, potId: r.potId, toPot: r.toPot, category: r.category });
+        }
+        this.buzz();
+        this.setState({ data: nd, sheet: null, choice: null, toast: c.mode === 'move' ? 'Deze maand verzet' : 'Deze maand overgeslagen' });
+      },
+      choiceAll: () => {
+        const c = st.choice; if (!c) return;
+        const nd = JSON.parse(JSON.stringify(d));
+        nd.recurring = nd.recurring.filter(r => r.id !== c.id);
+        this.buzz();
+        this.setState({ data: nd, sheet: null, choice: null, toast: 'Elke maand verwijderd' });
+      },
+      themeOptions: ['systeem', 'licht', 'donker'].map(t => ({
+        label: t.charAt(0).toUpperCase() + t.slice(1), set: () => this.setState({ theme: t }),
+        bg: st.theme === t ? 'var(--card)' : 'transparent', fg: st.theme === t ? 'var(--ink)' : 'var(--ink3)'
+      })),
+      potTotalLabel: d.pots.length + ' potjes',
+      potEdits: d.pots.map((p, i) => {
+        const patch = up => { const nd = JSON.parse(JSON.stringify(d)); Object.assign(nd.pots[i], up); this.setState({ data: nd }); };
+        return {
+          icon: p.icon, label: p.label, start: String(p.startBalance), goal: p.goal ? String(p.goal) : '',
+          goalDateLabel: p.goalDate ? MS[parseK(p.goalDate).m] + ' ' + parseK(p.goalDate).y : 'geen datum',
+          setGoalDate: () => this.setState({ sheet: 'picker', picker: 'goal:' + p.id, pickerYear: p.goalDate ? parseK(p.goalDate).y : 2027 }),
+          cycleIcon: () => { const ic = ['🪙', '🐖', '🏖️', '👤', '🏠', '🚗', '🍼', '🎁', '🛡️', '🎓']; patch({ icon: ic[(ic.indexOf(p.icon) + 1 + ic.length) % ic.length] }); },
+          onName: e => patch({ label: e.target.value }),
+          onStart: e => patch({ startBalance: +String(e.target.value).replace(/\D/g, '') || 0 }),
+          onGoal: e => patch({ goal: (+String(e.target.value).replace(/\D/g, '') || 0) || undefined }),
+          remove: () => {
+            const nd = JSON.parse(JSON.stringify(d)), rid = nd.pots[i].id;
+            nd.pots.splice(i, 1);
+            nd.recurring = nd.recurring.filter(r => r.potId !== rid && r.toPot !== rid);
+            Object.keys(nd.months).forEach(k => { nd.months[k].entries = (nd.months[k].entries || []).filter(e2 => e2.potId !== rid && e2.toPot !== rid); });
+            this.setState({ data: nd, pot: null, toast: p.label + ' verwijderd' });
+          }
+        };
+      }),
+      addPot: () => { const nd = JSON.parse(JSON.stringify(d)); nd.pots.push({ id: 'p' + Date.now(), label: 'Nieuw potje', icon: '🪙', startBalance: 0 }); this.setState({ data: nd }); },
+      startMonthLabel: (() => { const s = parseK(st.startMonth || START); return MN[s.m] + ' ' + s.y; })(),
+      openStartPicker: () => this.setState({ sheet: 'picker', picker: 'start', pickerYear: parseK(st.startMonth || START).y }),
+      backupLabel: st.backup ? 'Laatste back-up: ' + st.backup : 'Nog geen back-up gemaakt',
+      doExport: () => { this.buzz(18); this.setState({ backup: 'zojuist · huishoudboekje-2026-07-30.json', toast: 'Back-up gedownload' }); },
+      doImport: () => this.setState({ toast: 'Kies een back-upbestand' }),
+      wipeAll: () => this.setState({ lastWipe: d, data: stateData('leeg'), sheet: null, tab: 'overzicht', pot: null, toast: 'Alles gewist' }),
+      toast: st.toast,
+      undo: () => {
+        if (st.lastWipe) { this.setState({ data: st.lastWipe, lastWipe: null, toast: null }); return; }
+        if (st.lastDel) {
+          const nd = JSON.parse(JSON.stringify(d)), m2 = st.lastDel.month;
+          nd.months[m2] = nd.months[m2] || { entries: [] };
+          nd.months[m2].entries.push(st.lastDel.entry);
+          this.setState({ data: nd, lastDel: null, toast: null }); return;
+        }
+        if (st.lastMove) {
+          const lm = st.lastMove, nd = JSON.parse(JSON.stringify(d));
+          const e3 = (nd.months[lm.to].entries || []).find(x => x.id === lm.id);
+          if (e3) { nd.months[lm.to].entries = nd.months[lm.to].entries.filter(x => x.id !== lm.id); nd.months[lm.from].entries.push(e3); }
+          this.setState({ data: nd, lastMove: null, toast: null }); return;
+        }
+        const la = st.lastAdded;
+        if (!la) { this.setState({ toast: null }); return; }
+        const nd = JSON.parse(JSON.stringify(d));
+        if (la.repeat) nd.recurring = nd.recurring.filter(r => r.id !== la.id);
+        else if (nd.months[la.month]) nd.months[la.month].entries = nd.months[la.month].entries.filter(e2 => e2.id !== la.id);
+        this.setState({ data: nd, toast: null, lastAdded: null });
+      },
+      pickerYear: st.pickerYear,
+      prevYear: () => this.setState({ pickerYear: st.pickerYear - 1 }),
+      nextYear: () => this.setState({ pickerYear: st.pickerYear + 1 }),
+      pickerMonths: MS.map((label, i) => {
+        const sm = st.startMonth || START, k = key(st.pickerYear, i);
+        const free = st.picker === 'start' || String(st.picker).indexOf('goal:') === 0;
+        const dis = !free && k < sm;
+        const sel = st.picker === 'form' ? f.month === k : st.picker === 'start' ? sm === k : mk === k;
+        return {
+          label, disabled: dis,
+          bg: sel ? 'var(--brand)' : dis ? 'var(--fill1)' : 'var(--card)',
+          fg: sel ? '#fff' : dis ? 'var(--ink4)' : 'var(--ink)',
+          border: sel ? 'transparent' : 'var(--line2)',
+          pick: () => {
+            if (dis) return;
+            if (st.picker === 'form') this.setState({ form: { ...f, month: k }, sheet: 'entry' });
+            else if (String(st.picker).indexOf('goal:') === 0) {
+              const pid = String(st.picker).slice(5), nd = JSON.parse(JSON.stringify(d));
+              const pp = nd.pots.find(x => x.id === pid); if (pp) pp.goalDate = k;
+              this.setState({ data: nd, sheet: 'settings' });
+            } else if (st.picker === 'start') this.setState({ startMonth: k, month: k > st.month ? k : st.month, sheet: 'settings' });
+            else this.setState({ month: k, sheet: null });
+          }
+        };
+      })
+    };
+  }
+}
+
+</script>
+</body>
+</html>
