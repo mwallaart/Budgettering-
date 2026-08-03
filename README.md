@@ -29,7 +29,14 @@ Geen account, geen server — alle gegevens blijven lokaal op je apparaat
 - **Vermogen-overzicht** — een tweede tab met je **totale vermogen**
   (spaargeld + beleggingen) en een verdeling per onderdeel. Voeg beleggingen toe
   en werk hun waarde handmatig bij.
-- **Back-up** — exporteer/importeer je gegevens als JSON.
+- **Back-up** — exporteer/importeer je gegevens als JSON. Op de telefoon gaat de
+  export via de deelknop, zodat je hem in één tik in iCloud Drive of je mail zet.
+  De app herinnert je opnieuw zodra je laatste back-up een maand oud is, en
+  waarschuwt zichtbaar als opslaan mislukt (opslag vol of privémodus).
+- **Herstelpunten** — bij elke wijziging bewaart de app automatisch een kopie in
+  IndexedDB (de laatste twaalf). Vergissing gemaakt of een verkeerd bestand
+  geïmporteerd? Zet in Instellingen een eerder punt terug. Staat wel op hetzelfde
+  toestel, dus het vervangt een back-up niet.
 
 ## Gebruiken
 
@@ -44,6 +51,30 @@ python3 -m http.server 8080
 > Een service worker + PWA-installatie werkt alleen via `https://` of `http://localhost`.
 
 Om te installeren op iPhone: open in Safari → deelknop → **Zet op beginscherm**.
+
+## Testen
+
+De app zelf heeft geen dependencies; `package.json` bestaat alleen voor de tests.
+Ze draaien in een echte browser (Chromium via Playwright).
+
+```bash
+npm ci
+node node_modules/playwright-core/cli.js install chromium   # eenmalig
+npm test
+```
+
+- `npm run test:interactions` — 103 controles: elke animatie, veeg, sheet,
+  toetsenbordpad, PWA-robuustheid en databeveiliging.
+- `npm run test:smoke` — alle schermen, de vijf sheets op 320px, donker thema,
+  navigatie zonder overlap.
+
+**Deze tests zijn een poort voor de deploy.** GitHub Actions draait ze bij elke
+push naar `main` en bij elke pull request; faalt er één, dan wordt er niets
+gepubliceerd en blijft de vorige versie live staan. Zie
+`.github/workflows/pages.yml`.
+
+Gaat er ondanks alles iets mis in productie: open **Actions → Test & deploy →**
+een eerdere geslaagde run **→ Re-run all jobs**. Dat zet die versie terug live.
 
 ## Structuur
 

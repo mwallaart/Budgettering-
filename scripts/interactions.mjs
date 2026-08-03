@@ -4,9 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
+import { launchOptions } from "./browser.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const EXE = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const MIME = {
   ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json",
   ".webmanifest": "application/manifest+json", ".png": "image/png", ".gif": "image/gif", ".woff2": "font/woff2",
@@ -45,7 +45,7 @@ const seed = () => {
   };
 };
 
-const browser = await chromium.launch({ executablePath: EXE });
+const browser = await chromium.launch(launchOptions());
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 const errors = [];
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -528,6 +528,100 @@ const zoomOk = await page.evaluate(() => {
 });
 check("Dubbeltik-zoom uit via touch-action", /manipulation/.test(zoomOk.touchAction), zoomOk.touchAction);
 check("Knijpzoom blijft toegestaan", !/user-scalable\s*=\s*no|maximum-scale/.test(zoomOk.mv), zoomOk.mv);
+
+/* ---------- 26. Databeveiliging ---------- */
+// Migratie van v5 naar v6: de oude ja/nee-vlag wordt een uitsteldatum.
+const mig = await page.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("budget-glass-v1"));
+  return { version: d.version, hasOld: "backupDismissed" in d, snoozed: d.backupSnoozed };
+});
+check("Data gemigreerd naar v6", mig.version === 6 && !mig.hasOld, JSON.stringify(mig));
+
+// Herinnering op leeftijd: een back-up van 60 dagen oud moet weer opkomen.
+await page.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("budget-glass-v1"));
+  const t = new Date(); t.setDate(t.getDate() - 60);
+  d.lastBackup = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  d.backupSnoozed = null;
+  localStorage.setItem("budget-glass-v1", JSON.stringify(d));
+});
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector("#loader[hidden]", { state: "attached", timeout: 6000 });
+await page.waitForTimeout(600);
+const staleTitle = await page.textContent("#backup-title");
+check("Oude back-up geeft opnieuw een herinnering", await page.locator("#backup-banner").isVisible() && /weken oud/.test(staleTitle), staleTitle);
+
+// 'Later' stelt uit in plaats van voorgoed te zwijgen.
+await page.click("#backup-later");
+await page.waitForTimeout(300);
+const snoozed = await page.evaluate(() => JSON.parse(localStorage.getItem("budget-glass-v1")).backupSnoozed);
+check("'Later' stelt uit met een datum", await page.locator("#backup-banner").isHidden() && /^\d{4}-\d{2}-\d{2}$/.test(snoozed || ""), String(snoozed));
+const wakesUp = await page.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("budget-glass-v1"));
+  const t = new Date(); t.setDate(t.getDate() - 10);
+  d.backupSnoozed = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  localStorage.setItem("budget-glass-v1", JSON.stringify(d));
+  return d.backupSnoozed;
+});
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector("#loader[hidden]", { state: "attached", timeout: 6000 });
+await page.waitForTimeout(600);
+check("Uitstel loopt af en de herinnering komt terug", await page.locator("#backup-banner").isVisible(), wakesUp);
+
+// Mislukt opslaan moet zichtbaar worden, niet stil verdwijnen.
+await page.evaluate(() => {
+  const orig = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (k, v) {
+    if (k === "budget-glass-v1") { const e = new Error("vol"); e.name = "QuotaExceededError"; throw e; }
+    return orig.call(this, k, v);
+  };
+});
+await page.click("#backup-later");
+await page.waitForTimeout(400);
+const stTxt = await page.textContent("#storage-text").catch(() => "");
+check("Mislukt opslaan geeft een waarschuwing", await page.locator("#storage-banner").isVisible() && /vol/.test(stTxt), stTxt.slice(0, 60));
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector("#loader[hidden]", { state: "attached", timeout: 6000 });
+await page.waitForTimeout(600);
+check("Waarschuwing weg als opslaan weer werkt", await page.locator("#storage-banner").isHidden());
+
+// Herstelpunten: automatisch bewaard en terug te zetten.
+await page.click('.tab[data-tab="maand"]');
+await page.waitForTimeout(400);
+await page.click("#fab");
+await page.waitForTimeout(450);
+await page.fill("#f-amount", "77");
+await page.fill("#f-label", "Herstelpunt-test");
+await page.locator("#sh-entry .save").click();
+await page.waitForTimeout(600);
+const snapCount = await page.evaluate(() => new Promise((res) => {
+  const rq = indexedDB.open("huishoudboekje", 1);
+  rq.onsuccess = () => {
+    const db = rq.result;
+    const all = db.transaction("snapshots", "readonly").objectStore("snapshots").getAll();
+    all.onsuccess = () => { res(all.result.length); db.close(); };
+    all.onerror = () => { res(-1); db.close(); };
+  };
+  rq.onerror = () => res(-1);
+}));
+check("Herstelpunt automatisch bewaard in IndexedDB", snapCount >= 1, String(snapCount));
+await page.click("#btn-settings");
+await page.waitForTimeout(700);
+const restoreRows = await page.locator("#restore-list [data-restore]").count();
+check("Herstelpunten staan in de instellingen", restoreRows >= 1, String(restoreRows));
+// Het oudste herstelpunt dateert van vóór "Herstelpunt-test": terugzetten moet
+// die post dus laten verdwijnen, en ongedaan maken hem terugbrengen.
+const hasTest = () => page.evaluate(() => localStorage.getItem("budget-glass-v1").includes("Herstelpunt-test"));
+check("Testpost staat in de data vóór terugzetten", await hasTest());
+await page.locator("#restore-list [data-restore]").last().click();
+await page.waitForTimeout(700);
+check("Terugzetten meldt zich met ongedaan maken",
+  await page.locator("#toast").isVisible() && /Herstelpunt/.test(await page.textContent("#toast-text")),
+  await page.textContent("#toast-text").catch(() => ""));
+check("Oud herstelpunt draait de wijziging echt terug", !(await hasTest()));
+await page.click("#toast-undo");
+await page.waitForTimeout(600);
+check("Terugzetten is ongedaan te maken", await hasTest());
 
 await browser.close();
 server.close();

@@ -3,9 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
+import { launchOptions } from "./browser.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const EXE = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const MIME = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png" };
 
 const server = http.createServer((req, res) => {
@@ -19,7 +19,7 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}/`;
 
-const browser = await chromium.launch({ executablePath: EXE });
+const browser = await chromium.launch(launchOptions());
 // Smal toestel = strengste test (iPhone SE-breedte)
 const page = await browser.newPage({ viewport: { width: 320, height: 700 }, deviceScaleFactor: 2 });
 await page.goto(base, { waitUntil: "networkidle" });

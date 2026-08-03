@@ -81,12 +81,27 @@
         </div>
       </div>
 
+      <!-- Opslaan mislukt (opslag vol of geblokkeerd). Dit mág niet stil blijven:
+           je zou blijven invoeren terwijl niets bewaard wordt. -->
+      <div class="banner warn" id="storage-banner" role="alert" hidden>
+        <div class="banner-row">
+          <div class="banner-ico" aria-hidden="true">⚠️</div>
+          <div class="banner-body">
+            <div class="banner-title">Opslaan lukt niet</div>
+            <div class="banner-text" id="storage-text">Je wijzigingen worden op dit moment niet bewaard.</div>
+          </div>
+        </div>
+        <div class="banner-actions">
+          <button type="button" class="btn-primary" id="storage-export">Nu veiligstellen</button>
+        </div>
+      </div>
+
       <div class="banner gold" id="backup-banner" hidden>
         <div class="banner-row">
           <div class="banner-ico" aria-hidden="true">🪙</div>
           <div class="banner-body">
-            <div class="banner-title">Nog geen back-up</div>
-            <div class="banner-text">Je data staat alleen op dit apparaat.</div>
+            <div class="banner-title" id="backup-title">Nog geen back-up</div>
+            <div class="banner-text" id="backup-text">Je data staat alleen op dit apparaat.</div>
           </div>
         </div>
         <div class="banner-actions two">
@@ -440,6 +455,19 @@
         </div>
         <input type="file" id="import-file" accept="application/json,.json" hidden />
         <div class="sec-note" id="backup-label" style="margin-top:10px"></div>
+      </div>
+
+      <!-- Herstelpunten: de app bewaart bij elke wijziging automatisch een kopie
+           in IndexedDB. Handig bij een verkeerde invoer of een mislukte import;
+           het is géén vervanging van een back-up buiten dit toestel. -->
+      <div class="fieldlbl">Herstelpunten</div>
+      <div class="banner">
+        <div class="banner-row">
+          <div class="banner-ico" aria-hidden="true">🕘</div>
+          <div class="banner-body banner-text" style="margin:0">Automatische kopieën op dit toestel. Handig na een vergissing — maar bewaar ook een back-up ergens anders.</div>
+        </div>
+        <div class="ilist" id="restore-list"></div>
+        <div class="sec-note" id="restore-empty" hidden>Nog geen herstelpunten. Zodra je iets wijzigt, bewaart de app er automatisch een.</div>
       </div>
 
       <button type="button" class="btn btn-danger btn-wide" id="btn-reset" style="margin-top:20px;min-height:52px;border-radius:18px">Alles wissen</button>

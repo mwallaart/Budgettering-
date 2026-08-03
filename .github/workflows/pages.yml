@@ -1,7 +1,9 @@
-name: Deploy to GitHub Pages
+name: Test & deploy to GitHub Pages
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -16,7 +18,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Poort vóór de deploy: faalt een controle, dan gaat er niets live.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node opzetten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Testafhankelijkheden installeren
+        run: npm ci
+
+      # De app zelf heeft geen dependencies; Chromium is alleen nodig om de
+      # controles in een echte browser te laten lopen.
+      - name: Chromium installeren
+        run: node node_modules/playwright-core/cli.js install --with-deps chromium
+
+      - name: Interacties en animaties
+        run: npm run test:interactions
+
+      - name: Smoketest (schermen, sheets, 320px, donker thema)
+        run: npm run test:smoke
+
   deploy:
+    needs: test
+    # Pull requests wel testen, niet publiceren.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

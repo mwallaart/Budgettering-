@@ -8,7 +8,7 @@ const THEME_KEY = "budget-theme";
 
 /* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
    of het toestel de nieuwste versie draait of nog een gecachte oude. */
-const BUILD = "2.2 · build 6 (30 jul)";
+const BUILD = "2.3 · build 7 (3 aug)";
 
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -33,6 +33,15 @@ const dim = (k) => { const p = parseK(k); return new Date(p.y, p.m + 1, 0).getDa
 const monthsBetween = (a, b) => { const x = parseK(a), y = parseK(b); return (y.y - x.y) * 12 + (y.m - x.m); };
 const todayKey = () => { const d = new Date(); return key(d.getFullYear(), d.getMonth()); };
 const TODAY = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
+/* Kalenderdatum als JJJJ-MM-DD in de lokale tijdzone. Niet via toISOString():
+   die rekent naar UTC en levert 's avonds hier al de datum van morgen op. */
+const isoDay = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const daysSince = (iso) => {
+  const p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+  if (!p) return Infinity;
+  return Math.floor((TODAY() - new Date(+p[1], +p[2] - 1, +p[3])) / 86400000);
+};
 
 function parseAmount(raw) {
   if (typeof raw !== "string") return NaN;
@@ -59,14 +68,17 @@ function defaultPots() {
 }
 function defaultState() {
   return {
-    version: 5,
+    version: 6,
     startMonth: todayKey(),
     pots: defaultPots(),
     recurring: [],
     months: {},
     investments: [],
     recentLabels: [],
-    backupDismissed: false,
+    /* Datum (JJJJ-MM-DD) waarop de back-upherinnering is uitgesteld, of null.
+       Bewust een datum en geen ja/nee: "Later" moet uitstellen, niet voorgoed
+       zwijgen — je data groeit daarna juist een jaar door. */
+    backupSnoozed: null,
     lastBackup: null,
   };
 }
@@ -85,7 +97,15 @@ function migrate(raw) {
   });
   d.investments = (d.investments || []).map((i) => ({ monthly: 0, ...i }));
   if (!Array.isArray(d.recentLabels)) d.recentLabels = [];
-  d.version = 5;
+  // v5 en eerder: back-upherinnering was een ja/nee-vlag die na één keer
+  // voorgoed uit bleef. Nu een uitsteldatum; een oude `true` betekent
+  // "uitgesteld tot vandaag", zodat de herinnering gewoon weer opkomt.
+  if ("backupDismissed" in d) {
+    if (d.backupSnoozed == null) d.backupSnoozed = d.backupDismissed ? isoDay() : null;
+    delete d.backupDismissed;
+  }
+  if (typeof d.backupSnoozed !== "string") d.backupSnoozed = null;
+  d.version = 6;
   return d;
 }
 
@@ -96,11 +116,94 @@ let D = (() => {
   } catch { return defaultState(); }
 })();
 
+/* Mislukt opslaan, dan mag dat niet stil gebeuren: je zou blijven invoeren
+   terwijl er niets bewaard wordt. `storageError` zet de waarschuwingsbanner aan. */
+let storageError = null;
+
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(D)); } catch { /* vol/geblokkeerd */ }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(D));
+    storageError = null;
+  } catch (err) {
+    storageError = err?.name === "QuotaExceededError"
+      ? "De opslag van dit toestel is vol."
+      : "Dit toestel staat opslaan niet toe (privémodus?).";
+  }
+  snapshot();
 }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const clone = () => JSON.parse(JSON.stringify(D));
+
+/* ============================================================
+   Herstelpunten
+   ------------------------------------------------------------
+   Bij elke wijziging bewaart de app een kopie in IndexedDB. Dat vangt de
+   vergissingen op die een back-up niet dekt: een verkeerde import, per ongeluk
+   alles wissen, of een fout in een migratie. IndexedDB houdt op iOS langer
+   stand dan localStorage, maar het staat nog altijd op hetzelfde toestel —
+   het is dus geen vervanging van een export naar buiten.
+   ============================================================ */
+const SNAP_DB = "huishoudboekje";
+const SNAP_STORE = "snapshots";
+const SNAP_MAX = 12;          // ruim een dag terug bij normaal gebruik
+const SNAP_MIN_GAP = 20000;   // niet bij elke toetsaanslag een kopie
+
+function openSnapDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) return reject(new Error("geen indexedDB"));
+    const rq = indexedDB.open(SNAP_DB, 1);
+    rq.onupgradeneeded = () => {
+      const db = rq.result;
+      if (!db.objectStoreNames.contains(SNAP_STORE)) db.createObjectStore(SNAP_STORE, { keyPath: "at" });
+    };
+    rq.onsuccess = () => resolve(rq.result);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+
+function snapTx(mode, fn) {
+  return openSnapDb().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(SNAP_STORE, mode);
+    const out = fn(tx.objectStore(SNAP_STORE));
+    tx.oncomplete = () => { db.close(); resolve(out?.result ?? out); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  }));
+}
+
+let snapTimer = null, snapLastJson = null, snapLastAt = 0;
+
+/* Debounced: verzamelt een reeks wijzigingen tot één herstelpunt. */
+function snapshot() {
+  clearTimeout(snapTimer);
+  const wait = Math.max(400, SNAP_MIN_GAP - (Date.now() - snapLastAt));
+  snapTimer = setTimeout(writeSnapshot, wait);
+}
+
+async function writeSnapshot() {
+  const json = JSON.stringify(D);
+  if (json === snapLastJson) return;          // niets veranderd
+  try {
+    await snapTx("readwrite", (st) => st.put({ at: new Date().toISOString(), json }));
+    snapLastJson = json;
+    snapLastAt = Date.now();
+    await pruneSnapshots();
+  } catch { /* geen IndexedDB of geen ruimte: de app werkt gewoon door */ }
+}
+
+async function pruneSnapshots() {
+  const all = await listSnapshots();
+  const old = all.slice(SNAP_MAX);
+  if (!old.length) return;
+  await snapTx("readwrite", (st) => old.forEach((s) => st.delete(s.at)));
+}
+
+/* Nieuwste eerst. */
+async function listSnapshots() {
+  try {
+    const rows = await snapTx("readonly", (st) => st.getAll());
+    return (rows || []).sort((a, b) => (a.at < b.at ? 1 : -1));
+  } catch { return []; }
+}
 
 /* UI-state (niet opgeslagen, behalve thema en privacy) */
 const S = {
@@ -308,10 +411,53 @@ function renderOverview() {
       " staat dit potje op " + fmt(warn.v) + ".";
   }
 
-  $("#backup-banner").hidden = D.backupDismissed || !!D.lastBackup || isEmptyState();
+  renderStorageBanner();
+  renderBackupBanner();
 
   renderChart();
   renderMonthList();
+}
+
+function renderStorageBanner() {
+  const b = $("#storage-banner");
+  b.hidden = !storageError;
+  if (storageError) {
+    $("#storage-text").textContent =
+      storageError + " Je wijzigingen worden niet bewaard — stel ze veilig in een bestand.";
+  }
+}
+
+/* De herinnering werkt op leeftijd, niet op "ooit gedaan". Anders zwijgt de app
+   voorgoed na je eerste back-up, terwijl je data daarna een jaar doorgroeit. */
+const BACKUP_STALE_DAYS = 30;
+const BACKUP_SNOOZE_DAYS = 7;
+
+function backupState() {
+  if (isEmptyState()) return null;
+  if (daysSince(D.backupSnoozed) < BACKUP_SNOOZE_DAYS) return null;
+  if (!D.lastBackup) return { title: "Nog geen back-up", text: "Je data staat alleen op dit apparaat. Raakt het kwijt, dan is alles weg." };
+  const age = daysSince(D.lastBackup);
+  if (age < BACKUP_STALE_DAYS) return null;
+  const weeks = Math.round(age / 7);
+  return {
+    title: `Back-up is ${weeks} weken oud`,
+    text: `Alles wat je sinds ${formatDay(D.lastBackup)} hebt ingevoerd, staat alleen op dit apparaat.`,
+  };
+}
+
+function renderBackupBanner() {
+  const st = backupState();
+  $("#backup-banner").hidden = !st;
+  if (st) {
+    $("#backup-title").textContent = st.title;
+    $("#backup-text").textContent = st.text;
+  }
+}
+
+function formatDay(iso) {
+  const p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+  if (!p) return "eerder";
+  return `${+p[3]} ${MS[+p[2] - 1]} ${p[1]}`;
 }
 
 function renderChart() {
@@ -1262,7 +1408,12 @@ function renderSettings() {
   const nowK = clampMonth(todayKey());
   $("#pot-total").textContent = fmt(end(nowK)) + " totaal";
   $("#start-month-label").textContent = MN[parseK(D.startMonth).m] + " " + parseK(D.startMonth).y;
-  $("#backup-label").textContent = D.lastBackup ? "Laatste back-up: " + D.lastBackup : "Nog geen back-up gemaakt";
+  const age = daysSince(D.lastBackup);
+  $("#backup-label").textContent = !D.lastBackup
+    ? "Nog geen back-up gemaakt"
+    : `Laatste back-up: ${formatDay(D.lastBackup)}` +
+      (age === 0 ? " (vandaag)" : age === 1 ? " (gisteren)" : ` (${age} dagen geleden)`);
+  renderRestoreList();
 
   const box = $("#pot-manage");
   box.innerHTML = D.pots.map((p) => `<div class="pot-edit" data-pid="${p.id}">
@@ -1325,6 +1476,54 @@ function renderSettings() {
     });
   });
 }
+/* Herstelpunten in de instellingen. Asynchroon, dus de lijst vult zich net na
+   het openen van het scherm — de rest van de instellingen wacht daar niet op. */
+async function renderRestoreList() {
+  const box = $("#restore-list");
+  if (!box) return;
+  const snaps = await listSnapshots();
+  $("#restore-empty").hidden = snaps.length > 0;
+  box.innerHTML = snaps.map((s, i) => {
+    const d = new Date(s.at);
+    const when = d.toLocaleString("nl-NL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    return `<div class="irow">
+      <span class="irow-main">
+        <span class="irow-lbl">${esc(when)}</span>
+        <span class="irow-meta">${i === 0 ? "Meest recent" : timeAgoNL(d)}</span>
+      </span>
+      <button type="button" class="btn" data-restore="${esc(s.at)}" style="flex:none;min-height:34px;padding:0 12px">Terugzetten</button>
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll("[data-restore]").forEach((b) => {
+    b.addEventListener("click", async () => {
+      const rows = await listSnapshots();
+      const hit = rows.find((r) => r.at === b.dataset.restore);
+      if (!hit) { toast("Dit herstelpunt is er niet meer"); return; }
+      const before = JSON.stringify(D);
+      try {
+        D = migrate(JSON.parse(hit.json));
+      } catch { toast("Dit herstelpunt is onleesbaar"); return; }
+      S.month = clampMonth(todayKey());
+      S.pot = null; S.focus = null;
+      save(); renderSettings(); render();
+      toast("Herstelpunt teruggezet", () => {
+        D = migrate(JSON.parse(before)); save(); renderSettings(); render();
+      });
+    });
+  });
+}
+
+function timeAgoNL(d) {
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return "net";
+  if (mins < 60) return `${mins} min geleden`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} uur geleden`;
+  const days = Math.round(hrs / 24);
+  return days === 1 ? "gisteren" : `${days} dagen geleden`;
+}
+
 $("#pot-add").addEventListener("click", () => {
   const nd = clone();
   nd.pots.push({ id: uid(), label: "Nieuw potje", icon: POT_ICONS[nd.pots.length % POT_ICONS.length], startBalance: 0, goal: 0, goalDate: null });
@@ -1336,23 +1535,53 @@ $("#btn-settings").addEventListener("click", openSettings);
 $("#empty-setup").addEventListener("click", openSettings);
 
 /* Back-up */
-function doExport() {
-  const blob = new Blob([JSON.stringify(D, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+function markBackedUp() {
+  const nd = clone();
+  nd.lastBackup = isoDay();
+  nd.backupSnoozed = null;
+  D = nd; save(); render(); renderSettings();
+}
+
+function downloadBackup(name, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `huishoudboekje-${todayKey()}.json`;
+  a.download = name;
   a.click();
   URL.revokeObjectURL(url);
-  const nd = clone();
-  nd.lastBackup = new Date().toISOString().slice(0, 10);
-  D = nd; save(); render(); renderSettings();
-  toast("Back-up gemaakt");
+}
+
+/* Op de telefoon is downloaden een doodlopend pad: het bestand verdwijnt in
+   Downloads en gaat mee met de app als je die verwijdert. Kan het toestel
+   delen, dan gaat het in één tik naar iCloud Drive, WhatsApp of mail — écht
+   buiten dit apparaat, en dat is het hele punt van een back-up. */
+async function doExport() {
+  const text = JSON.stringify(D, null, 2);
+  const name = `huishoudboekje-${isoDay()}.json`;
+  const file = typeof File === "function" ? new File([text], name, { type: "application/json" }) : null;
+
+  if (file && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "Back-up huishoudboekje" });
+      markBackedUp();
+      toast("Back-up gedeeld");
+      return;
+    } catch (err) {
+      // Deelvenster weggeveegd: geen back-up gemaakt, dus ook niets afvinken.
+      if (err?.name === "AbortError") return;
+    }
+  }
+
+  downloadBackup(name, text);
+  markBackedUp();
+  toast("Back-up opgeslagen");
 }
 $("#btn-export").addEventListener("click", doExport);
 $("#backup-now").addEventListener("click", doExport);
+$("#storage-export").addEventListener("click", doExport);
 $("#backup-later").addEventListener("click", () => {
-  const nd = clone(); nd.backupDismissed = true; D = nd; save(); render();
+  const nd = clone(); nd.backupSnoozed = isoDay(); D = nd; save(); render();
+  toast(`Herinnering over ${BACKUP_SNOOZE_DAYS} dagen weer`);
 });
 
 const importFile = $("#import-file");

@@ -3,11 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
+import { launchOptions } from "./browser.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(root, "design-refs");
 fs.mkdirSync(OUT, { recursive: true });
-const EXE = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const MIME = {
   ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json",
   ".webmanifest": "application/manifest+json", ".png": "image/png", ".gif": "image/gif", ".woff2": "font/woff2",
@@ -24,7 +24,7 @@ const server = http.createServer((rq, rs) => {
 await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}/`;
 
-const browser = await chromium.launch({ executablePath: EXE });
+const browser = await chromium.launch(launchOptions());
 const errors = [];
 
 async function newPage(w = 390, h = 844, theme = "light") {

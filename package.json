@@ -1,0 +1,15 @@
+{
+  "name": "huishoudboekje",
+  "version": "2.3.0",
+  "private": true,
+  "description": "Huishoudboekje · budgetteer-PWA zonder build-stap. Dit bestand is alleen voor de tests; de app zelf heeft geen dependencies.",
+  "scripts": {
+    "test": "node scripts/interactions.mjs && node scripts/smoke.mjs",
+    "test:interactions": "node scripts/interactions.mjs",
+    "test:smoke": "node scripts/smoke.mjs",
+    "shots": "node scripts/handover-shots.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.62.0"
+  }
+}
