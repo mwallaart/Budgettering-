@@ -8,7 +8,7 @@ const THEME_KEY = "budget-theme";
 
 /* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
    of het toestel de nieuwste versie draait of nog een gecachte oude. */
-const BUILD = "2.4 · build 8 (5 aug)";
+const BUILD = "2.4 · build 9 (5 aug)";
 
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -1949,6 +1949,15 @@ function renderSettings() {
     });
     card.querySelector("[data-rm]").addEventListener("click", () => {
       if (D.pots.length <= 1) { toast("Je hebt minstens één potje nodig"); return; }
+      /* Een potje weghalen waar nog posten naar verwijzen laat die posten naar
+         een niet-bestaand potje wijzen. Bij een maandelijkse overboeting gaat
+         het geld dan wél van het ene potje af, maar komt het nergens meer aan:
+         het totaal en de verdeling per potje spreken elkaar dan tegen. */
+      const users = potUsage(id);
+      if (users.length) {
+        toast(`${pot()?.label || "Dit potje"} is nog in gebruik door ${users.length === 1 ? "1 post" : users.length + " posten"} (${users[0]}${users.length > 1 ? ", …" : ""}). Pas die eerst aan bij Vast.`);
+        return;
+      }
       const nd = clone();
       const idx = nd.pots.findIndex((p) => p.id === id);
       const removed = nd.pots.splice(idx, 1)[0];
@@ -1959,6 +1968,15 @@ function renderSettings() {
     });
   });
 }
+/* Alle posten die naar dit potje verwijzen — als bron of als bestemming van een
+   overboeking. Levert de labels op, zodat de melding concreet kan zijn. */
+function potUsage(potId) {
+  const hit = (p) => p.potId === potId || p.toPot === potId;
+  const out = D.recurring.filter(hit).map((r) => r.label);
+  Object.values(D.months).forEach((m) => (m.entries || []).filter(hit).forEach((e) => out.push(e.label)));
+  return out;
+}
+
 /* Herstelpunten in de instellingen. Asynchroon, dus de lijst vult zich net na
    het openen van het scherm — de rest van de instellingen wacht daar niet op. */
 async function renderRestoreList() {

@@ -491,8 +491,39 @@ await page.click("#toast-undo");
 await page.waitForTimeout(400);
 check("Ongedaan maken werkt met sheet open", (await page.locator("#pot-manage .pot-edit").count()) === potsBefore,
   `${potsBefore} → ${await page.locator("#pot-manage .pot-edit").count()}`);
+
+/* Een potje waar nog een maandelijkse overboeking naartoe gaat, mag niet weg:
+   dan gaat het geld wél van het ene potje af en komt het nergens aan, waardoor
+   het totaal en de verdeling per potje elkaar tegenspreken. */
+const potsNow = await page.locator("#pot-manage .pot-edit").count();
+await page.locator('#pot-manage .pot-edit[data-pid="spaar"] [data-rm]').click();
+await page.waitForTimeout(450);
+check("Potje in gebruik wordt niet verwijderd",
+  (await page.locator("#pot-manage .pot-edit").count()) === potsNow &&
+  /in gebruik/.test(await page.textContent("#toast-text")),
+  await page.textContent("#toast-text").catch(() => ""));
+check("Melding noemt de post die het potje gebruikt", /Naar Sparen/.test(await page.textContent("#toast-text")));
+// Boekhouding moet blijven kloppen: som van de potjes plus beleggingen = totaal.
 await page.keyboard.press("Escape");
 await page.waitForTimeout(300);
+await page.locator('.tab[data-tab="vermogen"]').click();
+await page.waitForTimeout(700);
+const sums = await page.evaluate(() => {
+  const num = (s) => Number(String(s).replace(/[^0-9,-]/g, "").replace(/,/g, ".")) || 0;
+  const rows = [...document.querySelectorAll("#potsum-list .irow .irow-amt")].map((e) => e.textContent);
+  const parse = (t) => {
+    const neg = /−|-/.test(t);
+    const v = Number(t.replace(/[^\d]/g, "")) || 0;
+    return neg ? -v : v;
+  };
+  const pots = rows.reduce((s, t) => s + parse(t), 0);
+  const invs = [...document.querySelectorAll("#invest-list .irow-amt")].reduce((s, e) => s + parse(e.textContent), 0);
+  return { pots, invs, total: parse(document.querySelector("#w-amount").textContent) };
+});
+check("Som van de potjes plus beleggingen is het totaal vermogen",
+  sums.pots + sums.invs === sums.total, JSON.stringify(sums));
+await page.locator('.tab[data-tab="overzicht"]').click();
+await page.waitForTimeout(400);
 
 // Vegen sluit bij scrollen, zodat er geen halfopen regel achterblijft.
 await page.locator('.tab[data-tab="maand"]').click();
