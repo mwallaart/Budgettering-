@@ -25,14 +25,6 @@
       "startBalance": 0,
       "goal": 0,
       "goalDate": null
-    },
-    {
-      "id": "pers",
-      "label": "Persoonlijk",
-      "icon": "👤",
-      "startBalance": 0,
-      "goal": 0,
-      "goalDate": null
     }
   ],
   "recurring": [
@@ -318,17 +310,17 @@
     },
     {
       "id": "o4",
-      "kind": "move",
+      "kind": "out",
       "group": "over",
       "label": "Persoonlijk besteden",
       "amount": 1500,
       "day": 26,
       "potId": "alg",
-      "toPot": "pers",
       "fromMonth": "2026-07",
       "untilMonth": null,
       "changes": [],
-      "toInvest": null
+      "toInvest": null,
+      "category": "overig"
     }
   ],
   "months": {},
