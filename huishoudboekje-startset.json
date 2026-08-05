@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 7,
   "startMonth": "2026-07",
   "pots": [
     {
@@ -44,7 +44,9 @@
       "amount": 3662,
       "day": 25,
       "potId": "alg",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "i2",
@@ -54,7 +56,9 @@
       "amount": 3350,
       "day": 24,
       "potId": "alg",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u1",
@@ -64,7 +68,9 @@
       "day": 1,
       "potId": "alg",
       "category": "huis",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u2",
@@ -75,7 +81,9 @@
       "potId": "alg",
       "category": "verzekering",
       "fromMonth": "2026-07",
-      "review": true
+      "review": true,
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u3",
@@ -86,7 +94,9 @@
       "potId": "alg",
       "category": "huis",
       "fromMonth": "2026-07",
-      "review": true
+      "review": true,
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u4",
@@ -96,7 +106,9 @@
       "day": 2,
       "potId": "alg",
       "category": "vervoer",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u5",
@@ -107,7 +119,9 @@
       "potId": "alg",
       "category": "verzekering",
       "fromMonth": "2026-07",
-      "review": true
+      "review": true,
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u6",
@@ -118,7 +132,9 @@
       "potId": "alg",
       "category": "abo",
       "fromMonth": "2026-07",
-      "review": true
+      "review": true,
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u7",
@@ -128,7 +144,9 @@
       "day": 5,
       "potId": "alg",
       "category": "abo",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u8",
@@ -138,7 +156,9 @@
       "day": 5,
       "potId": "alg",
       "category": "abo",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u9",
@@ -148,7 +168,9 @@
       "day": 5,
       "potId": "alg",
       "category": "abo",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u10",
@@ -158,7 +180,9 @@
       "day": 5,
       "potId": "alg",
       "category": "bood",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u11",
@@ -168,7 +192,9 @@
       "day": 8,
       "potId": "alg",
       "category": "huis",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u12",
@@ -178,7 +204,9 @@
       "day": 8,
       "potId": "alg",
       "category": "abo",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u13",
@@ -188,7 +216,9 @@
       "day": 10,
       "potId": "alg",
       "category": "vervoer",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u14",
@@ -198,7 +228,9 @@
       "day": 10,
       "potId": "alg",
       "category": "huis",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u15",
@@ -209,7 +241,9 @@
       "potId": "alg",
       "category": "vervoer",
       "fromMonth": "2026-07",
-      "review": true
+      "review": true,
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "u16",
@@ -219,7 +253,9 @@
       "day": 15,
       "potId": "alg",
       "category": "vervoer",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "o1",
@@ -230,7 +266,9 @@
       "day": 26,
       "potId": "alg",
       "toPot": "spaar",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "o2",
@@ -241,7 +279,9 @@
       "day": 26,
       "potId": "alg",
       "toPot": "vak",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "o3",
@@ -252,7 +292,9 @@
       "day": 26,
       "potId": "alg",
       "category": "overig",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     },
     {
       "id": "o4",
@@ -263,7 +305,9 @@
       "day": 26,
       "potId": "alg",
       "toPot": "pers",
-      "fromMonth": "2026-07"
+      "fromMonth": "2026-07",
+      "untilMonth": null,
+      "changes": []
     }
   ],
   "months": {},
@@ -281,6 +325,6 @@
     "Benzine / cadeau's",
     "Tandarts"
   ],
-  "backupDismissed": false,
-  "lastBackup": null
+  "lastBackup": null,
+  "backupSnoozed": null
 }

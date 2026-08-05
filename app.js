@@ -8,7 +8,7 @@ const THEME_KEY = "budget-theme";
 
 /* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
    of het toestel de nieuwste versie draait of nog een gecachte oude. */
-const BUILD = "2.3 · build 7 (3 aug)";
+const BUILD = "2.4 · build 8 (5 aug)";
 
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -68,7 +68,7 @@ function defaultPots() {
 }
 function defaultState() {
   return {
-    version: 6,
+    version: 7,
     startMonth: todayKey(),
     pots: defaultPots(),
     recurring: [],
@@ -90,7 +90,23 @@ function migrate(raw) {
   d.pots = d.pots.map((p, i) => ({
     goal: 0, goalDate: null, icon: POT_ICONS[i % POT_ICONS.length], startBalance: 0, ...p,
   }));
-  d.recurring = (d.recurring || []).map((r) => ({ ...r, day: r.day || 1 }));
+  // v6 en eerder: één bedrag per terugkerende post, geldig voor álle maanden.
+  // Nu kan een post wijzigingen met een ingangsmaand hebben (`changes`) en een
+  // laatste maand (`untilMonth`). Bestaande posten krijgen een lege lijst en
+  // blijven zich dus exact hetzelfde gedragen.
+  d.recurring = (d.recurring || []).map((r) => ({
+    ...r,
+    day: r.day || 1,
+    untilMonth: typeof r.untilMonth === "string" ? r.untilMonth : null,
+    changes: (Array.isArray(r.changes) ? r.changes : [])
+      .filter((c) => c && typeof c.fromMonth === "string")
+      .map((c) => ({
+        fromMonth: c.fromMonth,
+        amount: Number.isFinite(Number(c.amount)) ? Number(c.amount) : null,
+        day: Number.isFinite(Number(c.day)) ? Number(c.day) : null,
+      }))
+      .sort((a, b) => (a.fromMonth < b.fromMonth ? -1 : 1)),
+  }));
   Object.keys(d.months || {}).forEach((k) => {
     const m = d.months[k] || {};
     d.months[k] = { entries: (m.entries || []).map((e) => ({ ...e, day: e.day || 1 })), skip: m.skip || [] };
@@ -105,7 +121,7 @@ function migrate(raw) {
     delete d.backupDismissed;
   }
   if (typeof d.backupSnoozed !== "string") d.backupSnoozed = null;
-  d.version = 6;
+  d.version = 7;
   return d;
 }
 
@@ -209,10 +225,11 @@ async function listSnapshots() {
 const S = {
   tab: "overzicht",
   month: null,
+  vastMonth: null,        // peilmaand op de pagina "Vast"
   pot: null,
   privacy: false,
   focus: null,
-  collapsed: { fixed: true },
+  collapsed: { fixed: true, vfixed: true },
   swipe: null,
   draft: null,
   editId: null,
@@ -222,6 +239,7 @@ const S = {
   undo: null,
 };
 S.month = clampMonth(todayKey());
+S.vastMonth = S.month;
 
 function months() { return Array.from({ length: 12 }, (_, i) => addM(D.startMonth, i)); }
 function clampMonth(k) {
@@ -249,11 +267,39 @@ function delta(p, potId) {
   if (p.toPot === potId) return p.amount;
   return 0;
 }
+/* Loopt een terugkerende post in déze maand mee? Buiten [fromMonth, untilMonth]
+   telt hij niet mee. `untilMonth` is inclusief: "stopt na maart" = t/m maart. */
+function recActive(r, mk) {
+  const from = r.fromMonth || D.startMonth;
+  if (mk < from) return false;
+  return !r.untilMonth || mk <= r.untilMonth;
+}
+
+/* Bedrag en dag zoals ze in déze maand gelden. Wijzigingen zijn
+   effectief-gedateerd: de laatste wijziging met fromMonth <= mk wint, eerdere
+   maanden houden hun oude bedrag. Gaat de hypotheek in maart omhoog, dan blijft
+   januari en februari dus staan op het oude bedrag. */
+function recAt(r, mk) {
+  let amount = r.amount, day = r.day || 1;
+  for (const c of r.changes || []) {
+    if (c.fromMonth > mk) break;                 // changes staat op fromMonth gesorteerd
+    if (c.amount != null) amount = c.amount;
+    if (c.day != null) day = c.day;
+  }
+  return { ...r, amount, day };
+}
+
+/* Eerstvolgende geplande wijziging ná deze maand — voor het label op de
+   beheerpagina ("→ € 1.850 vanaf mrt"). */
+function nextChange(r, mk) {
+  return (r.changes || []).find((c) => c.fromMonth > mk) || null;
+}
+
 function posts(mk, potId) {
   const mo = D.months[mk] || { entries: [], skip: [] };
   const rec = D.recurring
-    .filter((r) => (r.fromMonth || D.startMonth) <= mk && !(mo.skip || []).includes(r.id))
-    .map((r) => ({ ...r, rec: true }));
+    .filter((r) => recActive(r, mk) && !(mo.skip || []).includes(r.id))
+    .map((r) => ({ ...recAt(r, mk), rec: true }));
   let all = rec.concat(mo.entries || []);
   if (S.editId) all = all.filter((p) => p.id !== S.editId);
   if (S.draft && S.draft.month === mk) all = all.concat([S.draft]);
@@ -290,7 +336,11 @@ function series(potId) {
 function pace(p, atKey) {
   if (!p.goal || !p.goalDate) return null;
   const bal = end(atKey, p.id);
-  const per = D.recurring.reduce((s, r) => s + delta(r, p.id), 0);
+  // Inleg per maand zoals die in deze maand geldt — niet het oorspronkelijke
+  // bedrag, want een verhoging vanaf maart hoort in de prognose mee te tellen.
+  const per = D.recurring
+    .filter((r) => recActive(r, atKey))
+    .reduce((s, r) => s + delta(recAt(r, atKey), p.id), 0);
   const a = parseK(atKey), b = parseK(p.goalDate);
   const left = Math.max(0, (b.y - a.y) * 12 + (b.m - a.m));
   return { left, diff: Math.round(bal + per * left - p.goal), per, date: MS[b.m] + " " + b.y };
@@ -352,12 +402,15 @@ function setBig(el, value) {
    ============================================================ */
 const els = {
   pageTitle: $("#page-title"),
-  views: { overzicht: $("#v-overzicht"), maand: $("#v-maand"), vermogen: $("#v-vermogen") },
+  views: { overzicht: $("#v-overzicht"), maand: $("#v-maand"), vast: $("#v-vast"), vermogen: $("#v-vermogen") },
 };
 
+const TAB_TITLES = { overzicht: "Overzicht", vast: "Vaste maand", vermogen: "Vermogen" };
+
 function render() {
-  els.pageTitle.textContent = S.tab === "overzicht" ? "Overzicht"
-    : S.tab === "maand" ? MN[parseK(S.month).m] + " " + parseK(S.month).y : "Vermogen";
+  els.pageTitle.textContent = S.tab === "maand"
+    ? MN[parseK(S.month).m] + " " + parseK(S.month).y
+    : TAB_TITLES[S.tab] || "Overzicht";
   for (const k of Object.keys(els.views)) els.views[k].hidden = k !== S.tab;
   document.querySelectorAll(".tab").forEach((b) => {
     if (b.dataset.tab === S.tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
@@ -368,6 +421,7 @@ function render() {
 
   renderOverview();
   renderMonth();
+  renderFixed();
   renderWealth();
 }
 
@@ -780,7 +834,7 @@ function renderGroups() {
       if (!moved) {
         if (S.swipe) { S.swipe = null; renderGroups(); return; }
         const r = findRow(id);
-        if (r) openEntry(r, S.month);
+        if (r) editRow(r);
         return;
       }
       S.hintDone = true;
@@ -795,13 +849,25 @@ function renderGroups() {
     el.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" || ev.key === " ") {
         ev.preventDefault();
-        const r = findRow(id); if (r) openEntry(r, S.month);
+        const r = findRow(id); if (r) editRow(r);
       } else if (ev.key === "ArrowLeft") {
         ev.preventDefault();
         const r = findRow(id); if (r) openRowActions(r);
       }
     });
   });
+}
+
+/* Een terugkerende post hoort in de beheersheet, niet in het invoerformulier:
+   dat laatste schreef de post volledig opnieuw (en gooide daarmee de
+   ingangsmaand en geplande wijzigingen weg). Eenmalige posten blijven gewoon
+   in het invoerformulier. */
+function editRow(r) {
+  if (r.rec) {
+    const base = D.recurring.find((x) => x.id === r.id);
+    if (base) { S.vastMonth = clampMonth(S.month); openFixed(base); return; }
+  }
+  openEntry(r, S.month);
 }
 
 /* Zet de open-staat op de bestaande DOM-node, zodat de reveal blijft
@@ -866,6 +932,406 @@ function commit(next, msg, undoFactory) {
   render();
   if (msg) toast(msg, undoData ? () => { D = undoData; save(); render(); } : null);
 }
+
+/* ============================================================
+   Vaste maand — terugkerende posten beheren
+   ------------------------------------------------------------
+   Deze pagina gaat over de posten zélf, niet over één maand. De peilmaand
+   (S.vastMonth) bepaalt welke bedragen je ziet: stap vooruit en je ziet het
+   effect van een geplande wijziging.
+   ============================================================ */
+
+/* Alleen terugkerende posten, met hun bedrag zoals dat in de peilmaand geldt. */
+function fixedPosts(mk) {
+  return D.recurring
+    .filter((r) => recActive(r, mk))
+    .map((r) => ({ ...recAt(r, mk), base: r }));
+}
+
+function fixedBuckets(mk) {
+  const all = fixedPosts(mk);
+  const inc = all.filter((r) => r.kind === "in");
+  const over = all.filter((r) => r.group === "over");
+  const fixed = all.filter((r) => r.kind !== "in" && r.group !== "over");
+  const totIn = inc.reduce((s, r) => s + r.amount, 0);
+  const totFixed = fixed.reduce((s, r) => s + r.amount, 0);
+  const totOver = over.reduce((s, r) => s + r.amount, 0);
+  return { all, inc, over, fixed, totIn, totFixed, totOver, left: totIn - totFixed, rest: totIn - totFixed - totOver };
+}
+
+function renderFixed() {
+  const mk = S.vastMonth = clampMonth(S.vastMonth || todayKey());
+  const b = fixedBuckets(mk);
+
+  $("#vast-month").textContent = MN[parseK(mk).m] + " " + parseK(mk).y;
+  $("#vast-eyebrow").textContent = `Vaste maand · ${MS[parseK(mk).m]} ${parseK(mk).y}`;
+  setBig($("#vast-rest"), b.rest);
+  $("#vast-rest").classList.toggle("neg", b.rest < 0);
+  $("#vast-sub").textContent = b.rest < 0
+    ? "Je verdeelt meer dan er binnenkomt"
+    : "Over te besteden per maand";
+
+  $("#vast-in").textContent = fmt(b.totIn);
+  $("#vast-fixed").textContent = "− " + fmt(b.totFixed);
+  $("#vast-left").textContent = fmt(b.left);
+  const rb = $("#vast-restbox");
+  rb.textContent = fmt(b.rest);
+  rb.classList.toggle("neg", b.rest < 0);
+
+  const bar = b.over.map((r, i) => ({
+    pct: b.left > 0 ? (r.amount / b.left) * 100 : 0,
+    color: ALLOC_COLORS[i % ALLOC_COLORS.length],
+  }));
+  if (b.rest > 0 && b.left > 0) bar.push({ pct: (b.rest / b.left) * 100, color: "var(--fill2)" });
+  $("#vast-bar").innerHTML = bar.map((s) => `<span style="width:${s.pct.toFixed(1)}%;background:${s.color}"></span>`).join("");
+  $("#vast-alloc").innerHTML = b.over.map((r, i) => `<div class="alloc-row">
+      <span class="alloc-dot" style="background:${ALLOC_COLORS[i % ALLOC_COLORS.length]}"></span>
+      <span class="alloc-label">${esc(r.label)}</span>
+      <span class="alloc-amt tnum">${fmt(r.amount)}</span>
+    </div>`).join("");
+
+  renderPlannedBanner(mk);
+  renderFixedGroups(mk, b);
+}
+
+/* Alle wijzigingen die nog moeten ingaan, op één plek. Zo weet je wat er
+   aankomt zonder elke post te openen. */
+function renderPlannedBanner(mk) {
+  const items = [];
+  D.recurring.forEach((r) => {
+    (r.changes || []).filter((c) => c.fromMonth > mk).forEach((c) => items.push({ r, c }));
+    if (r.untilMonth && r.untilMonth >= mk) items.push({ r, stop: r.untilMonth });
+  });
+  items.sort((a, b2) => ((a.c?.fromMonth || a.stop) < (b2.c?.fromMonth || b2.stop) ? -1 : 1));
+
+  const box = $("#vast-planned");
+  box.hidden = items.length === 0;
+  if (!items.length) return;
+  $("#vast-planned-title").textContent = items.length === 1 ? "1 geplande wijziging" : `${items.length} geplande wijzigingen`;
+  $("#vast-planned-text").textContent = items.slice(0, 4).map(({ r, c, stop }) => {
+    const when = monthShort(c ? c.fromMonth : stop);
+    if (stop) return `${r.label} stopt na ${when}`;
+    return `${r.label} → ${fmt(c.amount != null ? c.amount : recAt(r, c.fromMonth).amount)} vanaf ${when}`;
+  }).join(" · ") + (items.length > 4 ? ` · +${items.length - 4} meer` : "");
+}
+
+const monthShort = (k) => (k ? MS[parseK(k).m] + " " + parseK(k).y : "");
+
+function renderFixedGroups(mk, b) {
+  const defs = [
+    { key: "vin", title: "Inkomsten", rows: b.inc, total: fmt(b.totIn), cls: "pos", empty: "Nog geen vast inkomen. Voeg je salaris toe." },
+    { key: "vfixed", title: "Vaste lasten", rows: b.fixed, total: "− " + fmt(b.totFixed), cls: "neg", empty: "Nog geen vaste lasten." },
+    { key: "vover", title: "Sparen, beleggen & verdelen", rows: b.over, total: fmt(b.totOver), cls: "", empty: "Nog niets verdeeld uit je inkomsten." },
+  ];
+
+  $("#vast-groups").innerHTML = defs.map((g) => {
+    const open = !S.collapsed[g.key];
+    const cards = g.rows.map((r) => {
+      const nc = nextChange(r.base, mk);
+      const amt = r.kind === "in" ? "+ " + fmt(r.amount) : (r.kind === "move" ? fmt(r.amount) : "− " + fmt(r.amount));
+      const cls = r.kind === "in" ? "pos" : (r.kind === "move" ? "" : "neg");
+      const ico = r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶");
+      const notes = [];
+      if (nc) notes.push(`→ ${fmt(nc.amount != null ? nc.amount : r.amount)} vanaf ${monthShort(nc.fromMonth)}`);
+      if (r.base.untilMonth) notes.push(`stopt na ${monthShort(r.base.untilMonth)}`);
+      return `<div class="row" role="button" tabindex="0" data-vrow="${r.id}">
+        <span class="row-tile" aria-hidden="true">${ico}</span>
+        <span class="row-main">
+          <span class="row-top">
+            <span class="row-label">${esc(r.label)}</span>
+            ${r.review ? '<span class="dot-review" title="Te herzien"></span>' : ""}
+            ${notes.length ? '<span class="tag-plan">gepland</span>' : ""}
+          </span>
+          <span class="row-meta">${esc(fixedMeta(r))}</span>
+          ${notes.length ? `<span class="row-plan">${esc(notes.join(" · "))}</span>` : ""}
+        </span>
+        <span class="row-amt tnum ${cls}">${amt}</span>
+      </div>`;
+    }).join("");
+    const rows = open
+      ? (g.rows.length ? `<div style="display:flex;flex-direction:column;gap:8px">${cards}</div>` : `<div class="group-empty">${g.empty}</div>`)
+      : "";
+    return `<div class="group" style="margin-bottom:14px">
+      <button type="button" class="group-btn" aria-expanded="${open}" data-vgroup="${g.key}">
+        <span class="gt">
+          <span class="group-title">${g.title}</span>
+          <span class="group-count">${g.rows.length === 1 ? "1 post" : g.rows.length + " posten"}</span>
+        </span>
+        <span class="group-total ${g.cls}">${g.total}</span>
+        <span class="group-caret"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></span>
+      </button>
+      ${rows}
+    </div>`;
+  }).join("");
+
+  $("#vast-groups").querySelectorAll("[data-vgroup]").forEach((b2) => b2.addEventListener("click", () => {
+    const k = b2.dataset.vgroup;
+    S.collapsed[k] = !S.collapsed[k];
+    haptic(6);
+    renderFixed();
+  }));
+  $("#vast-groups").querySelectorAll("[data-vrow]").forEach((row) => {
+    const open = () => {
+      const r = D.recurring.find((x) => x.id === row.dataset.vrow);
+      if (r) openFixed(r);
+    };
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); }
+    });
+  });
+}
+
+function fixedMeta(r) {
+  const pot = D.pots.find((p) => p.id === r.potId);
+  const toPot = r.toPot ? D.pots.find((p) => p.id === r.toPot) : null;
+  const bits = [(r.day || 1) + "e", toPot ? `${pot ? pot.label : "—"} → ${toPot.label}` : (pot ? pot.label : "—")];
+  bits.push("sinds " + monthShort(r.base?.fromMonth || r.fromMonth || D.startMonth));
+  if (r.category && CATS[r.category]) bits.push(CATS[r.category].label);
+  return bits.join(" · ");
+}
+
+$("#vast-prev").addEventListener("click", () => { S.vastMonth = clampMonth(addM(S.vastMonth, -1)); haptic(6); renderFixed(); });
+$("#vast-next").addEventListener("click", () => { S.vastMonth = clampMonth(addM(S.vastMonth, 1)); haptic(6); renderFixed(); });
+$("#vast-month").addEventListener("click", () => openPicker("vast", S.vastMonth));
+$("#vast-add").addEventListener("click", () => openFixed(null));
+
+/* ---------- Vaste post beheren ----------
+   V.scope bepaalt wat opslaan doet:
+   - "from": een wijziging mét ingangsmaand; eerdere maanden houden hun bedrag.
+   - "all":  het basisbedrag zelf aanpassen en geplande wijzigingen laten
+             vallen — bedoeld om een typefout te herstellen, niet om een
+             prijsverhoging vast te leggen. */
+const V = {
+  id: null, kind: "out", amount: "", label: "", potId: null, toPot: null,
+  category: "overig", day: 1, over: false, review: false,
+  scope: "from", from: null, until: null,
+};
+
+function openFixed(r) {
+  const mk = clampMonth(S.vastMonth || todayKey());
+  if (r) {
+    const eff = recAt(r, mk);
+    V.id = r.id;
+    V.kind = r.kind === "in" ? "in" : (r.kind === "move" ? "move" : "out");
+    V.amount = String(eff.amount);
+    V.label = r.label;
+    V.potId = r.potId;
+    V.toPot = r.toPot || null;
+    V.category = r.category || "overig";
+    V.day = eff.day || 1;
+    V.over = r.group === "over";
+    V.review = !!r.review;
+    V.until = r.untilMonth || null;
+    V.scope = "from";
+    V.from = mk;
+    $("#vs-title").textContent = "Vaste post bewerken";
+    $("#vs-del").hidden = false;
+  } else {
+    V.id = null; V.kind = "out"; V.amount = ""; V.label = "";
+    V.potId = D.pots[0]?.id || null; V.toPot = null;
+    V.category = "overig"; V.day = 1; V.over = false; V.review = false;
+    V.until = null; V.scope = "from"; V.from = mk;
+    $("#vs-title").textContent = "Vaste post toevoegen";
+    $("#vs-del").hidden = true;
+  }
+  $("#vs-error").hidden = true;
+  syncFixedSheet();
+  openSheet("sh-vast");
+}
+
+function syncFixedSheet() {
+  const isMove = V.kind === "move";
+  $("#vs-amount").value = V.amount;
+  $("#vs-label").value = V.label;
+  $("#vs-day").value = String(V.day);
+  $("#vs-from").textContent = MN[parseK(V.from).m] + " " + parseK(V.from).y;
+  $("#vs-sub").textContent = V.id ? "Maandelijks terugkerend" : "Loopt vanaf de gekozen maand elke maand mee";
+
+  // Een overboeking tussen potjes houdt zijn soort; het segment zou hem
+  // stilletjes in een gewone uitgave veranderen.
+  $("#vs-kindseg").hidden = isMove;
+  document.querySelectorAll("#vs-kindseg button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.vkind === V.kind)));
+  document.querySelectorAll("#vs-scopeseg button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.vscope === V.scope)));
+  $("#vs-from").disabled = V.scope === "all";
+  $("#vs-scopenote").textContent = V.scope === "all"
+    ? "Past het bedrag in álle maanden aan en laat geplande wijzigingen vallen. Gebruik dit om een fout te herstellen."
+    : (V.until && V.from > V.until
+      ? `Let op: deze post loopt t/m ${monthShort(V.until)}, dus een wijziging vanaf ${monthShort(V.from)} gaat nooit gelden.`
+      : `Maanden vóór ${MS[parseK(V.from).m]} ${parseK(V.from).y} houden hun huidige bedrag.`);
+
+  $("#vs-cat-wrap").hidden = V.kind !== "out" || isMove;
+  $("#vs-topot-wrap").hidden = !isMove;
+  $("#vs-over").setAttribute("aria-checked", String(V.over));
+  $("#vs-review").setAttribute("aria-checked", String(V.review));
+
+  $("#vs-until-label").textContent = V.until ? `T/m ${MN[parseK(V.until).m]} ${parseK(V.until).y}` : "Doorlopend";
+  $("#vs-until-clear").hidden = !V.until;
+
+  $("#vs-quick").innerHTML = quickAmountsFor(V.kind === "in" ? "in" : "out")
+    .map((a) => `<button type="button" class="qbtn" data-vamt="${a}">${fmt(a)}</button>`).join("");
+  $("#vs-quick").querySelectorAll("[data-vamt]").forEach((b) => b.addEventListener("click", () => { V.amount = b.dataset.vamt; syncFixedSheet(); }));
+
+  $("#vs-pots").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${V.potId === p.id}" data-vpot="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
+  $("#vs-pots").querySelectorAll("[data-vpot]").forEach((b) => b.addEventListener("click", () => { V.potId = b.dataset.vpot; syncFixedSheet(); }));
+
+  $("#vs-topots").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${V.toPot === p.id}" data-vtopot="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
+  $("#vs-topots").querySelectorAll("[data-vtopot]").forEach((b) => b.addEventListener("click", () => { V.toPot = b.dataset.vtopot; syncFixedSheet(); }));
+
+  $("#vs-cats").innerHTML = CAT_KEYS.map((k) => `<button type="button" class="opt" role="radio" aria-checked="${V.category === k}" data-vcat="${k}"><span aria-hidden="true">${CATS[k].icon}</span><span class="t">${CATS[k].label}</span></button>`).join("");
+  $("#vs-cats").querySelectorAll("[data-vcat]").forEach((b) => b.addEventListener("click", () => { V.category = b.dataset.vcat; syncFixedSheet(); }));
+
+  renderFixedHistory();
+}
+
+/* Verloop van het bedrag: het startbedrag plus elke wijziging, elk met een knop
+   om die wijziging weer te verwijderen. */
+function renderFixedHistory() {
+  const wrap = $("#vs-history-wrap");
+  const r = V.id ? D.recurring.find((x) => x.id === V.id) : null;
+  const changes = r?.changes || [];
+  wrap.hidden = !r || changes.length === 0;
+  if (wrap.hidden) return;
+
+  const rows = [{ when: "vanaf " + monthShort(r.fromMonth || D.startMonth), what: fmt(r.amount), key: null }]
+    .concat(changes.map((c) => ({
+      when: "vanaf " + monthShort(c.fromMonth),
+      what: c.amount != null ? fmt(c.amount) : "alleen de dag gewijzigd",
+      key: c.fromMonth,
+    })));
+
+  $("#vs-history").innerHTML = rows.map((row) => `<div class="irow">
+      <span class="irow-main">
+        <span class="irow-lbl">${esc(row.what)}</span>
+        <span class="irow-meta">${esc(row.when)}${row.key ? "" : " · startbedrag"}</span>
+      </span>
+      ${row.key
+        ? `<button type="button" class="btn" data-vdelchange="${esc(row.key)}" style="flex:none;min-height:34px;padding:0 12px">Verwijder</button>`
+        : ""}
+    </div>`).join("");
+
+  $("#vs-history").querySelectorAll("[data-vdelchange]").forEach((b) => b.addEventListener("click", () => {
+    const nd = clone();
+    const t = nd.recurring.find((x) => x.id === V.id);
+    if (!t) return;
+    t.changes = (t.changes || []).filter((c) => c.fromMonth !== b.dataset.vdelchange);
+    D = nd; save(); render();
+    V.amount = String(recAt(t, clampMonth(S.vastMonth)).amount);
+    syncFixedSheet();
+    toast("Wijziging verwijderd");
+  }));
+}
+
+$("#vs-amount").addEventListener("input", (e) => { V.amount = e.target.value; });
+$("#vs-label").addEventListener("input", (e) => { V.label = e.target.value; });
+$("#vs-day").addEventListener("input", (e) => {
+  const n = parseInt(e.target.value, 10);
+  V.day = Number.isFinite(n) ? Math.min(31, Math.max(1, n)) : 1;
+});
+document.querySelectorAll("#vs-kindseg button").forEach((b) => b.addEventListener("click", () => { V.kind = b.dataset.vkind; syncFixedSheet(); }));
+document.querySelectorAll("#vs-scopeseg button").forEach((b) => b.addEventListener("click", () => { V.scope = b.dataset.vscope; haptic(6); syncFixedSheet(); }));
+$("#vs-over").addEventListener("click", () => { V.over = !V.over; haptic(8); syncFixedSheet(); });
+$("#vs-review").addEventListener("click", () => { V.review = !V.review; haptic(8); syncFixedSheet(); });
+$("#vs-from").addEventListener("click", () => { $("#sh-vast").hidden = true; openPicker("vastfrom", V.from); });
+$("#vs-until").addEventListener("click", () => { $("#sh-vast").hidden = true; openPicker("vastuntil", V.until || S.vastMonth); });
+$("#vs-until-clear").addEventListener("click", () => { V.until = null; haptic(6); syncFixedSheet(); });
+
+$("#sh-vast").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const label = V.label.trim();
+  const amount = parseAmount(V.amount);
+  const err = $("#vs-error");
+  const fail = (m) => { err.textContent = m; err.hidden = false; };
+  if (!Number.isFinite(amount) || amount <= 0) return fail("Vul een geldig bedrag in.");
+  if (!label) return fail("Vul een omschrijving in.");
+  if (!V.potId) return fail("Kies een potje.");
+  if (V.kind === "move" && (!V.toPot || V.toPot === V.potId)) return fail("Kies een ander potje om naartoe te boeken.");
+
+  const nd = clone();
+  const existing = V.id ? nd.recurring.find((r) => r.id === V.id) : null;
+
+  /* De einddatum hoort bij de post, niet bij de wijziging die je nu maakt:
+     toetsen tegen de startmaand, niet tegen de ingangsmaand. Ligt de
+     ingangsmaand ná de einddatum, dan werkt die wijziging simpelweg nooit —
+     daar waarschuwt de sheet voor, dat hoeft opslaan niet te blokkeren. */
+  const startMonthOf = existing ? (existing.fromMonth || D.startMonth) : V.from;
+  if (V.until && V.until < startMonthOf) return fail("De einddatum ligt vóór de startmaand van deze post.");
+
+  if (!existing) {
+    const rec = {
+      id: uid(), kind: V.kind, label, amount, day: V.day, potId: V.potId,
+      fromMonth: V.scope === "all" ? D.startMonth : V.from,
+      untilMonth: V.until || null, changes: [],
+    };
+    if (V.kind === "out") rec.category = V.category;
+    if (V.over) rec.group = "over";
+    if (V.review) rec.review = true;
+    nd.recurring.push(rec);
+  } else {
+    // Eigenschappen die niet maandafhankelijk zijn, gelden altijd direct.
+    existing.label = label;
+    existing.potId = V.potId;
+    existing.untilMonth = V.until || null;
+    if (V.review) existing.review = true; else delete existing.review;
+    if (existing.kind === "move") {
+      existing.toPot = V.toPot;
+    } else {
+      existing.kind = V.kind;
+      if (V.kind === "out") existing.category = V.category; else delete existing.category;
+    }
+    if (V.over) existing.group = "over"; else delete existing.group;
+
+    const start = existing.fromMonth || D.startMonth;
+    if (V.scope === "all") {
+      existing.amount = amount;
+      existing.day = V.day;
+      existing.changes = [];
+    } else if (V.from <= start) {
+      // Ingangsmaand op of vóór de start: er is geen historie om te bewaren.
+      existing.amount = amount;
+      existing.day = V.day;
+      existing.fromMonth = V.from;
+      existing.changes = (existing.changes || []).filter((c) => c.fromMonth > V.from);
+    } else {
+      // Verandert er niets aan bedrag of dag, dan hoort er ook geen wijziging in
+      // het verloop te komen — anders levert "alleen een einddatum instellen"
+      // een lege regel op die niets doet.
+      const cur = recAt(existing, V.from);
+      if (cur.amount !== amount || cur.day !== V.day) {
+        const rest = (existing.changes || []).filter((c) => c.fromMonth !== V.from);
+        rest.push({ fromMonth: V.from, amount, day: V.day });
+        existing.changes = rest.sort((a, b) => (a.fromMonth < b.fromMonth ? -1 : 1));
+      }
+    }
+  }
+
+  nd.recentLabels = [label].concat((nd.recentLabels || []).filter((x) => x.toLowerCase() !== label.toLowerCase())).slice(0, 8);
+  const wasEdit = !!V.id, scope = V.scope, from = V.from;
+  // Bij een nieuwe post naar de startmaand springen, zodat je hem ziet staan.
+  // Bij een wijziging juist blijven waar je was: dan houdt de rij zijn
+  // "gepland"-label en zie je dat er iets aankomt in plaats van dat het
+  // stilletjes de huidige stand wordt.
+  if (!wasEdit) S.vastMonth = clampMonth(from);
+  D = nd; save();
+  closeSheets();
+  burst(8);
+  toast(wasEdit
+    ? (scope === "all" ? `${label} aangepast in alle maanden` : `${label} aangepast vanaf ${monthShort(from)}`)
+    : `${label} toegevoegd vanaf ${monthShort(from)}`);
+});
+
+$("#vs-del").addEventListener("click", () => {
+  const id = V.id;
+  if (!id) return;
+  const nd = clone();
+  const idx = nd.recurring.findIndex((r) => r.id === id);
+  if (idx < 0) return;
+  const removed = nd.recurring.splice(idx, 1)[0];
+  closeSheets();
+  // commit() roept de undo-factory aan vóórdat D wijzigt, dus clone() ís al de
+  // staat van vóór het verwijderen. Zelf de post terugzetten zou hem dubbel doen.
+  commit(nd, `${removed.label} verwijderd`, () => clone());
+});
 
 /* ---------- Vermogen ---------- */
 function renderWealth() {
@@ -961,7 +1427,7 @@ $("#hero-wealth").addEventListener("click", togglePrivacy);
    Sheets
    ============================================================ */
 const scrim = $("#scrim");
-const SHEETS = ["sh-entry", "sh-transfer", "sh-invest", "sh-settings", "sh-picker", "sh-choice"];
+const SHEETS = ["sh-entry", "sh-transfer", "sh-invest", "sh-vast", "sh-settings", "sh-picker", "sh-choice"];
 let lastFocus = null;
 
 /* Vergrendelt de achtergrond zolang een sheet open staat: niet scrollen,
@@ -1134,7 +1600,7 @@ $("#sh-entry").addEventListener("submit", (ev) => {
       nd.months[k].entries = (nd.months[k].entries || []).filter((e) => e.id !== editId);
     });
   }
-  if (F.repeat) nd.recurring.push({ id: editId || uid(), fromMonth: F.month, ...rec });
+  if (F.repeat) nd.recurring.push({ id: editId || uid(), fromMonth: F.month, untilMonth: null, changes: [], ...rec });
   else {
     nd.months[F.month] = nd.months[F.month] || { entries: [], skip: [] };
     nd.months[F.month].entries.push({ id: editId || uid(), ...rec });
@@ -1369,6 +1835,23 @@ function pickMonth(k) {
     $("#sh-picker").hidden = true;
     openSheet("sh-entry");
     syncEntry();
+    return;
+  }
+  // Peilmaand op de pagina "Vast"
+  if (what === "vast") {
+    S.vastMonth = clampMonth(k);
+    S.pickerFor = null;
+    closeSheets();
+    switchTab("vast");
+    return;
+  }
+  // Ingangsmaand of einddatum van een vaste post
+  if (what === "vastfrom" || what === "vastuntil") {
+    if (what === "vastfrom") V.from = clampMonth(k); else V.until = clampMonth(k);
+    S.pickerFor = null;
+    $("#sh-picker").hidden = true;
+    openSheet("sh-vast");
+    syncFixedSheet();
     return;
   }
   if (what === "start") {
@@ -1615,7 +2098,10 @@ $("#btn-reset").addEventListener("click", () => {
    ============================================================ */
 const quick = $("#quick"), quickScrim = $("#quick-scrim");
 function openQuick() {
-  const items = D.recurring.filter((r) => r.kind === "out").slice(0, 3);
+  const items = D.recurring
+    .filter((r) => r.kind === "out" && recActive(r, S.month))
+    .map((r) => recAt(r, S.month))
+    .slice(0, 3);
   const src = items.length ? items : D.recentLabels.slice(0, 3).map((l) => ({ label: l, amount: 0, category: "overig" }));
   $("#quick-items").innerHTML = src.length ? src.map((r, i) => `<button type="button" class="quick-item" data-q="${i}">
       <span class="quick-tile" aria-hidden="true">${CATS[r.category] ? CATS[r.category].icon : "💶"}</span>
@@ -1651,7 +2137,9 @@ $("#quick-all").addEventListener("click", () => { closeQuick(); openEntry(null, 
   fab.addEventListener("click", () => {
     if (longFired) { longFired = false; return; }
     haptic(10);
+    // De plusknop volgt de pagina waarop je staat.
     if (S.tab === "vermogen") openInvest(null);
+    else if (S.tab === "vast") openFixed(null);
     else openEntry(null, S.month);
   });
 })();

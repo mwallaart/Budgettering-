@@ -203,6 +203,63 @@
       </div>
     </section>
 
+    <!-- ==================== VAST (maandlasten beheren) ====================
+         Beheert de terugkerende posten zelf, los van één maand. Wijzigingen
+         krijgen een ingangsmaand, zodat eerdere maanden hun oude bedrag houden. -->
+    <section class="view" id="v-vast" aria-label="Vaste maandlasten" hidden>
+      <div class="hero">
+        <span class="hero-rule" aria-hidden="true"></span>
+        <div class="hero-body">
+          <div class="hero-eyebrow" id="vast-eyebrow">Vaste maand</div>
+          <div class="hero-amount sm tnum" id="vast-rest">€ 0</div>
+          <div class="hero-sub" id="vast-sub">Over te besteden per maand</div>
+        </div>
+      </div>
+
+      <!-- Peilmaand: de bedragen hieronder gelden voor déze maand. Zo zie je
+           het effect van een geplande wijziging door vooruit te stappen. -->
+      <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" class="round-btn" id="vast-prev" aria-label="Vorige maand">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>
+        </button>
+        <button type="button" id="vast-month" style="flex:1 1 0;min-width:0;height:44px;border-radius:16px;border:1px solid var(--line2);background:var(--card);font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink)">—</button>
+        <button type="button" class="round-btn" id="vast-next" aria-label="Volgende maand">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="hh-rows">
+          <div class="hh-line"><span>Inkomsten</span><b class="pos tnum" id="vast-in">€ 0</b></div>
+          <div class="hh-line"><span>Vaste lasten</span><b class="neg tnum" id="vast-fixed">− € 0</b></div>
+          <div class="hh-div"></div>
+          <div class="hh-line hh-total"><span>Te besteden</span><b class="tnum" id="vast-left">€ 0</b></div>
+        </div>
+        <div class="alloc-bar" id="vast-bar"></div>
+        <div class="alloc-rows" id="vast-alloc"></div>
+        <div class="rest-box"><span>Over te besteden</span><b class="tnum" id="vast-restbox">€ 0</b></div>
+      </div>
+
+      <div class="banner" id="vast-planned" hidden>
+        <div class="banner-row">
+          <div class="banner-ico" aria-hidden="true">📅</div>
+          <div class="banner-body">
+            <div class="banner-title" id="vast-planned-title">Geplande wijzigingen</div>
+            <div class="banner-text" id="vast-planned-text"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="vast-groups"></div>
+
+      <button type="button" class="btn-dashed" id="vast-add">+ Vaste post toevoegen</button>
+
+      <div class="legend">
+        <span class="legend-dot" aria-hidden="true"></span>
+        <span>= te herzien · tik een post om het bedrag te wijzigen vanaf een gekozen maand</span>
+      </div>
+    </section>
+
     <!-- ==================== VERMOGEN ==================== -->
     <section class="view" id="v-vermogen" aria-label="Vermogen" hidden>
       <button type="button" class="hero" id="hero-wealth">
@@ -262,6 +319,10 @@
     <button type="button" class="tab" data-tab="maand">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5.2" width="17" height="15.3" rx="3.2"/><path d="M3.5 10.2h17"/><path d="M8.2 3.5v3.2"/><path d="M15.8 3.5v3.2"/></svg>
       Maand
+    </button>
+    <button type="button" class="tab" data-tab="vast">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.8 11.4a8.2 8.2 0 0113.4-5.6l3 2.6"/><path d="M20.6 4.4v4.4h-4.4"/><path d="M20.2 12.6a8.2 8.2 0 01-13.4 5.6l-3-2.6"/><path d="M3.4 19.6v-4.4h4.4"/></svg>
+      Vast
     </button>
     <button type="button" class="tab" data-tab="vermogen">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
@@ -414,6 +475,90 @@
     <div class="sheet-foot">
       <button type="button" class="cancel" data-close>Annuleer</button>
       <button type="submit" class="save" id="iv-save">Opslaan</button>
+    </div>
+  </form>
+
+  <!-- Vaste post beheren · met ingangsmaand voor de wijziging -->
+  <form class="sheet" id="sh-vast" hidden novalidate>
+    <div class="grip-wrap"><div class="grip"></div></div>
+    <div class="sheet-body noscroll">
+      <div class="sheet-title" id="vs-title">Vaste post</div>
+      <div class="sheet-sub" id="vs-sub">Maandelijks terugkerend</div>
+
+      <div class="seg two" role="tablist" aria-label="Soort" id="vs-kindseg">
+        <button type="button" data-vkind="out" role="tab">Uitgave</button>
+        <button type="button" data-vkind="in" role="tab">Inkomst</button>
+      </div>
+
+      <div class="amount-box">
+        <span class="cur">€</span>
+        <input id="vs-amount" inputmode="decimal" aria-label="Bedrag per maand" placeholder="0" />
+        <span class="suffix">per maand</span>
+      </div>
+      <div class="quickrow" id="vs-quick"></div>
+
+      <div class="fieldlbl">Omschrijving</div>
+      <input class="txt" id="vs-label" aria-label="Omschrijving" placeholder="Bijv. Hypotheek" autocomplete="off" />
+
+      <!-- Kern van deze pagina: geldt de wijziging voor alle maanden, of pas
+           vanaf een gekozen maand? -->
+      <div class="fieldlbl">Wijziging geldt</div>
+      <div class="seg two" role="tablist" aria-label="Ingangsmaand" id="vs-scopeseg">
+        <button type="button" data-vscope="from" role="tab">Vanaf een maand</button>
+        <button type="button" data-vscope="all" role="tab">Alle maanden</button>
+      </div>
+      <div class="when" id="vs-fromwrap">
+        <button type="button" class="monthbtn" id="vs-from">—</button>
+        <div class="daybox">
+          <input id="vs-day" inputmode="numeric" aria-label="Dag van de maand" value="1" />
+          <span class="e">e</span>
+        </div>
+      </div>
+      <div class="sec-note" id="vs-scopenote" style="margin-top:8px"></div>
+
+      <div class="fieldlbl">Potje</div>
+      <div class="optrow" id="vs-pots" role="radiogroup" aria-label="Potje"></div>
+
+      <div id="vs-topot-wrap" hidden>
+        <div class="fieldlbl">Naar potje</div>
+        <div class="optrow" id="vs-topots" role="radiogroup" aria-label="Naar potje"></div>
+      </div>
+
+      <div id="vs-cat-wrap">
+        <div class="fieldlbl">Categorie</div>
+        <div class="optrow" id="vs-cats" role="radiogroup" aria-label="Categorie"></div>
+      </div>
+
+      <div class="switchrow">
+        <div class="st"><b>Uit inkomsten verdelen</b><small>Sparen, beleggen of vrij besteden</small></div>
+        <button type="button" class="switch" id="vs-over" role="switch" aria-checked="false"><i></i></button>
+      </div>
+
+      <div class="switchrow">
+        <div class="st"><b>Te herzien</b><small>Markeer om er later naar te kijken</small></div>
+        <button type="button" class="switch" id="vs-review" role="switch" aria-checked="false"><i></i></button>
+      </div>
+
+      <!-- Stoppen per maand: de post blijft in de historie staan, maar loopt
+           niet door. Anders zou wissen ook je verleden aanpassen. -->
+      <div class="fieldlbl">Loopt tot</div>
+      <button type="button" class="bigrow" id="vs-until">
+        <span class="l"><b id="vs-until-label">Doorlopend</b><small>Laatste maand waarin deze post meeloopt</small></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+      </button>
+      <button type="button" class="linkbtn" id="vs-until-clear" hidden>Weer doorlopend maken</button>
+
+      <div id="vs-history-wrap" hidden>
+        <div class="fieldlbl">Verloop van het bedrag</div>
+        <div class="ilist" id="vs-history"></div>
+      </div>
+
+      <button type="button" class="btn btn-danger btn-wide" id="vs-del" style="margin-top:18px;min-height:50px;border-radius:16px" hidden>Post helemaal verwijderen</button>
+      <p class="footnote" id="vs-error" role="alert" hidden style="color:var(--neg)"></p>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="cancel" data-close>Annuleer</button>
+      <button type="submit" class="save" id="vs-save">Opslaan</button>
     </div>
   </form>
 

@@ -111,6 +111,19 @@ const mo = {
 };
 await page.screenshot({ path: path.join(root, "scripts", "shot-maand.png"), fullPage: true });
 
+await page.click('.tab[data-tab="vast"]');
+await page.waitForTimeout(700);
+const va = {
+  maand: await page.textContent("#vast-month"),
+  in: await page.textContent("#vast-in"),
+  vast: await page.textContent("#vast-fixed"),
+  te: await page.textContent("#vast-left"),
+  over: await page.textContent("#vast-restbox"),
+  groepen: await page.locator("#vast-groups .group").count(),
+  posten: await page.locator("#vast-groups [data-vrow]").count(),
+};
+await page.screenshot({ path: path.join(root, "scripts", "shot-vast.png"), fullPage: true });
+
 await page.click('.tab[data-tab="vermogen"]');
 await page.waitForTimeout(700);
 const we = {
@@ -180,6 +193,7 @@ const opens = [
   ["overboeken", async (p) => { await p.click('.tab[data-tab="maand"]'); await p.click("#open-transfer"); }],
   ["belegging", async (p) => { await p.click('.tab[data-tab="vermogen"]'); await p.click("#add-invest"); }],
   ["maandkiezer", async (p) => { await p.click('.tab[data-tab="maand"]'); await p.click("#month-title"); }],
+  ["vaste post", async (p) => { await p.click('.tab[data-tab="vast"]'); await p.click("#vast-add"); }],
 ];
 for (const [name, open] of opens) {
   await open(narrow);
@@ -232,12 +246,13 @@ server.close();
 
 console.log("Overzicht:", JSON.stringify(ov));
 console.log("Maand:", JSON.stringify(mo));
+console.log("Vast:", JSON.stringify(va));
 console.log("Vermogen:", JSON.stringify(we));
 console.log("Privacy gemaskeerd:", masked, "| wat-als zichtbaar:", whatIfVisible);
 console.log("Na toevoegen rijen 'Testpost':", afterAdd, "| na overboeken rijen:", afterTransfer);
 console.log("Potjes in instellingen:", potEdits);
 console.log("Nav:", JSON.stringify(nav));
-console.log("Sheets 320px:", sheetIssues.length ? JSON.stringify(sheetIssues, null, 2) : "alle 5 OK");
+console.log("Sheets 320px:", sheetIssues.length ? JSON.stringify(sheetIssues, null, 2) : `alle ${opens.length} OK`);
 console.log("Body h-overflow op 320px:", bodyOverflow);
 console.log("Donker thema:", darkTheme, "| lege staat zichtbaar:", emptyShown);
 console.log("Fouten:", errors.length ? errors.slice(0, 8) : "geen");

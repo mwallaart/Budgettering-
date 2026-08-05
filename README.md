@@ -26,7 +26,15 @@ Geen account, geen server — alle gegevens blijven lokaal op je apparaat
   overdracht naar volgende maanden.
 - **Terugkerende posten** — markeer vast inkomen of vaste lasten als "elke maand";
   ze verschijnen automatisch en zijn per maand overslaan of helemaal te verwijderen.
-- **Vermogen-overzicht** — een tweede tab met je **totale vermogen**
+- **Vaste maand beheren** (tab **Vast**) — één pagina voor al je maandelijkse
+  inkomsten, vaste lasten en de verdeling naar sparen en beleggen. Bedragen
+  wijzigen **met een ingangsmaand**: gaat de hypotheek in maart omhoog, dan
+  houden januari en februari hun oude bedrag. Elke post heeft een verloop van
+  het bedrag (met een knop om een geplande wijziging te schrappen) en kan een
+  einddatum krijgen, zodat een aflopend abonnement uit je toekomst verdwijnt
+  zonder je historie te veranderen. Een peilmaand-stepper laat je vooruitkijken
+  naar het effect van wat je hebt gepland.
+- **Vermogen-overzicht** — een aparte tab met je **totale vermogen**
   (spaargeld + beleggingen) en een verdeling per onderdeel. Voeg beleggingen toe
   en werk hun waarde handmatig bij.
 - **Back-up** — exporteer/importeer je gegevens als JSON. Op de telefoon gaat de
@@ -63,10 +71,11 @@ node node_modules/playwright-core/cli.js install chromium   # eenmalig
 npm test
 ```
 
-- `npm run test:interactions` — 103 controles: elke animatie, veeg, sheet,
-  toetsenbordpad, PWA-robuustheid en databeveiliging.
-- `npm run test:smoke` — alle schermen, de vijf sheets op 320px, donker thema,
-  navigatie zonder overlap.
+- `npm run test:interactions` — 140 controles: elke animatie, veeg, sheet,
+  toetsenbordpad, PWA-robuustheid, databeveiliging en de vaste-maandpagina
+  met ingangsmaanden.
+- `npm run test:smoke` — alle vier de schermen, elke sheet op 320px, donker
+  thema, navigatie zonder overlap.
 
 **Deze tests zijn een poort voor de deploy.** GitHub Actions draait ze bij elke
 push naar `main` en bij elke pull request; faalt er één, dan wordt er niets
@@ -80,7 +89,7 @@ een eerdere geslaagde run **→ Re-run all jobs**. Dat zet die versie terug live
 
 | Bestand | Doel |
 |---|---|
-| `index.html` | App-shell (twee tabs: Budget &amp; Vermogen) |
+| `index.html` | App-shell (vier tabs: Overzicht · Maand · Vast · Vermogen) |
 | `styles.css` | Glass design-tokens, licht/donker, componenten |
 | `app.js` | State, berekeningen en alle UI-logica (ES module, geen dependencies) |
 | `manifest.webmanifest` | PWA-manifest |
@@ -98,4 +107,12 @@ python3 scripts/make-icons.py
 ## Techniek
 
 Vanilla HTML/CSS/JS, geen frameworks of build-tools. Gegevensmodel is versioned
-(`budget-glass-v1` in `localStorage`); nieuwe velden krijgen defaults bij het laden.
+(`budget-glass-v1` in `localStorage`, nu v7); nieuwe velden krijgen defaults bij
+het laden, dus een oudere back-up blijft importeerbaar.
+
+Terugkerende posten zijn **effectief-gedateerd**: naast `amount` en `day` heeft
+elke post een `changes`-lijst (`{ fromMonth, amount, day }`, gesorteerd) en een
+optionele `untilMonth`. `recAt(post, maand)` levert het bedrag zoals dat in die
+maand geldt; `recActive(post, maand)` zegt of de post er dan nog is. Alle
+berekeningen lopen via die twee functies, zodat een wijziging nooit met
+terugwerkende kracht je historie verandert.
