@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "startMonth": "2026-07",
   "pots": [
     {
@@ -76,7 +76,6 @@
       "potId": "alg",
       "category": "verzekering",
       "fromMonth": "2026-07",
-      "review": true,
       "untilMonth": null,
       "changes": [],
       "toInvest": null
@@ -90,7 +89,6 @@
       "potId": "alg",
       "category": "huis",
       "fromMonth": "2026-07",
-      "review": true,
       "untilMonth": null,
       "changes": [],
       "toInvest": null
@@ -117,7 +115,6 @@
       "potId": "alg",
       "category": "verzekering",
       "fromMonth": "2026-07",
-      "review": true,
       "untilMonth": null,
       "changes": [],
       "toInvest": null
@@ -131,7 +128,6 @@
       "potId": "alg",
       "category": "abo",
       "fromMonth": "2026-07",
-      "review": true,
       "untilMonth": null,
       "changes": [],
       "toInvest": null
@@ -249,7 +245,6 @@
       "potId": "alg",
       "category": "vervoer",
       "fromMonth": "2026-07",
-      "review": true,
       "untilMonth": null,
       "changes": [],
       "toInvest": null

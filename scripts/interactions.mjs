@@ -223,8 +223,13 @@ if (await onceRow.count()) {
   check("Eenmalige rij opent het invoerformulier", false, "rij niet gevonden");
 }
 
-/* ---------- 14. Review-stip ---------- */
-check("Review-stip op post met review:true", (await page.locator("#groups .dot-review").count()) >= 1);
+/* ---------- 14. "Te herzien" is eruit: geen stip, geen schakelaar ---------- */
+check("Geen review-stip meer op de regels", (await page.locator(".dot-review").count()) === 0);
+check("Geen review-schakelaar meer in de beheersheet", (await page.locator("#vs-review").count()) === 0);
+check("Vlag is uit de data verwijderd", await page.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("budget-glass-v1"));
+  return d.recurring.every((r) => !("review" in r));
+}));
 
 /* ---------- 15. FAB lang indrukken → snelmenu (popIn) ---------- */
 const fab = await page.locator("#fab").boundingBox();
@@ -874,6 +879,21 @@ await page.waitForTimeout(400);
 await page.locator('#vast-groups .row:has-text("Beleggen")').click();
 await page.waitForTimeout(450);
 check("Bestemmingskeuze is zichtbaar bij een uitgave", await page.locator("#vs-dest-wrap").isVisible());
+/* Eén potjes-vraag. Twee keuzelijsten naast elkaar waren makkelijk omgekeerd in
+   te vullen (bron Sparen, bestemming Algemeen), dus de bron staat nu als tekst
+   met een link, standaard dichtgeklapt. */
+check("Bron staat als tekstregel, niet als tweede keuzelijst",
+  await page.locator("#vs-src-picker").isHidden() && /Gaat af van Algemeen/.test(await page.textContent("#vs-src-text")),
+  await page.textContent("#vs-src-text"));
+check("Vraag is 'waar gaat het naartoe' bij een uitgave",
+  /naartoe/.test(await page.textContent("#vs-dest-label")));
+check("Eerste optie zegt in gewone taal dat het geld opgaat",
+  /gaat op/.test(await page.textContent('#vs-dests [data-vdest=""]')));
+await page.click("#vs-src-toggle");
+await page.waitForTimeout(250);
+check("Bron is alsnog te wijzigen via de link", await page.locator("#vs-src-picker").isVisible());
+await page.click("#vs-src-toggle");
+await page.waitForTimeout(250);
 // eruit + de twee andere potjes + één belegging
 check("Bestemmingen: eruit, de andere potjes en de beleggingen",
   (await page.locator("#vs-dests [data-vdest]").count()) === 4,
@@ -882,8 +902,11 @@ check("Standaard staat de bestemming op 'eruit'",
   (await page.getAttribute('#vs-dests [data-vdest=""]', "aria-checked")) === "true");
 await page.locator('#vs-dests [data-vdest="inv:v1"]').click();
 await page.waitForTimeout(250);
-check("Kiezen van een belegging legt uit wat er gebeurt", /vermogen blijft gelijk/.test(await page.textContent("#vs-destnote")));
+check("Kiezen van een belegging legt uit dat het geld van jou blijft",
+  /Blijft van jou/.test(await page.textContent("#vs-destnote")), await page.textContent("#vs-destnote"));
 check("Categorie verdwijnt bij een bestemming", await page.locator("#vs-cat-wrap").isHidden());
+check("Bij een bestemming vraagt de app niet meer naar de verdeling",
+  await page.locator("#vs-over-wrap").isHidden());
 await page.locator("#sh-vast .save").click();
 await page.waitForTimeout(700);
 
@@ -942,7 +965,7 @@ const mig8 = await page.evaluate(() => {
     toInvest: d.recurring.every((r) => "toInvest" in r),
   };
 });
-check("Data gemigreerd naar v8", mig8.version === 8 && mig8.toInvest, JSON.stringify(mig8));
+check("Elke post heeft een bestemmingsveld na migratie", mig8.version >= 8 && mig8.toInvest, JSON.stringify(mig8));
 check("Het dubbele inleg-veld is uit de beleggingen verdwenen", mig8.geenLosseInleg, JSON.stringify(mig8));
 
 // Post helemaal verwijderen, met ongedaan maken

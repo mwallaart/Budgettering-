@@ -73,7 +73,7 @@ node node_modules/playwright-core/cli.js install chromium   # eenmalig
 npm test
 ```
 
-- `npm run test:interactions` — 164 controles: elke animatie, veeg, sheet,
+- `npm run test:interactions` — 171 controles: elke animatie, veeg, sheet,
   toetsenbordpad, PWA-robuustheid, databeveiliging, de vaste-maandpagina met
   ingangsmaanden en de koppeling van je inleg aan je vermogen.
 - `npm run test:smoke` — alle vier de schermen, elke sheet op 320px, donker
@@ -109,7 +109,7 @@ python3 scripts/make-icons.py
 ## Techniek
 
 Vanilla HTML/CSS/JS, geen frameworks of build-tools. Gegevensmodel is versioned
-(`budget-glass-v1` in `localStorage`, nu v8); nieuwe velden krijgen defaults bij
+(`budget-glass-v1` in `localStorage`, nu v9); nieuwe velden krijgen defaults bij
 het laden, dus een oudere back-up blijft importeerbaar.
 
 Terugkerende posten zijn **effectief-gedateerd**: naast `amount` en `day` heeft
@@ -119,10 +119,12 @@ maand geldt; `recActive(post, maand)` zegt of de post er dan nog is. Alle
 berekeningen lopen via die twee functies, zodat een wijziging nooit met
 terugwerkende kracht je historie verandert.
 
-Een verdelingspost heeft één **bestemming**: niets (het geld gaat eruit, een
-`out` met een categorie), een ander potje (`toPot`) of een belegging
-(`toInvest`). Het soort post volgt daaruit, dus soort en bestemming kunnen niet
-uit de pas lopen. `investValueAt(belegging, maand)` is de zelf ingevoerde stand
+Elke uitgave heeft één **bestemming**: het gaat op (een `out` met een
+categorie), naar een ander potje (`toPot`) of naar een belegging (`toInvest`).
+Het soort post volgt daaruit, dus soort en bestemming kunnen niet uit de pas
+lopen. De rekening waar het bedrag áf gaat staat als tekstregel in de sheet, niet
+als tweede keuzelijst: twee potjes-keuzes naast elkaar bleken makkelijk
+omgekeerd in te vullen. `investValueAt(belegging, maand)` is de zelf ingevoerde stand
 plus de inleg van de maanden ná `updated` — werk je de stand bij, dan begint dat
 optellen opnieuw, zodat niets dubbel wordt geteld. Invariant die in de tests
 staat: de som van de potjes plus de beleggingen is het totale vermogen.

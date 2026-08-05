@@ -8,7 +8,7 @@ const THEME_KEY = "budget-theme";
 
 /* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
    of het toestel de nieuwste versie draait of nog een gecachte oude. */
-const BUILD = "2.5 · build 10 (5 aug)";
+const BUILD = "2.6 · build 12 (5 aug)";
 
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -68,7 +68,7 @@ function defaultPots() {
 }
 function defaultState() {
   return {
-    version: 8,
+    version: 9,
     startMonth: todayKey(),
     pots: defaultPots(),
     /* Welk potje is je bestedingspotje? Daarover gaat de "Veilig"-melding.
@@ -136,7 +136,11 @@ function migrate(raw) {
   if (typeof d.backupSnoozed !== "string") d.backupSnoozed = null;
   // Bestedingspotje moet naar een potje wijzen dat echt bestaat.
   if (!d.pots.some((p) => p.id === d.spendPotId)) d.spendPotId = null;
-  d.version = 8;
+  /* v8 en eerder: posten konden een "te herzien"-vlag hebben. Die schakelaar is
+     eruit gehaald — te veel knop voor te weinig nut — dus het veld ook. */
+  d.recurring.forEach((r) => { delete r.review; });
+  Object.values(d.months).forEach((m) => (m.entries || []).forEach((e) => { delete e.review; }));
+  d.version = 9;
   return d;
 }
 
@@ -814,8 +818,7 @@ function renderGroups() {
           <span class="row-main">
             <span class="row-top">
               <span class="row-label">${esc(r.label)}</span>
-              ${r.review ? '<span class="dot-review" title="Te herzien"></span>' : ""}
-            </span>
+              </span>
             <span class="row-meta">${esc(rowMeta(r))}</span>
           </span>
           <span class="row-amt tnum ${cls}">${amt}</span>
@@ -1091,7 +1094,6 @@ function renderFixedGroups(mk, b) {
         <span class="row-main">
           <span class="row-top">
             <span class="row-label">${esc(r.label)}</span>
-            ${r.review ? '<span class="dot-review" title="Te herzien"></span>' : ""}
             ${notes.length ? '<span class="tag-plan">gepland</span>' : ""}
           </span>
           <span class="row-meta">${esc(fixedMeta(r))}</span>
@@ -1161,7 +1163,7 @@ $("#vast-add").addEventListener("click", () => openFixed(null));
    soort post (out of move) volgt daaruit, zodat er geen twee waarheden zijn. */
 const V = {
   id: null, kind: "out", amount: "", label: "", potId: null, dest: null,
-  category: "overig", day: 1, over: false, review: false,
+  category: "overig", day: 1, over: false,
   scope: "from", from: null, until: null,
 };
 
@@ -1178,7 +1180,6 @@ function openFixed(r) {
     V.category = r.category || "overig";
     V.day = eff.day || 1;
     V.over = r.group === "over";
-    V.review = !!r.review;
     V.until = r.untilMonth || null;
     V.scope = "from";
     V.from = mk;
@@ -1187,12 +1188,13 @@ function openFixed(r) {
   } else {
     V.id = null; V.kind = "out"; V.amount = ""; V.label = "";
     V.potId = spendPot()?.id || D.pots[0]?.id || null; V.dest = null;
-    V.category = "overig"; V.day = 1; V.over = false; V.review = false;
+    V.category = "overig"; V.day = 1; V.over = false;
     V.until = null; V.scope = "from"; V.from = mk;
     $("#vs-title").textContent = "Vaste post toevoegen";
     $("#vs-del").hidden = true;
   }
   $("#vs-error").hidden = true;
+  $("#vs-src-picker").hidden = true;   // altijd dichtgeklapt beginnen
   syncFixedSheet();
   openSheet("sh-vast");
 }
@@ -1216,9 +1218,10 @@ function syncFixedSheet() {
   // Een categorie hoort bij geld dat het huis uit gaat; een overboeking naar een
   // potje of belegging is geen uitgave.
   $("#vs-cat-wrap").hidden = V.kind !== "out" || V.dest !== null;
-  $("#vs-dest-wrap").hidden = V.kind === "in";
+  /* Gaat het naar een potje of belegging, dan is het per definitie verdeling van
+     wat overblijft. Alleen bij geld dat eruit gaat is de vraag zinvol. */
+  $("#vs-over-wrap").hidden = V.kind === "in" || V.dest !== null;
   $("#vs-over").setAttribute("aria-checked", String(V.over));
-  $("#vs-review").setAttribute("aria-checked", String(V.review));
 
   $("#vs-until-label").textContent = V.until ? `T/m ${MN[parseK(V.until).m]} ${parseK(V.until).y}` : "Doorlopend";
   $("#vs-until-clear").hidden = !V.until;
@@ -1227,22 +1230,45 @@ function syncFixedSheet() {
     .map((a) => `<button type="button" class="qbtn" data-vamt="${a}">${fmt(a)}</button>`).join("");
   $("#vs-quick").querySelectorAll("[data-vamt]").forEach((b) => b.addEventListener("click", () => { V.amount = b.dataset.vamt; syncFixedSheet(); }));
 
+  /* De bron staat als rustige tekstregel, niet als tweede keuzelijst. Bij een
+     inkomst is er geen bron: dan is het potje juist de bestemming. */
+  const src = D.pots.find((p) => p.id === V.potId);
+  $("#vs-src-wrap").hidden = V.kind === "in" || D.pots.length < 2;
+  $("#vs-src-text").textContent = src ? `Gaat af van ${src.label}` : "Kies een rekening";
   $("#vs-pots").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${V.potId === p.id}" data-vpot="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
-  $("#vs-pots").querySelectorAll("[data-vpot]").forEach((b) => b.addEventListener("click", () => { V.potId = b.dataset.vpot; syncFixedSheet(); }));
-
-  const dests = [{ key: "", icon: "🏠", label: "Eruit" }]
-    .concat(D.pots.filter((p) => p.id !== V.potId).map((p) => ({ key: "pot:" + p.id, icon: p.icon, label: p.label })))
-    .concat(D.investments.map((iv) => ({ key: "inv:" + iv.id, icon: "📈", label: iv.label })));
-  $("#vs-dests").innerHTML = dests.map((d) => `<button type="button" class="opt" role="radio" aria-checked="${(V.dest || "") === d.key}" data-vdest="${esc(d.key)}"><span aria-hidden="true">${d.icon}</span><span class="t">${esc(d.label)}</span></button>`).join("");
-  $("#vs-dests").querySelectorAll("[data-vdest]").forEach((b) => b.addEventListener("click", () => {
-    V.dest = b.dataset.vdest || null;
+  $("#vs-pots").querySelectorAll("[data-vpot]").forEach((b) => b.addEventListener("click", () => {
+    V.potId = b.dataset.vpot;
+    if (V.dest === "pot:" + V.potId) V.dest = null;   // niet naar zichzelf
     syncFixedSheet();
   }));
-  $("#vs-destnote").textContent = !V.dest
-    ? "Het geld verlaat je huishouden — een gewone uitgave."
-    : V.dest.startsWith("inv:")
-      ? "Inleg op deze belegging: het bedrag gaat van je potje af en komt bij de waarde van je belegging, dus je totale vermogen blijft gelijk."
-      : "Overboeking tussen je eigen potjes: je totale vermogen verandert niet.";
+
+  /* Bij een inkomst kiest deze lijst waar het geld binnenkomt; bij een uitgave
+     waar het naartoe gaat. Eén vraag, in beide gevallen. */
+  if (V.kind === "in") {
+    $("#vs-dest-label").textContent = "Waar komt het binnen?";
+    $("#vs-dests").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${V.potId === p.id}" data-vdest="pot:${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
+    $("#vs-dests").querySelectorAll("[data-vdest]").forEach((b) => b.addEventListener("click", () => {
+      V.potId = b.dataset.vdest.slice(4); V.dest = null; syncFixedSheet();
+    }));
+    $("#vs-destnote").textContent = src ? `Dit inkomen komt binnen op ${src.label}.` : "";
+  } else {
+    $("#vs-dest-label").textContent = "Waar gaat het naartoe?";
+    const dests = [{ key: "", icon: "🏠", label: "Het gaat op" }]
+      .concat(D.pots.filter((p) => p.id !== V.potId).map((p) => ({ key: "pot:" + p.id, icon: p.icon, label: p.label })))
+      .concat(D.investments.map((iv) => ({ key: "inv:" + iv.id, icon: "📈", label: iv.label })));
+    $("#vs-dests").innerHTML = dests.map((d) => `<button type="button" class="opt" role="radio" aria-checked="${(V.dest || "") === d.key}" data-vdest="${esc(d.key)}"><span aria-hidden="true">${d.icon}</span><span class="t">${esc(d.label)}</span></button>`).join("");
+    $("#vs-dests").querySelectorAll("[data-vdest]").forEach((b) => b.addEventListener("click", () => {
+      V.dest = b.dataset.vdest || null;
+      syncFixedSheet();
+    }));
+    /* De vraag die je echt hebt: blijft dit geld van mij of niet? */
+    const naar = V.dest?.startsWith("inv:")
+      ? D.investments.find((i) => "inv:" + i.id === V.dest)?.label
+      : D.pots.find((p) => "pot:" + p.id === V.dest)?.label;
+    $("#vs-destnote").textContent = !V.dest
+      ? "Dit geld is straks weg: het telt niet meer mee in je vermogen."
+      : `Blijft van jou: het schuift naar ${naar} en blijft meetellen in je vermogen.`;
+  }
 
   $("#vs-cats").innerHTML = CAT_KEYS.map((k) => `<button type="button" class="opt" role="radio" aria-checked="${V.category === k}" data-vcat="${k}"><span aria-hidden="true">${CATS[k].icon}</span><span class="t">${CATS[k].label}</span></button>`).join("");
   $("#vs-cats").querySelectorAll("[data-vcat]").forEach((b) => b.addEventListener("click", () => { V.category = b.dataset.vcat; syncFixedSheet(); }));
@@ -1297,10 +1323,14 @@ $("#vs-day").addEventListener("input", (e) => {
 document.querySelectorAll("#vs-kindseg button").forEach((b) => b.addEventListener("click", () => { V.kind = b.dataset.vkind; syncFixedSheet(); }));
 document.querySelectorAll("#vs-scopeseg button").forEach((b) => b.addEventListener("click", () => { V.scope = b.dataset.vscope; haptic(6); syncFixedSheet(); }));
 $("#vs-over").addEventListener("click", () => { V.over = !V.over; haptic(8); syncFixedSheet(); });
-$("#vs-review").addEventListener("click", () => { V.review = !V.review; haptic(8); syncFixedSheet(); });
 $("#vs-from").addEventListener("click", () => { $("#sh-vast").hidden = true; openPicker("vastfrom", V.from); });
 $("#vs-until").addEventListener("click", () => { $("#sh-vast").hidden = true; openPicker("vastuntil", V.until || S.vastMonth); });
 $("#vs-until-clear").addEventListener("click", () => { V.until = null; haptic(6); syncFixedSheet(); });
+$("#vs-src-toggle").addEventListener("click", () => {
+  const box = $("#vs-src-picker");
+  box.hidden = !box.hidden;
+  haptic(6);
+});
 
 $("#sh-vast").addEventListener("submit", (ev) => {
   ev.preventDefault();
@@ -1340,20 +1370,18 @@ $("#sh-vast").addEventListener("submit", (ev) => {
       untilMonth: V.until || null, changes: [],
     };
     if (kind === "out") rec.category = V.category;
-    if (V.over) rec.group = "over";
-    if (V.review) rec.review = true;
+    if (V.over || V.dest) rec.group = "over";
     nd.recurring.push(rec);
   } else {
     // Eigenschappen die niet maandafhankelijk zijn, gelden altijd direct.
     existing.label = label;
     existing.potId = V.potId;
     existing.untilMonth = V.until || null;
-    if (V.review) existing.review = true; else delete existing.review;
     existing.kind = kind;
     if (destPot) existing.toPot = destPot; else delete existing.toPot;
     existing.toInvest = destInv || null;
     if (kind === "out") existing.category = V.category; else delete existing.category;
-    if (V.over) existing.group = "over"; else delete existing.group;
+    if (V.over || V.dest) existing.group = "over"; else delete existing.group;
 
     const start = existing.fromMonth || D.startMonth;
     if (V.scope === "all") {
@@ -1546,7 +1574,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 /* ---------- Post-sheet ---------- */
-const F = { kind: "out", amount: "", label: "", potId: null, category: "overig", month: null, day: 1, repeat: false, editRec: false, group: undefined, review: false, toPot: null };
+const F = { kind: "out", amount: "", label: "", potId: null, category: "overig", month: null, day: 1, repeat: false, editRec: false, group: undefined, toPot: null };
 
 function quickAmountsFor(kind) {
   return kind === "in" ? [50, 100, 250, 500, 1000] : [10, 25, 50, 100, 250];
@@ -1566,7 +1594,6 @@ function openEntry(entry, mk) {
     F.repeat = !!entry.rec;
     F.editRec = !!entry.rec;
     F.group = entry.group;
-    F.review = !!entry.review;
     F.toPot = entry.toPot || null;
     $("#entry-title").textContent = "Post bewerken";
     $("#entry-save").textContent = "Opslaan";
@@ -1575,7 +1602,7 @@ function openEntry(entry, mk) {
     F.kind = "out"; F.amount = ""; F.label = "";
     F.potId = S.pot || (D.pots[0] && D.pots[0].id) || null;
     F.category = "overig"; F.day = Math.min(new Date().getDate(), dim(F.month));
-    F.repeat = false; F.editRec = false; F.group = undefined; F.review = false; F.toPot = null;
+    F.repeat = false; F.editRec = false; F.group = undefined; F.toPot = null;
     $("#entry-title").textContent = "Toevoegen";
     $("#entry-save").textContent = "Toevoegen";
     $("#entry-del").hidden = true;
@@ -1670,7 +1697,6 @@ $("#sh-entry").addEventListener("submit", (ev) => {
   const rec = { kind: F.kind, label, amount, day: F.day, potId: F.potId };
   if (F.kind === "out") rec.category = F.category;
   if (F.group) rec.group = F.group;
-  if (F.review) rec.review = true;
 
   const nd = clone();
   if (editId) {

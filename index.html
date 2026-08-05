@@ -198,8 +198,7 @@
       <div id="groups"></div>
 
       <div class="legend">
-        <span class="legend-dot" aria-hidden="true"></span>
-        <span>= te herzien · veeg een regel naar links voor acties, tik om te bewerken</span>
+        <span>Veeg een regel naar links voor acties, tik om te bewerken.</span>
       </div>
     </section>
 
@@ -255,8 +254,7 @@
       <button type="button" class="btn-dashed" id="vast-add">+ Vaste post toevoegen</button>
 
       <div class="legend">
-        <span class="legend-dot" aria-hidden="true"></span>
-        <span>= te herzien · tik een post om het bedrag te wijzigen vanaf een gekozen maand</span>
+        <span>Tik een post om het bedrag te wijzigen vanaf een gekozen maand.</span>
       </div>
     </section>
 
@@ -513,16 +511,25 @@
       </div>
       <div class="sec-note" id="vs-scopenote" style="margin-top:8px"></div>
 
-      <div class="fieldlbl">Potje</div>
-      <div class="optrow" id="vs-pots" role="radiogroup" aria-label="Potje"></div>
-
-      <!-- Bestemming: gaat het geld het huis uit, naar een ander potje, of naar
-           een belegging? Bij een belegging telt de inleg automatisch mee in je
-           vermogen, zodat hij niet in het niets verdwijnt. -->
-      <div id="vs-dest-wrap" hidden>
-        <div class="fieldlbl">Waar gaat het naartoe?</div>
+      <!-- Eén potjes-vraag, niet twee. Bij een uitgave: waar gaat het geld
+           naartoe (eruit, een spaarpotje of een belegging)? Bij een inkomst:
+           waar komt het binnen? De rekening waar het áf gaat is bij een vaste
+           last altijd je bestedingspotje; die staat er alleen als regel tekst,
+           met een link om hem te wijzigen als het toch een keer anders is. -->
+      <div id="vs-dest-wrap">
+        <div class="fieldlbl" id="vs-dest-label">Waar gaat het naartoe?</div>
         <div class="optrow" id="vs-dests" role="radiogroup" aria-label="Bestemming"></div>
         <div class="sec-note" id="vs-destnote" style="margin-top:8px"></div>
+      </div>
+
+      <div id="vs-src-wrap">
+        <button type="button" class="srcline" id="vs-src-toggle">
+          <span id="vs-src-text">—</span><span class="srcline-link">wijzig</span>
+        </button>
+        <div id="vs-src-picker" hidden>
+          <div class="fieldlbl">Gaat af van</div>
+          <div class="optrow" id="vs-pots" role="radiogroup" aria-label="Gaat af van"></div>
+        </div>
       </div>
 
       <div id="vs-cat-wrap">
@@ -530,15 +537,15 @@
         <div class="optrow" id="vs-cats" role="radiogroup" aria-label="Categorie"></div>
       </div>
 
-      <div class="switchrow">
-        <div class="st"><b>Uit inkomsten verdelen</b><small>Sparen, beleggen of vrij besteden</small></div>
+      <!-- Alleen relevant als het geld eruit gaat: gaat het bij je vaste lasten
+           staan, of hoort het bij de verdeling van wat overblijft (zoals
+           persoonlijk besteden)? Gaat het naar een potje of belegging, dan is
+           het per definitie verdeling en vraagt de app er niet naar. -->
+      <div class="switchrow" id="vs-over-wrap">
+        <div class="st"><b>Hoort bij mijn verdeling</b><small>In plaats van bij de vaste lasten</small></div>
         <button type="button" class="switch" id="vs-over" role="switch" aria-checked="false"><i></i></button>
       </div>
 
-      <div class="switchrow">
-        <div class="st"><b>Te herzien</b><small>Markeer om er later naar te kijken</small></div>
-        <button type="button" class="switch" id="vs-review" role="switch" aria-checked="false"><i></i></button>
-      </div>
 
       <!-- Stoppen per maand: de post blijft in de historie staan, maar loopt
            niet door. Anders zou wissen ook je verleden aanpassen. -->
