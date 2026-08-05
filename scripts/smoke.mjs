@@ -168,8 +168,11 @@ const afterTransfer = await page.locator('#groups .row').count();
 /* ---------- 5. Instellingen ---------- */
 await page.click("#btn-settings");
 await page.waitForTimeout(400);
-const potEdits = await page.locator("#pot-manage .pot-edit").count();
 await page.screenshot({ path: path.join(root, "scripts", "shot-sheet-settings.png") });
+await page.click("#pots-row");
+await page.waitForTimeout(400);
+const potEdits = await page.locator("#pot-manage .pot-edit").count();
+await page.screenshot({ path: path.join(root, "scripts", "shot-sheet-pots.png") });
 await page.keyboard.press("Escape");
 await page.waitForTimeout(300);
 
@@ -194,6 +197,7 @@ const opens = [
   ["belegging", async (p) => { await p.click('.tab[data-tab="vermogen"]'); await p.click("#add-invest"); }],
   ["maandkiezer", async (p) => { await p.click('.tab[data-tab="maand"]'); await p.click("#month-title"); }],
   ["vaste post", async (p) => { await p.click('.tab[data-tab="vast"]'); await p.click("#vast-add"); }],
+  ["potjes beheren", async (p) => { await p.click("#btn-settings"); await p.waitForTimeout(300); await p.click("#pots-row"); }],
 ];
 for (const [name, open] of opens) {
   await open(narrow);

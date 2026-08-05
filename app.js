@@ -8,7 +8,7 @@ const THEME_KEY = "budget-theme";
 
 /* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
    of het toestel de nieuwste versie draait of nog een gecachte oude. */
-const BUILD = "2.6 · build 12 (5 aug)";
+const BUILD = "2.7 · build 13 (5 aug)";
 
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -22,7 +22,15 @@ const CATS = {
   overig:      { icon: "🏷️", label: "Overig" },
 };
 const CAT_KEYS = Object.keys(CATS);
-const ALLOC_COLORS = ["var(--brand)", "var(--posSoft)", "var(--gold)", "var(--gold2)", "var(--ink4)"];
+/* Vier kleuren, vaste volgorde — gevalideerd met de dataviz-skill (CVD-afstand,
+   contrast, lichtheidsband) zodat aangrenzende segmenten altijd te onderscheiden
+   zijn, ook bij kleurenblindheid. --gold en --gold2 lagen daarvoor te dicht bij
+   elkaar (Vakantie en Beleggingsrekening waren nauwelijks te onderscheiden).
+   Een 5e+ segment valt terug op neutraal grijs in plaats van een kleur te
+   hergebruiken die met een andere zou kunnen verwarren. */
+const ALLOC_COLORS = ["var(--alloc1)", "var(--alloc2)", "var(--alloc3)", "var(--alloc4)"];
+const ALLOC_FALLBACK = "var(--ink4)";
+const allocColor = (i) => (i < ALLOC_COLORS.length ? ALLOC_COLORS[i] : ALLOC_FALLBACK);
 const POT_ICONS = ["🪙","🐖","🏖️","👤","🏠","🚗","🍼","🎁","🛟","📈","🎓","🐾"];
 
 /* ---------- Maand-helpers ---------- */
@@ -745,7 +753,7 @@ function renderHousehold() {
   $("#hh-fixed").textContent = "− " + fmt(b.totFixed);
   $("#hh-left").textContent = fmt(b.left);
 
-  const rows = b.overPosts.map((p, i) => ({ label: p.label, amount: p.amount, color: ALLOC_COLORS[i % ALLOC_COLORS.length] }));
+  const rows = b.overPosts.map((p, i) => ({ label: p.label, amount: p.amount, color: allocColor(i) }));
   const bar = rows.map((r, i) => ({ pct: b.left > 0 ? (b.overPosts[i].amount / b.left) * 100 : 0, color: r.color }));
   if (b.rest > 0 && b.left > 0) bar.push({ pct: (b.rest / b.left) * 100, color: "var(--fill2)" });
   $("#hh-bar").innerHTML = bar.map((s) => `<span style="width:${s.pct.toFixed(1)}%;background:${s.color}"></span>`).join("");
@@ -781,9 +789,10 @@ function rowMeta(r) {
   const toPot = r.toPot ? D.pots.find((p) => p.id === r.toPot) : null;
   const inv = r.toInvest ? D.investments.find((i) => i.id === r.toInvest) : null;
   const naar = inv ? inv.label : (toPot ? toPot.label : null);
+  // De categorie staat al als icoon op de regel; die hier ook nog in tekst
+  // herhalen was precies wat de regel liet afkappen met "…".
   const bits = [(r.day || 1) + "e", naar ? `${pot ? pot.label : "—"} → ${naar}` : (pot ? pot.label : "—")];
   bits.push(r.rec ? "↻ maandelijks" : "eenmalig");
-  if (r.category && CATS[r.category]) bits.push(CATS[r.category].label);
   return bits.join(" · ");
 }
 
@@ -805,7 +814,12 @@ function renderGroups() {
       const dx = S.swipe && S.swipe.id === r.id ? S.swipe.dx : 0;
       const amt = r.kind === "in" ? "+ " + fmt(r.amount) : (r.kind === "move" ? fmt(r.amount) : "− " + fmt(r.amount));
       const cls = r.kind === "in" ? "pos" : (r.kind === "move" ? "" : "neg");
-      const ico = r.toInvest ? "📈" : (r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶"));
+      /* Categorie-icoon i.p.v. potje-icoon bij een gewone uitgave: dat maakt de
+         lijst in één oogopslag scanbaar (Hypotheek/Huis, Boodschappen/...) in
+         plaats van overal hetzelfde potje-icoon te herhalen. Een overboeking of
+         inleg toont juist de actie (⇄ / 📈), dat is daar de nuttigere info. */
+      const ico = r.toInvest ? "📈" : (r.kind === "move" ? "⇄" :
+        (r.kind === "out" && r.category && CATS[r.category] ? CATS[r.category].icon : (D.pots.find((p) => p.id === r.potId)?.icon || "💶")));
       const hint = (!S.hintDone && g.key === "in" && i === 0) ? "animation:swipeHint 2.8s cubic-bezier(.22,1,.36,1) 1.4s 2" : "";
       const openSwipe = S.swipe && S.swipe.id === r.id;
       return `<div class="swipe${openSwipe ? " open" : ""}">
@@ -1025,6 +1039,8 @@ function renderFixed() {
   $("#vast-sub").textContent = b.rest < 0
     ? "Je verdeelt meer dan er binnenkomt"
     : "Over te besteden per maand";
+  $("#vast-chip-in").textContent = "Inkomsten " + fmt(b.totIn);
+  $("#vast-chip-fixed").textContent = "Vast − " + fmt(b.totFixed);
 
   $("#vast-in").textContent = fmt(b.totIn);
   $("#vast-fixed").textContent = "− " + fmt(b.totFixed);
@@ -1035,12 +1051,12 @@ function renderFixed() {
 
   const bar = b.over.map((r, i) => ({
     pct: b.left > 0 ? (r.amount / b.left) * 100 : 0,
-    color: ALLOC_COLORS[i % ALLOC_COLORS.length],
+    color: allocColor(i),
   }));
   if (b.rest > 0 && b.left > 0) bar.push({ pct: (b.rest / b.left) * 100, color: "var(--fill2)" });
   $("#vast-bar").innerHTML = bar.map((s) => `<span style="width:${s.pct.toFixed(1)}%;background:${s.color}"></span>`).join("");
   $("#vast-alloc").innerHTML = b.over.map((r, i) => `<div class="alloc-row">
-      <span class="alloc-dot" style="background:${ALLOC_COLORS[i % ALLOC_COLORS.length]}"></span>
+      <span class="alloc-dot" style="background:${allocColor(i)}"></span>
       <span class="alloc-label">${esc(r.label)}</span>
       <span class="alloc-amt tnum">${fmt(r.amount)}</span>
     </div>`).join("");
@@ -1085,7 +1101,12 @@ function renderFixedGroups(mk, b) {
       const nc = nextChange(r.base, mk);
       const amt = r.kind === "in" ? "+ " + fmt(r.amount) : (r.kind === "move" ? fmt(r.amount) : "− " + fmt(r.amount));
       const cls = r.kind === "in" ? "pos" : (r.kind === "move" ? "" : "neg");
-      const ico = r.toInvest ? "📈" : (r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶"));
+      /* Categorie-icoon i.p.v. potje-icoon bij een gewone uitgave: dat maakt de
+         lijst in één oogopslag scanbaar (Hypotheek/Huis, Boodschappen/...) in
+         plaats van overal hetzelfde potje-icoon te herhalen. Een overboeking of
+         inleg toont juist de actie (⇄ / 📈), dat is daar de nuttigere info. */
+      const ico = r.toInvest ? "📈" : (r.kind === "move" ? "⇄" :
+        (r.kind === "out" && r.category && CATS[r.category] ? CATS[r.category].icon : (D.pots.find((p) => p.id === r.potId)?.icon || "💶")));
       const notes = [];
       if (nc) notes.push(`→ ${fmt(nc.amount != null ? nc.amount : r.amount)} vanaf ${monthShort(nc.fromMonth)}`);
       if (r.base.untilMonth) notes.push(`stopt na ${monthShort(r.base.untilMonth)}`);
@@ -1141,9 +1162,9 @@ function fixedMeta(r) {
   const toPot = r.toPot ? D.pots.find((p) => p.id === r.toPot) : null;
   const inv = r.toInvest ? D.investments.find((i) => i.id === r.toInvest) : null;
   const naar = inv ? inv.label : (toPot ? toPot.label : null);
+  // De categorie staat al als icoon op de regel; niet nog eens in tekst herhalen.
   const bits = [(r.day || 1) + "e", naar ? `${pot ? pot.label : "—"} → ${naar}` : (pot ? pot.label : "—")];
   bits.push("sinds " + monthShort(r.base?.fromMonth || r.fromMonth || D.startMonth));
-  if (r.category && CATS[r.category]) bits.push(CATS[r.category].label);
   return bits.join(" · ");
 }
 
@@ -1444,8 +1465,10 @@ function renderWealth() {
   $("#w-sub").textContent = "Spaargeld + beleggingen" +
     (perMonth > 0 ? " · " + fmt(perMonth) + " inleg per maand" : "");
 
-  const segs = D.pots.map((p, i) => ({ label: p.label, value: Math.max(0, end(nowK, p.id)), color: ALLOC_COLORS[i % ALLOC_COLORS.length] }))
-    .concat(D.investments.map((iv, i) => ({ label: iv.label, value: Math.max(0, investValueAt(iv, nowK)), color: i % 2 ? "var(--gold2)" : "var(--gold)" })))
+  // Eén doorlopende kleurindex over potjes én beleggingen heen — anders krijgt
+  // de eerste belegging altijd dezelfde kleur als het derde potje.
+  const segs = D.pots.map((p, i) => ({ label: p.label, value: Math.max(0, end(nowK, p.id)), color: allocColor(i) }))
+    .concat(D.investments.map((iv, i) => ({ label: iv.label, value: Math.max(0, investValueAt(iv, nowK)), color: allocColor(D.pots.length + i) })))
     .filter((s) => s.value > 0);
   const sum = segs.reduce((s, x) => s + x.value, 0);
   $("#w-bar").innerHTML = sum > 0
@@ -1502,7 +1525,7 @@ function renderWealth() {
         <span class="ycat-pct tnum">${tot ? Math.round((agg[k] / tot) * 100) : 0}%</span>
         <span class="ycat-amt tnum">${fmt(agg[k])}</span>
       </div>
-      <div class="ycat-track"><div class="ycat-fill" style="width:${((agg[k] / max) * 100).toFixed(0)}%;background:${ALLOC_COLORS[i % ALLOC_COLORS.length]}"></div></div>
+      <div class="ycat-track"><div class="ycat-fill" style="width:${((agg[k] / max) * 100).toFixed(0)}%;background:${allocColor(i)}"></div></div>
     </div>`).join("") : `<div class="group-empty">Nog geen uitgaven met een categorie.</div>`;
 }
 
@@ -1534,7 +1557,7 @@ $("#hero-wealth").addEventListener("click", togglePrivacy);
    Sheets
    ============================================================ */
 const scrim = $("#scrim");
-const SHEETS = ["sh-entry", "sh-transfer", "sh-invest", "sh-vast", "sh-settings", "sh-picker", "sh-choice"];
+const SHEETS = ["sh-entry", "sh-transfer", "sh-invest", "sh-vast", "sh-settings", "sh-pots", "sh-picker", "sh-choice"];
 let lastFocus = null;
 
 /* Vergrendelt de achtergrond zolang een sheet open staat: niet scrollen,
@@ -1739,12 +1762,11 @@ $("#entry-del").addEventListener("click", () => {
 });
 
 /* ---------- Overboeken ---------- */
-const T = { amount: "", from: null, to: null, month: null, day: 1, repeat: false };
+const T = { amount: "", from: null, to: null, month: null, day: 1 };
 function openTransfer() {
   T.amount = ""; T.month = clampMonth(S.month); T.day = Math.min(new Date().getDate(), dim(T.month));
   T.from = D.pots[0]?.id || null;
   T.to = D.pots[1]?.id || D.pots[0]?.id || null;
-  T.repeat = false;
   $("#tf-error").hidden = true;
   syncTransfer();
   openSheet("sh-transfer");
@@ -1753,7 +1775,6 @@ function syncTransfer() {
   $("#tf-amount").value = T.amount;
   $("#tf-day").value = String(T.day);
   $("#tf-month").textContent = MN[parseK(T.month).m] + " " + parseK(T.month).y;
-  $("#tf-repeat").setAttribute("aria-checked", String(T.repeat));
   const fromP = D.pots.find((p) => p.id === T.from), toP = D.pots.find((p) => p.id === T.to);
   $("#tf-summary").textContent = fromP && toP ? `Van ${fromP.label} naar ${toP.label}` : "Kies twee potjes";
   $("#tf-from").innerHTML = D.pots.map((p) => `<button type="button" class="opt box" role="radio" aria-checked="${T.from === p.id}" data-from="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span><span class="sub">${fmt(end(T.month, p.id))}</span></button>`).join("");
@@ -1771,7 +1792,19 @@ $("#tf-day").addEventListener("input", (e) => {
   const v = Math.floor(Number(e.target.value));
   T.day = Number.isFinite(v) && v >= 1 ? Math.min(v, 31) : 1;
 });
-$("#tf-repeat").addEventListener("click", () => { T.repeat = !T.repeat; syncTransfer(); });
+$("#tf-go-vast").addEventListener("click", () => {
+  // Wat je al had ingevuld, meenemen naar de vaste-post-sheet — niets kwijtraken
+  // door over te stappen naar de andere flow.
+  const amt = T.amount; const from = T.from; const to = T.to; const day = T.day;
+  closeSheets();
+  switchTab("vast");
+  openFixed(null);
+  if (amt) { V.amount = amt; }
+  if (from) V.potId = from;
+  V.day = day || V.day;
+  if (to && to !== V.potId) V.dest = "pot:" + to;
+  syncFixedSheet();
+});
 $("#sh-transfer").addEventListener("submit", (ev) => {
   ev.preventDefault();
   const amount = parseAmount(T.amount);
@@ -1781,11 +1814,8 @@ $("#sh-transfer").addEventListener("submit", (ev) => {
   const fromP = D.pots.find((p) => p.id === T.from), toP = D.pots.find((p) => p.id === T.to);
   const rec = { kind: "move", group: "over", label: `Naar ${toP.label}`, amount, day: T.day, potId: T.from, toPot: T.to };
   const nd = clone();
-  if (T.repeat) nd.recurring.push({ id: uid(), fromMonth: T.month, ...rec });
-  else {
-    nd.months[T.month] = nd.months[T.month] || { entries: [], skip: [] };
-    nd.months[T.month].entries.push({ id: uid(), ...rec });
-  }
+  nd.months[T.month] = nd.months[T.month] || { entries: [], skip: [] };
+  nd.months[T.month].entries.push({ id: uid(), ...rec });
   S.month = T.month;
   D = nd; save();
   closeSheets();
@@ -1972,8 +2002,8 @@ function pickMonth(k) {
     if (p) p.goalDate = k;
     D = nd; save();
     $("#sh-picker").hidden = true;
-    openSheet("sh-settings");
-    renderSettings();
+    openSheet("sh-pots");
+    renderPotsSheet();
     render();
     return;
   }
@@ -1989,7 +2019,6 @@ function renderSettings() {
   applyTheme(themePref());
   $("#build-stamp").textContent = `Versie ${BUILD} · alle bedragen in euro · nl-NL`;
   const nowK = clampMonth(todayKey());
-  $("#pot-total").textContent = fmt(end(nowK)) + " totaal";
   $("#start-month-label").textContent = MN[parseK(D.startMonth).m] + " " + parseK(D.startMonth).y;
   const age = daysSince(D.lastBackup);
   $("#backup-label").textContent = !D.lastBackup
@@ -2007,6 +2036,19 @@ function renderSettings() {
   $("#spend-note").textContent = sp
     ? `"Veilig" op Overzicht kijkt naar ${sp.label}: het laagste punt daar in de komende 45 dagen.`
     : "Maak eerst een potje aan.";
+
+  // Potjes-beheer is een eigen scherm; hier alleen de samenvatting die ernaar
+  // doorverwijst, zodat Instellingen zelf kort blijft.
+  $("#pots-row-label").textContent = D.pots.length === 1 ? "1 potje" : `${D.pots.length} potjes`;
+  $("#pots-row-sub").textContent = fmt(end(nowK)) + " totaal";
+}
+
+/* ============================================================
+   Potjes beheren — eigen scherm, aangeroepen vanuit Instellingen
+   ============================================================ */
+function renderPotsSheet() {
+  const nowK = clampMonth(todayKey());
+  $("#pot-total").textContent = fmt(end(nowK)) + " totaal";
 
   const box = $("#pot-manage");
   box.innerHTML = D.pots.map((p) => `<div class="pot-edit" data-pid="${p.id}">
@@ -2034,7 +2076,7 @@ function renderSettings() {
       const i = POT_ICONS.indexOf(p.icon);
       const nd = clone();
       nd.pots.find((x) => x.id === id).icon = POT_ICONS[(i + 1) % POT_ICONS.length];
-      D = nd; save(); renderSettings(); render();
+      D = nd; save(); renderPotsSheet(); render();
     });
     card.querySelector("[data-name]").addEventListener("change", (e) => {
       const nd = clone();
@@ -2045,7 +2087,7 @@ function renderSettings() {
       const v = parseAmount(e.target.value);
       const nd = clone();
       nd.pots.find((x) => x.id === id).startBalance = Number.isFinite(v) ? v : 0;
-      D = nd; save(); renderSettings(); render();
+      D = nd; save(); renderPotsSheet(); render();
     });
     card.querySelector("[data-goal]").addEventListener("change", (e) => {
       const v = parseAmount(e.target.value);
@@ -2054,7 +2096,7 @@ function renderSettings() {
       D = nd; save(); render();
     });
     card.querySelector("[data-gd]").addEventListener("click", () => {
-      $("#sh-settings").hidden = true;
+      $("#sh-pots").hidden = true;
       openPicker("goal:" + id, pot()?.goalDate || null);
     });
     card.querySelector("[data-rm]").addEventListener("click", () => {
@@ -2071,13 +2113,28 @@ function renderSettings() {
       const nd = clone();
       const idx = nd.pots.findIndex((p) => p.id === id);
       const removed = nd.pots.splice(idx, 1)[0];
-      D = nd; save(); renderSettings(); render();
+      D = nd; save(); renderPotsSheet(); render();
       toast(`${removed.label} verwijderd`, () => {
-        const b = clone(); b.pots.splice(idx, 0, removed); D = b; save(); renderSettings(); render();
+        const b = clone(); b.pots.splice(idx, 0, removed); D = b; save(); renderPotsSheet(); render();
       });
     });
   });
 }
+
+function openPotsSheet() {
+  $("#sh-settings").hidden = true;
+  renderPotsSheet();
+  openSheet("sh-pots");
+}
+function backToSettings() {
+  $("#sh-pots").hidden = true;
+  openSheet("sh-settings");
+  renderSettings();
+  render();
+}
+$("#pots-row").addEventListener("click", openPotsSheet);
+$("#pots-back").addEventListener("click", backToSettings);
+$("#pots-done").addEventListener("click", backToSettings);
 /* Alle posten die naar dit potje verwijzen — als bron of als bestemming van een
    overboeking. Levert de labels op, zodat de melding concreet kan zijn. */
 function potUsage(potId) {
@@ -2138,7 +2195,7 @@ function timeAgoNL(d) {
 $("#pot-add").addEventListener("click", () => {
   const nd = clone();
   nd.pots.push({ id: uid(), label: "Nieuw potje", icon: POT_ICONS[nd.pots.length % POT_ICONS.length], startBalance: 0, goal: 0, goalDate: null });
-  D = nd; save(); haptic(10); renderSettings(); render();
+  D = nd; save(); haptic(10); renderPotsSheet(); render();
 });
 $("#start-month").addEventListener("click", () => { $("#sh-settings").hidden = true; openPicker("start", D.startMonth); });
 function openSettings() { renderSettings(); openSheet("sh-settings"); }

@@ -43,6 +43,16 @@
   --brand: #1F5744;
   --accent: #1F5744;
 
+  /* Categorisch palet voor verdeelbalken (potjes, verdeling, jaar-per-categorie).
+     Vier kleuren, vaste volgorde, gevalideerd met de dataviz-skill (OKLab CVD-
+     afstand, contrast en lichtheidsband) tegen kaartachtergrond #FFFDF6. Meer dan
+     vier segmenten? Die vallen terug op --ink4 (neutraal) i.p.v. een kleur te
+     hergebruiken die met een andere zou kunnen verwarren. */
+  --alloc1: #177A54;
+  --alloc2: #3373B8;
+  --alloc3: #A67A1E;
+  --alloc4: #95436B;
+
   --hero: linear-gradient(150deg, #33805F 0%, #1C5341 46%, #0F3227 100%);
   --fab: linear-gradient(150deg, #2E7359, #173F32);
 
@@ -101,6 +111,14 @@
   --gold2: #F0D680;
   --brand: #2C7159;
   --accent: #6FD9AC;
+
+  /* Zelfde vier categorieën, apart gevalideerd tegen de donkere kaartachtergrond
+     #1A2620 — donker vraagt een eigen (over het algemeen iets lichtere) stap,
+     geen automatische omkering van de lichte set. */
+  --alloc1: #3E9E77;
+  --alloc2: #5B94D6;
+  --alloc3: #A67A1E;
+  --alloc4: #C06090;
 
   --hero: linear-gradient(150deg, #3D9375 0%, #256853 46%, #17493A 100%);
 
@@ -295,7 +313,9 @@ a:hover { color: var(--gold); }
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px var(--pad) 26px;
+  /* Onderin genoeg ruimte voor de FAB: die hangt (60px + 6px marge) los boven
+     de dock, dus scrolt content anders precies achter de knop weg. */
+  padding: 2px var(--pad) 108px;
   -webkit-overflow-scrolling: touch;
   /* Houdt de scroll binnen deze container: geen doorwerking naar het
      document en dus geen pull-to-refresh of bounce van de hele app. */

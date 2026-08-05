@@ -156,6 +156,17 @@ check("swipeHint-animatie op eerste regel", hintAnim === "swipeHint", hintAnim);
 await page.locator('#groups [data-group="fixed"]').click();
 await page.waitForTimeout(350);
 check("Vaste lasten uitklappen toont regels", (await page.locator('#groups .row:has-text("Hypotheek")').count()) === 1);
+
+/* Een uitgave toont het categorie-icoon i.p.v. steeds hetzelfde potje-icoon —
+   dat maakt de lijst scanbaar. Hypotheek heeft categorie "huis" (🏠). */
+check("Uitgave toont het categorie-icoon, niet het potje-icoon",
+  (await page.locator('#groups .row:has-text("Hypotheek") .row-tile').textContent()) === "🏠");
+// De categorienaam ("Huis") stond ook als tekst in de metadata-regel, waar
+// hij vaak afgekapt werd — die tekst hoort er nu niet meer in, het icoon
+// draagt die informatie al.
+const hypMeta = await page.locator('#groups .row:has-text("Hypotheek") .row-meta').textContent();
+check("Categorienaam staat niet meer dubbel in de metadata-tekst", !/\bHuis\b/.test(hypMeta), hypMeta);
+
 const row = page.locator('#groups .row:has-text("Hypotheek")').first();
 const rb = await row.boundingBox();
 // Start midden op de regel: de ⋯-knop rechts blokkeert bewust het vegen
@@ -319,13 +330,29 @@ await page.locator('#tf-to [data-to]').first().click();
 await page.waitForTimeout(200);
 const tfSum = await page.textContent("#tf-summary");
 check("Overboeken toont van→naar", /Van .* naar /.test(tfSum), tfSum);
-await page.click("#tf-repeat");
-await page.waitForTimeout(150);
-check("Overboeken kan maandelijks", (await page.getAttribute("#tf-repeat", "aria-checked")) === "true");
-await page.click("#tf-repeat");
+// Bewust geen "elke maand herhalen" meer hier: dat overlapte met de pagina
+// Vast, twee plekken voor precies hetzelfde. Overboeken is nu eenmalig, met
+// een link naar Vast voor iets terugkerends.
+check("Geen 'elke maand herhalen' meer bij Overboeken", (await page.locator("#tf-repeat").count()) === 0);
 await page.locator('#sh-transfer button[type=submit]').click();
 await page.waitForTimeout(500);
 check("Overboeking toegevoegd", (await page.locator('#groups .row:has-text("Naar ")').count()) >= 1);
+
+/* De link naar Vast neemt bedrag, potjes en dag mee, zodat je niet opnieuw
+   hoeft te beginnen als je toch iets terugkerends wilde instellen. */
+await page.click("#open-transfer");
+await page.waitForTimeout(400);
+await page.fill("#tf-amount", "77");
+await page.locator('#tf-to [data-to]').first().click();
+await page.waitForTimeout(200);
+const tfTo = await page.textContent("#tf-to [aria-checked='true'] .t");
+await page.click("#tf-go-vast");
+await page.waitForTimeout(500);
+check("Link naar Vast opent de beheersheet", await page.locator("#sh-vast").isVisible());
+check("Bedrag is meegenomen naar Vast", (await page.inputValue("#vs-amount")) === "77");
+check("Bestemming is meegenomen naar Vast", (await page.textContent("#vs-destnote")).includes(tfTo.trim()) || /Blijft van jou/.test(await page.textContent("#vs-destnote")));
+await page.keyboard.press("Escape");
+await page.waitForTimeout(300);
 
 /* ---------- 20. Vermogen: belegging bewerken + nudges ---------- */
 await page.locator('.tab[data-tab="vermogen"]').click();
@@ -348,9 +375,14 @@ await page.waitForTimeout(500);
 check("Belegging opgeslagen", (await page.locator("#invest-list .irow").count()) >= 1);
 check("Jaar-per-categorie gevuld", (await page.locator("#year-cats .ycat").count()) >= 1);
 
-/* ---------- 21. Instellingen: icoon, doeldatum, thema ---------- */
+/* ---------- 21. Instellingen: potjes op een eigen scherm, doeldatum, thema ---------- */
 await page.click("#btn-settings");
 await page.waitForTimeout(400);
+check("Instellingen toont een samenvatting i.p.v. de hele potjeslijst",
+  await page.locator("#pots-row").isVisible() && (await page.locator("#pot-manage .pot-edit").count()) === 0);
+await page.click("#pots-row");
+await page.waitForTimeout(400);
+check("Potjes beheren opent een eigen scherm", await page.locator("#sh-pots").isVisible() && await page.locator("#sh-settings").isHidden());
 const ico0 = await page.locator("#pot-manage [data-icon]").first().textContent();
 await page.locator("#pot-manage [data-icon]").first().click();
 await page.waitForTimeout(300);
@@ -361,9 +393,12 @@ await page.waitForTimeout(400);
 check("Doeldatum opent maandkiezer", await page.locator("#sh-picker").isVisible());
 await page.locator("#mp-grid .mp-cell:not([disabled])").first().click();
 await page.waitForTimeout(400);
-check("Doeldatum gekozen, terug in instellingen", await page.locator("#sh-settings").isVisible());
+check("Doeldatum gekozen, terug bij potjes beheren", await page.locator("#sh-pots").isVisible());
 const gdLabel = await page.locator("#pot-manage [data-gd] .v").first().textContent();
 check("Doeldatum staat in de kaart", !/geen datum/.test(gdLabel), gdLabel.trim());
+await page.click("#pots-back");
+await page.waitForTimeout(400);
+check("Terug-knop gaat naar Instellingen", await page.locator("#sh-settings").isVisible() && await page.locator("#sh-pots").isHidden());
 await page.locator('#theme-seg [data-theme-opt="dark"]').click();
 await page.waitForTimeout(300);
 check("Thema naar donker", (await page.getAttribute("html", "data-theme")) === "dark");
@@ -480,8 +515,10 @@ const unlocked = await page.evaluate(() => ({
 }));
 check("Sluiten heft de vergrendeling op", !unlocked.locked && !unlocked.inert && unlocked.overflow === "auto", JSON.stringify(unlocked));
 
-// Toast bóven een open sheet: potje wissen in Instellingen en terugdraaien.
+// Toast bóven een open sheet: potje wissen bij potjes beheren en terugdraaien.
 await page.click("#btn-settings");
+await page.waitForTimeout(400);
+await page.click("#pots-row");
 await page.waitForTimeout(450);
 const potsBefore = await page.locator("#pot-manage .pot-edit").count();
 await page.locator("#pot-manage .pot-edit [data-rm]").last().click();
@@ -527,6 +564,21 @@ const sums = await page.evaluate(() => {
 });
 check("Som van de potjes plus beleggingen is het totaal vermogen",
   sums.pots + sums.invs === sums.total, JSON.stringify(sums));
+
+/* Kleuren in "Verdeling" moeten één doorlopende reeks zijn over potjes én
+   beleggingen. Eerder kreeg de eerste belegging altijd dezelfde kleur als het
+   derde potje, omdat beide apart bij 0 begonnen te tellen. */
+const wealthColors = await page.evaluate(() => {
+  const dots = [...document.querySelectorAll("#w-alloc .alloc-row")];
+  return dots.map((row) => ({
+    label: row.querySelector(".alloc-label").textContent,
+    color: getComputedStyle(row.querySelector(".alloc-dot")).backgroundColor,
+  }));
+});
+check("Elk segment in de verdeling heeft een eigen kleur",
+  new Set(wealthColors.map((c) => c.color)).size === wealthColors.length,
+  JSON.stringify(wealthColors));
+
 await page.locator('.tab[data-tab="overzicht"]').click();
 await page.waitForTimeout(400);
 
@@ -702,6 +754,8 @@ check("Verdeling uit inkomsten staat in de balk", (await page.locator("#vast-all
 // Wijziging met ingangsmaand: hypotheek omhoog over twee maanden
 await page.locator('#vast-groups [data-vgroup="vfixed"]').click();
 await page.waitForTimeout(350);
+check("Vast toont ook het categorie-icoon i.p.v. het potje-icoon",
+  (await page.locator('#vast-groups .row:has-text("Hypotheek") .row-tile').textContent()) === "🏠");
 await page.locator('#vast-groups .row:has-text("Hypotheek")').click();
 await page.waitForTimeout(450);
 check("Post openen geeft de beheersheet", await page.locator("#sh-vast").isVisible());

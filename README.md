@@ -73,7 +73,7 @@ node node_modules/playwright-core/cli.js install chromium   # eenmalig
 npm test
 ```
 
-- `npm run test:interactions` — 171 controles: elke animatie, veeg, sheet,
+- `npm run test:interactions` — 181 controles: elke animatie, veeg, sheet,
   toetsenbordpad, PWA-robuustheid, databeveiliging, de vaste-maandpagina met
   ingangsmaanden en de koppeling van je inleg aan je vermogen.
 - `npm run test:smoke` — alle vier de schermen, elke sheet op 320px, donker
@@ -109,7 +109,7 @@ python3 scripts/make-icons.py
 ## Techniek
 
 Vanilla HTML/CSS/JS, geen frameworks of build-tools. Gegevensmodel is versioned
-(`budget-glass-v1` in `localStorage`, nu v9); nieuwe velden krijgen defaults bij
+(`budget-glass-v1` in `localStorage`, nu v9 — geen schemawijziging deze ronde); nieuwe velden krijgen defaults bij
 het laden, dus een oudere back-up blijft importeerbaar.
 
 Terugkerende posten zijn **effectief-gedateerd**: naast `amount` en `day` heeft
@@ -128,3 +128,34 @@ omgekeerd in te vullen. `investValueAt(belegging, maand)` is de zelf ingevoerde 
 plus de inleg van de maanden ná `updated` — werk je de stand bij, dan begint dat
 optellen opnieuw, zodat niets dubbel wordt geteld. Invariant die in de tests
 staat: de som van de potjes plus de beleggingen is het totale vermogen.
+
+## UI/UX-onderhoud (aug 2026)
+
+Een doorloop van alle schermen (licht/donker, met echte cijfers) bracht twee
+bugs en een aantal ontwerpverbeteringen aan het licht:
+
+- **FAB overlapte content.** De plusknop zweeft los boven de dock; `.scroll`
+  reserveerde daar te weinig ruimte voor, waardoor het laatste stuk van elke
+  lijst er stilletjes achter verdween. Bottom-padding verhoogd.
+- **Kleurenpalet gevalideerd met de dataviz-skill.** `--gold`/`--gold2` waren
+  bijna niet te onderscheiden (Vakantie en Beleggingsrekening zagen er
+  hetzelfde uit). Nieuw palet (`--alloc1..4`, groen/blauw/goud/wijnrood)
+  gevalideerd op CVD-afstand, contrast en lichtheidsband, apart voor licht en
+  donker. Beleggingen kregen bovendien hun eigen, losstaande kleurindex —
+  daardoor botste kleur #1 van beleggingen altijd met kleur #3 van de potjes.
+- **Categorie-icoon i.p.v. potje-icoon** op elke uitgaverij: maakt vaste-lasten-
+  lijsten in één oogopslag scanbaar. De categorienaam stond ook nog als tekst
+  in de regel eronder, waar hij vrijwel altijd werd afgekapt — die tekst is
+  overbodig nu het icoon er al staat.
+- **Overboeken is nu eenmalig.** De herhaal-schakelaar overlapte met de pagina
+  Vast (twee plekken voor dezelfde vaste overboeking); een link neemt bedrag en
+  potjes mee naar Vast voor iets terugkerends.
+- **Hero-kaart met chips ook op Vast**, zodat een klein bedrag ("€ 31") niet in
+  lege ruimte blijft hangen. Het hero-label op Overzicht heet nu "Saldo einde
+  maand" i.p.v. het dubbelzinnige "Spaargeld nu" — dat viel niet samen met het
+  bedrag van vandaag in de grafiek eronder.
+- **Potjes beheren is een eigen scherm**, bereikbaar via een samenvattingsrij
+  in Instellingen. Instellingen zelf was één lange scroll; nu past het
+  grotendeels op één scherm.
+
+Testsuite van 171 naar 181 controles.

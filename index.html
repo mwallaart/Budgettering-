@@ -56,7 +56,7 @@
         <span class="hero-rule" aria-hidden="true"></span>
         <span class="hero-body">
           <span class="hero-top">
-            <span class="hero-eyebrow">Spaargeld nu</span>
+            <span class="hero-eyebrow">Saldo einde maand</span>
             <span class="hero-hint" id="privacy-hint">tik om te verbergen</span>
           </span>
           <span class="hero-amount tnum" id="ov-amount">€ 0</span>
@@ -212,6 +212,14 @@
           <div class="hero-eyebrow" id="vast-eyebrow">Vaste maand</div>
           <div class="hero-amount sm tnum" id="vast-rest">€ 0</div>
           <div class="hero-sub" id="vast-sub">Over te besteden per maand</div>
+          <!-- Zonder deze chips voelde de kaart bij een klein bedrag (bijv.
+               "€ 31") onafgemaakt: veel lege ruimte naast een klein getal. De
+               chips vullen die ruimte met info die je anders pas verderop op
+               de pagina zag. -->
+          <div class="hero-chips">
+            <span class="hchip" id="vast-chip-in">Inkomsten € 0</span>
+            <span class="hchip ghost" id="vast-chip-fixed">Vast − € 0</span>
+          </div>
         </div>
       </div>
 
@@ -429,10 +437,11 @@
           <span class="e">e</span>
         </div>
       </div>
-      <div class="switchrow">
-        <div class="st"><b>Elke maand herhalen</b><small>Vaste maandelijkse overboeking</small></div>
-        <button type="button" class="switch" id="tf-repeat" role="switch" aria-checked="false"><i></i></button>
-      </div>
+      <!-- Bewust geen "elke maand herhalen" hier: dat was een tweede plek om
+           precies hetzelfde in te stellen als op de pagina Vast, met een eigen
+           bedieningspatroon. Overboeken is voor een eenmalige actie; een vaste
+           overboeking hoort bij je vaste maandelijkse posten. -->
+      <button type="button" class="linkbtn" id="tf-go-vast">Elke maand? Zet dit in bij Vast →</button>
       <p class="footnote" id="tf-error" role="alert" hidden style="color:var(--neg)"></p>
     </div>
     <div class="sheet-foot">
@@ -570,6 +579,28 @@
     </div>
   </form>
 
+  <!-- Potjes beheren · eigen scherm i.p.v. onderdeel van Instellingen. Was
+       samen met thema, back-up en de rest één lange scroll; potjes hebben elk
+       vier velden (naam, icoon, start, doel + doeldatum) en verdienen de
+       ruimte zonder dat Instellingen zelf een la vol met alles wordt. -->
+  <div class="sheet" id="sh-pots" hidden role="dialog" aria-label="Potjes beheren">
+    <div class="grip-wrap"><div class="grip"></div></div>
+    <div class="sheet-body noscroll">
+      <button type="button" class="pill" id="pots-back">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>Instellingen
+      </button>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin:18px 0 8px">
+        <div class="sheet-title" style="margin:0">Potjes</div>
+        <div class="sec-note" id="pot-total"></div>
+      </div>
+      <div id="pot-manage"></div>
+      <button type="button" class="btn-dashed" id="pot-add" style="margin-top:10px">+ Potje toevoegen</button>
+    </div>
+    <div class="sheet-foot one">
+      <button type="button" class="save" id="pots-done">Klaar</button>
+    </div>
+  </div>
+
   <!-- Instellingen -->
   <div class="sheet" id="sh-settings" hidden role="dialog" aria-label="Instellingen">
     <div class="grip-wrap"><div class="grip"></div></div>
@@ -583,12 +614,11 @@
         <button type="button" data-theme-opt="dark" role="radio">Donker</button>
       </div>
 
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin:20px 0 8px">
-        <div class="fieldlbl" style="margin:0">Potjes</div>
-        <div class="sec-note" id="pot-total"></div>
-      </div>
-      <div id="pot-manage"></div>
-      <button type="button" class="btn-dashed" id="pot-add" style="margin-top:10px">+ Potje toevoegen</button>
+      <div class="fieldlbl" style="margin-top:20px">Potjes</div>
+      <button type="button" class="bigrow" id="pots-row">
+        <span class="l"><b id="pots-row-label">—</b><small id="pots-row-sub">—</small></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+      </button>
 
       <!-- Waar leef je uit? Daarover gaat de "Veilig"-melding op Overzicht.
            Zonder keuze pakte de app stilzwijgend het eerste potje. -->
