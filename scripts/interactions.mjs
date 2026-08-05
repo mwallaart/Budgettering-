@@ -39,7 +39,7 @@ const seed = () => {
       { id: "o1", kind: "move", group: "over", label: "Naar Sparen", amount: 1000, day: 26, potId: "alg", toPot: "spaar", fromMonth: k(0) },
     ],
     months: { [k(0)]: { entries: [{ id: "e1", kind: "out", label: "Tandarts", amount: 180, day: 12, potId: "alg", category: "overig" }], skip: [] } },
-    investments: [{ id: "v1", label: "Meesman", value: 18400, monthly: 500, updated: "2026-07-28" }],
+    investments: [{ id: "v1", label: "Meesman", value: 18400, monthly: 500, updated: k(-1) + "-15" }],
     recentLabels: ["Boodschappen", "Benzine"],
     backupDismissed: false, lastBackup: null,
   };
@@ -334,10 +334,10 @@ const valBefore = await page.inputValue("#iv-value");
 await page.locator("#iv-nudges .qbtn").last().click();
 await page.waitForTimeout(250);
 check("Nudge past de waarde aan", (await page.inputValue("#iv-value")) !== valBefore);
-await page.locator("#iv-monthly-quick .qbtn").nth(2).click();
-await page.waitForTimeout(250);
-check("Maandelijkse inleg via snelknop", (await page.inputValue("#iv-monthly")).length > 0);
-check("Hint over inleg per jaar", /per jaar|maandelijkse/.test(await page.textContent("#iv-hint")));
+// De inleg is niet meer los in te vullen; hij komt uit je verdeling op Vast.
+check("Geen los invulveld voor de inleg", (await page.locator("#iv-monthly").count()) === 0);
+check("Sheet legt uit waar de inleg vandaan komt",
+  /Vast/.test(await page.textContent("#iv-hint")), await page.textContent("#iv-hint"));
 await page.locator('#sh-invest button[type=submit]').click();
 await page.waitForTimeout(500);
 check("Belegging opgeslagen", (await page.locator("#invest-list .irow").count()) >= 1);
@@ -808,8 +808,10 @@ const moveRow = page.locator('#vast-groups .row:has-text("Naar Sparen")').first(
 if (await moveRow.count()) {
   await moveRow.click();
   await page.waitForTimeout(450);
-  check("Overboeking verbergt de uitgave/inkomst-keuze", await page.locator("#vs-kindseg").isHidden());
-  check("Overboeking toont 'naar potje'", await page.locator("#vs-topot-wrap").isVisible());
+  check("Overboeking staat als uitgave met een potje als bestemming",
+    (await page.getAttribute('#vs-kindseg [data-vkind="out"]', "aria-selected")) === "true" &&
+    (await page.getAttribute('#vs-dests [data-vdest="pot:spaar"]', "aria-checked")) === "true");
+  check("Overboeking naar een potje heeft geen categorie", await page.locator("#vs-cat-wrap").isHidden());
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
 } else {
@@ -845,8 +847,107 @@ await page.waitForTimeout(700);
 const added = await page.evaluate(() => JSON.parse(localStorage.getItem("budget-glass-v1")).recurring.find((r) => r.label === "Beleggen"));
 check("Nieuwe verdelingspost komt in de groep 'verdelen'", added?.group === "over" && added?.amount === 500, JSON.stringify(added && { g: added.group, a: added.amount }));
 check("Post verschijnt in de verdelingsbalk", (await page.locator("#vast-alloc .alloc-row").count()) >= 2);
+check("Zonder bestemming is het een uitgave met categorie", added?.kind === "out" && !added?.toInvest && !!added?.category,
+  JSON.stringify({ k: added?.kind, c: added?.category, ti: added?.toInvest }));
+
+/* ---------- 28. Inleg naar een belegging landt echt aan ---------- */
+const wealth = async () => {
+  await page.locator('.tab[data-tab="vermogen"]').click();
+  await page.waitForTimeout(800);
+  return page.evaluate(() => {
+    const parse = (t) => { const neg = /−|-/.test(t); const v = Number(String(t).replace(/[^\d]/g, "")) || 0; return neg ? -v : v; };
+    return {
+      total: parse(document.querySelector("#w-amount").textContent),
+      pots: [...document.querySelectorAll("#potsum-list .irow .irow-amt")].reduce((s, e) => s + parse(e.textContent), 0),
+      invs: [...document.querySelectorAll("#invest-list .irow-amt")].reduce((s, e) => s + parse(e.textContent), 0),
+      sub: document.querySelector("#w-sub").textContent,
+      cats: [...document.querySelectorAll("#year-cats .ycat")].map((c) => c.querySelector(".ycat-lbl").textContent),
+    };
+  });
+};
+const wBefore = await wealth();
+check("Belegging zonder inleg staat op de ingevoerde stand", wBefore.invs === 18400, JSON.stringify({ invs: wBefore.invs }));
+
+// Bestemming van "Beleggen" op de belegging zetten
+await page.locator('.tab[data-tab="vast"]').click();
+await page.waitForTimeout(400);
+await page.locator('#vast-groups .row:has-text("Beleggen")').click();
+await page.waitForTimeout(450);
+check("Bestemmingskeuze is zichtbaar bij een uitgave", await page.locator("#vs-dest-wrap").isVisible());
+// eruit + de twee andere potjes + één belegging
+check("Bestemmingen: eruit, de andere potjes en de beleggingen",
+  (await page.locator("#vs-dests [data-vdest]").count()) === 4,
+  String(await page.locator("#vs-dests [data-vdest]").count()));
+check("Standaard staat de bestemming op 'eruit'",
+  (await page.getAttribute('#vs-dests [data-vdest=""]', "aria-checked")) === "true");
+await page.locator('#vs-dests [data-vdest="inv:v1"]').click();
+await page.waitForTimeout(250);
+check("Kiezen van een belegging legt uit wat er gebeurt", /vermogen blijft gelijk/.test(await page.textContent("#vs-destnote")));
+check("Categorie verdwijnt bij een bestemming", await page.locator("#vs-cat-wrap").isHidden());
+await page.locator("#sh-vast .save").click();
+await page.waitForTimeout(700);
+
+const linked = await page.evaluate(() => JSON.parse(localStorage.getItem("budget-glass-v1")).recurring.find((r) => r.label === "Beleggen"));
+check("Post is nu een overboeking naar de belegging",
+  linked.kind === "move" && linked.toInvest === "v1" && !linked.category,
+  JSON.stringify({ k: linked.kind, ti: linked.toInvest, c: linked.category }));
+
+const wAfter = await wealth();
+// De ingevoerde stand is van vorige maand, dus precies één maand inleg telt mee.
+check("Beleggingswaarde is de ingevoerde stand plus de inleg daarna",
+  wAfter.invs === 18400 + 500, JSON.stringify({ voor: wBefore.invs, na: wAfter.invs }));
+/* Vóór de koppeling ging de € 500 als uitgave van het potje af en kwam nergens
+   aan; daarna gaat er precies hetzelfde van het potje af, maar landt het op de
+   belegging. De potjes blijven dus gelijk en je vermogen is € 500 hoger — dat
+   verschil ís het gat dat gedicht is. */
+check("Inleg raakt niet meer kwijt: potjes gelijk, vermogen hoger",
+  wAfter.pots === wBefore.pots && wAfter.total === wBefore.total + 500,
+  JSON.stringify({ potsVoor: wBefore.pots, potsNa: wAfter.pots, totVoor: wBefore.total, totNa: wAfter.total }));
+check("Som van potjes en beleggingen blijft het totaal", wAfter.pots + wAfter.invs === wAfter.total, JSON.stringify(wAfter));
+check("Ondertitel noemt de afgeleide inleg", /500 inleg per maand/.test(wAfter.sub), wAfter.sub);
+
+// De belegging zelf toont de inleg, zonder tweede invulveld
+await page.locator("#invest-list [data-inv]").first().click();
+await page.waitForTimeout(450);
+check("Beleggingssheet leidt de inleg af", /per maand/.test(await page.textContent("#iv-hint")), await page.textContent("#iv-hint"));
+check("Geen los invulveld meer voor de inleg", (await page.locator("#iv-monthly").count()) === 0);
+await page.keyboard.press("Escape");
+await page.waitForTimeout(300);
+
+/* ---------- 29. Bestedingspotje zelf kiezen ---------- */
+await page.locator('.tab[data-tab="overzicht"]').click();
+await page.waitForTimeout(500);
+const safeBefore = await page.textContent("#ov-safe");
+await page.click("#btn-settings");
+await page.waitForTimeout(500);
+check("Bestedingspotje staat in de instellingen", (await page.locator("#spend-pots [data-spend]").count()) === 3);
+check("Standaard is het eerste potje gekozen",
+  (await page.getAttribute('#spend-pots [data-spend="alg"]', "aria-checked")) === "true");
+await page.locator('#spend-pots [data-spend="vak"]').click();
+await page.waitForTimeout(400);
+check("Uitleg noemt het gekozen potje", /Vakantie/.test(await page.textContent("#spend-note")), await page.textContent("#spend-note"));
+await page.keyboard.press("Escape");
+await page.waitForTimeout(600);
+const safeAfter = await page.textContent("#ov-safe");
+check("'Veilig' gaat over het gekozen potje", safeBefore !== safeAfter, `${safeBefore} → ${safeAfter}`);
+check("Keuze wordt bewaard",
+  (await page.evaluate(() => JSON.parse(localStorage.getItem("budget-glass-v1")).spendPotId)) === "vak");
+
+/* ---------- 30. Migratie naar v8 ---------- */
+const mig8 = await page.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("budget-glass-v1"));
+  return {
+    version: d.version,
+    geenLosseInleg: d.investments.every((i) => !("monthly" in i)),
+    toInvest: d.recurring.every((r) => "toInvest" in r),
+  };
+});
+check("Data gemigreerd naar v8", mig8.version === 8 && mig8.toInvest, JSON.stringify(mig8));
+check("Het dubbele inleg-veld is uit de beleggingen verdwenen", mig8.geenLosseInleg, JSON.stringify(mig8));
 
 // Post helemaal verwijderen, met ongedaan maken
+await page.locator('.tab[data-tab="vast"]').click();
+await page.waitForTimeout(400);
 await page.locator('#vast-groups .row:has-text("Beleggen")').click();
 await page.waitForTimeout(450);
 await page.click("#vs-del");
@@ -861,7 +962,7 @@ const mig7 = await page.evaluate(() => {
   const d = JSON.parse(localStorage.getItem("budget-glass-v1"));
   return { version: d.version, allHaveChanges: d.recurring.every((r) => Array.isArray(r.changes)) };
 });
-check("Data gemigreerd naar v7 met verloop per post", mig7.version === 7 && mig7.allHaveChanges, JSON.stringify(mig7));
+check("Elke terugkerende post heeft een verloop-lijst", mig7.version >= 7 && mig7.allHaveChanges, JSON.stringify(mig7));
 
 await browser.close();
 server.close();

@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "startMonth": "2026-07",
   "pots": [
     {
@@ -46,7 +46,8 @@
       "potId": "alg",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "i2",
@@ -58,7 +59,8 @@
       "potId": "alg",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u1",
@@ -70,7 +72,8 @@
       "category": "huis",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u2",
@@ -83,7 +86,8 @@
       "fromMonth": "2026-07",
       "review": true,
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u3",
@@ -96,7 +100,8 @@
       "fromMonth": "2026-07",
       "review": true,
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u4",
@@ -108,7 +113,8 @@
       "category": "vervoer",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u5",
@@ -121,7 +127,8 @@
       "fromMonth": "2026-07",
       "review": true,
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u6",
@@ -134,7 +141,8 @@
       "fromMonth": "2026-07",
       "review": true,
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u7",
@@ -146,7 +154,8 @@
       "category": "abo",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u8",
@@ -158,7 +167,8 @@
       "category": "abo",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u9",
@@ -170,7 +180,8 @@
       "category": "abo",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u10",
@@ -182,7 +193,8 @@
       "category": "bood",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u11",
@@ -194,7 +206,8 @@
       "category": "huis",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u12",
@@ -206,7 +219,8 @@
       "category": "abo",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u13",
@@ -218,7 +232,8 @@
       "category": "vervoer",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u14",
@@ -230,7 +245,8 @@
       "category": "huis",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u15",
@@ -243,7 +259,8 @@
       "fromMonth": "2026-07",
       "review": true,
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "u16",
@@ -255,7 +272,8 @@
       "category": "vervoer",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "o1",
@@ -268,7 +286,8 @@
       "toPot": "spaar",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "o2",
@@ -281,20 +300,21 @@
       "toPot": "vak",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     },
     {
       "id": "o3",
-      "kind": "out",
+      "kind": "move",
       "group": "over",
       "label": "Beleggen",
       "amount": 500,
       "day": 26,
       "potId": "alg",
-      "category": "overig",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": "v1"
     },
     {
       "id": "o4",
@@ -307,7 +327,8 @@
       "toPot": "pers",
       "fromMonth": "2026-07",
       "untilMonth": null,
-      "changes": []
+      "changes": [],
+      "toInvest": null
     }
   ],
   "months": {},
@@ -316,7 +337,6 @@
       "id": "v1",
       "label": "Beleggingsrekening",
       "value": 0,
-      "monthly": 500,
       "updated": "2026-07-30"
     }
   ],
@@ -326,5 +346,6 @@
     "Tandarts"
   ],
   "lastBackup": null,
-  "backupSnoozed": null
+  "backupSnoozed": null,
+  "spendPotId": "alg"
 }

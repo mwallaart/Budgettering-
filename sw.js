@@ -1,5 +1,5 @@
 // Service worker · offline app-shell voor Budget PWA
-const CACHE = "huishoudboekje-v9";
+const CACHE = "huishoudboekje-v10";
 const ASSETS = [
   "./",
   "./index.html",

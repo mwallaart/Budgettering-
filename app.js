@@ -8,7 +8,7 @@ const THEME_KEY = "budget-theme";
 
 /* Zichtbaar buildnummer onderaan de instellingen. Zo is met één blik te zien
    of het toestel de nieuwste versie draait of nog een gecachte oude. */
-const BUILD = "2.4 · build 9 (5 aug)";
+const BUILD = "2.5 · build 10 (5 aug)";
 
 const MN = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const MS = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -68,9 +68,12 @@ function defaultPots() {
 }
 function defaultState() {
   return {
-    version: 7,
+    version: 8,
     startMonth: todayKey(),
     pots: defaultPots(),
+    /* Welk potje is je bestedingspotje? Daarover gaat de "Veilig"-melding.
+       null = het eerste potje, zodat bestaande data zich hetzelfde gedraagt. */
+    spendPotId: null,
     recurring: [],
     months: {},
     investments: [],
@@ -98,6 +101,9 @@ function migrate(raw) {
     ...r,
     day: r.day || 1,
     untilMonth: typeof r.untilMonth === "string" ? r.untilMonth : null,
+    // v7 en eerder: een verdeling kon alleen naar een potje. Nu ook naar een
+    // belegging, zodat de inleg niet in het niets verdwijnt.
+    toInvest: typeof r.toInvest === "string" ? r.toInvest : null,
     changes: (Array.isArray(r.changes) ? r.changes : [])
       .filter((c) => c && typeof c.fromMonth === "string")
       .map((c) => ({
@@ -111,7 +117,14 @@ function migrate(raw) {
     const m = d.months[k] || {};
     d.months[k] = { entries: (m.entries || []).map((e) => ({ ...e, day: e.day || 1 })), skip: m.skip || [] };
   });
-  d.investments = (d.investments || []).map((i) => ({ monthly: 0, ...i }));
+  /* v7 en eerder: de maandelijkse inleg stond apart in de belegging én als
+     uitgave in je verdeling — twee waarheden die uit elkaar konden lopen. De
+     inleg wordt nu afgeleid uit de verdelingsposten, dus het losse veld gaat
+     eruit. Wat je zelf invulde als waarde blijft staan. */
+  d.investments = (d.investments || []).map((i) => {
+    const { monthly, ...rest } = i;
+    return rest;
+  });
   if (!Array.isArray(d.recentLabels)) d.recentLabels = [];
   // v5 en eerder: back-upherinnering was een ja/nee-vlag die na één keer
   // voorgoed uit bleef. Nu een uitsteldatum; een oude `true` betekent
@@ -121,7 +134,9 @@ function migrate(raw) {
     delete d.backupDismissed;
   }
   if (typeof d.backupSnoozed !== "string") d.backupSnoozed = null;
-  d.version = 7;
+  // Bestedingspotje moet naar een potje wijzen dat echt bestaat.
+  if (!d.pots.some((p) => p.id === d.spendPotId)) d.spendPotId = null;
+  d.version = 8;
   return d;
 }
 
@@ -262,6 +277,10 @@ function fmt(n, dec) {
 function delta(p, potId) {
   if (p.kind === "in") return p.amount;
   if (p.kind === "out") return -p.amount;
+  /* Inleg naar een belegging: het geld verlaat je potjes écht (anders dan bij
+     een overboeking tussen potjes), maar het is niet weg — het komt terug via
+     investValueAt(), zodat je totale vermogen gelijk blijft. */
+  if (p.toInvest) return !potId || p.potId === potId ? -p.amount : 0;
   if (!potId) return 0;                       // interne overboeking: netto nul
   if (p.potId === potId) return -p.amount;
   if (p.toPot === potId) return p.amount;
@@ -345,8 +364,33 @@ function pace(p, atKey) {
   const left = Math.max(0, (b.y - a.y) * 12 + (b.m - a.m));
   return { left, diff: Math.round(bal + per * left - p.goal), per, date: MS[b.m] + " " + b.y };
 }
-function investTotal() { return D.investments.reduce((s, i) => s + (Number(i.value) || 0), 0); }
-function investMonthly() { return D.investments.reduce((s, i) => s + (Number(i.monthly) || 0), 0); }
+/* ---------- Beleggingen ----------
+   `value` is de stand die je zelf hebt ingevoerd, met `updated` als datum. De
+   inleg van de maanden ná die datum telt de app er zelf bij op, zodat het geld
+   dat maandelijks je potjes verlaat ook echt ergens aankomt. Werk je de stand
+   bij (dan zit de inleg tot die datum er al in), dan begint het optellen
+   opnieuw vanaf die maand — zo wordt niets dubbel geteld. */
+function investIn(invId, mk) {
+  return posts(mk, null)
+    .filter((p) => p.toInvest === invId)
+    .reduce((s, p) => s + p.amount, 0);
+}
+function investValueAt(iv, mk) {
+  let sum = Number(iv.value) || 0;
+  const from = iv.updated ? String(iv.updated).slice(0, 7) : null;
+  for (const k of months()) {
+    if (k > mk) break;
+    if (from && k <= from) continue;
+    sum += investIn(iv.id, k);
+  }
+  return sum;
+}
+function investTotalAt(mk) { return D.investments.reduce((s, iv) => s + investValueAt(iv, mk), 0); }
+/* Inleg per maand zoals die nu is ingericht — afgeleid uit je verdeling, niet
+   apart ingevuld. Eén bron van waarheid. */
+function investMonthlyAt(mk) {
+  return D.investments.reduce((s, iv) => s + investIn(iv.id, mk), 0);
+}
 
 function isEmptyState() {
   const noStart = D.pots.every((p) => !p.startBalance);
@@ -426,13 +470,19 @@ function render() {
 }
 
 /* ---------- Overzicht ---------- */
+/* Het potje waar je dagelijkse uitgaven van afgaan; daarover gaat de
+   "Veilig"-melding. Zelf te kiezen in de instellingen. Zonder keuze het eerste
+   potje, zodat bestaande data zich precies hetzelfde gedraagt. */
+function spendPot() {
+  return D.pots.find((p) => p.id === D.spendPotId) || D.pots[0] || null;
+}
 function safePoint() {
-  const spendPot = D.pots.length ? D.pots[0].id : null;
-  const ss = spendPot ? series(spendPot) : series(null);
+  const pot = spendPot();
+  const ss = pot ? series(pot.id) : series(null);
   const t = TODAY(), horizon = new Date(t.getTime() + 45 * 86400000);
   const win = ss.filter((p) => p.d >= t && p.d <= horizon);
   const pt = win.length ? win.reduce((a, p) => (p.v < a.v ? p : a), win[0]) : { v: 0, d: t };
-  return { pt, label: spendPot ? D.pots[0].label : "" };
+  return { pt, label: pot ? pot.label : "" };
 }
 function firstWarning() {
   const t = TODAY();
@@ -725,7 +775,9 @@ function renderHousehold() {
 function rowMeta(r) {
   const pot = D.pots.find((p) => p.id === r.potId);
   const toPot = r.toPot ? D.pots.find((p) => p.id === r.toPot) : null;
-  const bits = [(r.day || 1) + "e", toPot ? `${pot ? pot.label : "—"} → ${toPot.label}` : (pot ? pot.label : "—")];
+  const inv = r.toInvest ? D.investments.find((i) => i.id === r.toInvest) : null;
+  const naar = inv ? inv.label : (toPot ? toPot.label : null);
+  const bits = [(r.day || 1) + "e", naar ? `${pot ? pot.label : "—"} → ${naar}` : (pot ? pot.label : "—")];
   bits.push(r.rec ? "↻ maandelijks" : "eenmalig");
   if (r.category && CATS[r.category]) bits.push(CATS[r.category].label);
   return bits.join(" · ");
@@ -749,7 +801,7 @@ function renderGroups() {
       const dx = S.swipe && S.swipe.id === r.id ? S.swipe.dx : 0;
       const amt = r.kind === "in" ? "+ " + fmt(r.amount) : (r.kind === "move" ? fmt(r.amount) : "− " + fmt(r.amount));
       const cls = r.kind === "in" ? "pos" : (r.kind === "move" ? "" : "neg");
-      const ico = r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶");
+      const ico = r.toInvest ? "📈" : (r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶"));
       const hint = (!S.hintDone && g.key === "in" && i === 0) ? "animation:swipeHint 2.8s cubic-bezier(.22,1,.36,1) 1.4s 2" : "";
       const openSwipe = S.swipe && S.swipe.id === r.id;
       return `<div class="swipe${openSwipe ? " open" : ""}">
@@ -1030,7 +1082,7 @@ function renderFixedGroups(mk, b) {
       const nc = nextChange(r.base, mk);
       const amt = r.kind === "in" ? "+ " + fmt(r.amount) : (r.kind === "move" ? fmt(r.amount) : "− " + fmt(r.amount));
       const cls = r.kind === "in" ? "pos" : (r.kind === "move" ? "" : "neg");
-      const ico = r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶");
+      const ico = r.toInvest ? "📈" : (r.kind === "move" ? "⇄" : (D.pots.find((p) => p.id === r.potId)?.icon || "💶"));
       const notes = [];
       if (nc) notes.push(`→ ${fmt(nc.amount != null ? nc.amount : r.amount)} vanaf ${monthShort(nc.fromMonth)}`);
       if (r.base.untilMonth) notes.push(`stopt na ${monthShort(r.base.untilMonth)}`);
@@ -1085,7 +1137,9 @@ function renderFixedGroups(mk, b) {
 function fixedMeta(r) {
   const pot = D.pots.find((p) => p.id === r.potId);
   const toPot = r.toPot ? D.pots.find((p) => p.id === r.toPot) : null;
-  const bits = [(r.day || 1) + "e", toPot ? `${pot ? pot.label : "—"} → ${toPot.label}` : (pot ? pot.label : "—")];
+  const inv = r.toInvest ? D.investments.find((i) => i.id === r.toInvest) : null;
+  const naar = inv ? inv.label : (toPot ? toPot.label : null);
+  const bits = [(r.day || 1) + "e", naar ? `${pot ? pot.label : "—"} → ${naar}` : (pot ? pot.label : "—")];
   bits.push("sinds " + monthShort(r.base?.fromMonth || r.fromMonth || D.startMonth));
   if (r.category && CATS[r.category]) bits.push(CATS[r.category].label);
   return bits.join(" · ");
@@ -1102,8 +1156,11 @@ $("#vast-add").addEventListener("click", () => openFixed(null));
    - "all":  het basisbedrag zelf aanpassen en geplande wijzigingen laten
              vallen — bedoeld om een typefout te herstellen, niet om een
              prijsverhoging vast te leggen. */
+/* V.dest is de bestemming: null = het geld gaat eruit (een echte uitgave),
+   "pot:<id>" = naar een ander potje, "inv:<id>" = inleg op een belegging. Het
+   soort post (out of move) volgt daaruit, zodat er geen twee waarheden zijn. */
 const V = {
-  id: null, kind: "out", amount: "", label: "", potId: null, toPot: null,
+  id: null, kind: "out", amount: "", label: "", potId: null, dest: null,
   category: "overig", day: 1, over: false, review: false,
   scope: "from", from: null, until: null,
 };
@@ -1113,11 +1170,11 @@ function openFixed(r) {
   if (r) {
     const eff = recAt(r, mk);
     V.id = r.id;
-    V.kind = r.kind === "in" ? "in" : (r.kind === "move" ? "move" : "out");
+    V.kind = r.kind === "in" ? "in" : "out";
     V.amount = String(eff.amount);
     V.label = r.label;
     V.potId = r.potId;
-    V.toPot = r.toPot || null;
+    V.dest = r.toInvest ? "inv:" + r.toInvest : (r.toPot ? "pot:" + r.toPot : null);
     V.category = r.category || "overig";
     V.day = eff.day || 1;
     V.over = r.group === "over";
@@ -1129,7 +1186,7 @@ function openFixed(r) {
     $("#vs-del").hidden = false;
   } else {
     V.id = null; V.kind = "out"; V.amount = ""; V.label = "";
-    V.potId = D.pots[0]?.id || null; V.toPot = null;
+    V.potId = spendPot()?.id || D.pots[0]?.id || null; V.dest = null;
     V.category = "overig"; V.day = 1; V.over = false; V.review = false;
     V.until = null; V.scope = "from"; V.from = mk;
     $("#vs-title").textContent = "Vaste post toevoegen";
@@ -1141,16 +1198,12 @@ function openFixed(r) {
 }
 
 function syncFixedSheet() {
-  const isMove = V.kind === "move";
   $("#vs-amount").value = V.amount;
   $("#vs-label").value = V.label;
   $("#vs-day").value = String(V.day);
   $("#vs-from").textContent = MN[parseK(V.from).m] + " " + parseK(V.from).y;
   $("#vs-sub").textContent = V.id ? "Maandelijks terugkerend" : "Loopt vanaf de gekozen maand elke maand mee";
 
-  // Een overboeking tussen potjes houdt zijn soort; het segment zou hem
-  // stilletjes in een gewone uitgave veranderen.
-  $("#vs-kindseg").hidden = isMove;
   document.querySelectorAll("#vs-kindseg button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.vkind === V.kind)));
   document.querySelectorAll("#vs-scopeseg button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.vscope === V.scope)));
   $("#vs-from").disabled = V.scope === "all";
@@ -1160,8 +1213,10 @@ function syncFixedSheet() {
       ? `Let op: deze post loopt t/m ${monthShort(V.until)}, dus een wijziging vanaf ${monthShort(V.from)} gaat nooit gelden.`
       : `Maanden vóór ${MS[parseK(V.from).m]} ${parseK(V.from).y} houden hun huidige bedrag.`);
 
-  $("#vs-cat-wrap").hidden = V.kind !== "out" || isMove;
-  $("#vs-topot-wrap").hidden = !isMove;
+  // Een categorie hoort bij geld dat het huis uit gaat; een overboeking naar een
+  // potje of belegging is geen uitgave.
+  $("#vs-cat-wrap").hidden = V.kind !== "out" || V.dest !== null;
+  $("#vs-dest-wrap").hidden = V.kind === "in";
   $("#vs-over").setAttribute("aria-checked", String(V.over));
   $("#vs-review").setAttribute("aria-checked", String(V.review));
 
@@ -1175,8 +1230,19 @@ function syncFixedSheet() {
   $("#vs-pots").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${V.potId === p.id}" data-vpot="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
   $("#vs-pots").querySelectorAll("[data-vpot]").forEach((b) => b.addEventListener("click", () => { V.potId = b.dataset.vpot; syncFixedSheet(); }));
 
-  $("#vs-topots").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${V.toPot === p.id}" data-vtopot="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
-  $("#vs-topots").querySelectorAll("[data-vtopot]").forEach((b) => b.addEventListener("click", () => { V.toPot = b.dataset.vtopot; syncFixedSheet(); }));
+  const dests = [{ key: "", icon: "🏠", label: "Eruit" }]
+    .concat(D.pots.filter((p) => p.id !== V.potId).map((p) => ({ key: "pot:" + p.id, icon: p.icon, label: p.label })))
+    .concat(D.investments.map((iv) => ({ key: "inv:" + iv.id, icon: "📈", label: iv.label })));
+  $("#vs-dests").innerHTML = dests.map((d) => `<button type="button" class="opt" role="radio" aria-checked="${(V.dest || "") === d.key}" data-vdest="${esc(d.key)}"><span aria-hidden="true">${d.icon}</span><span class="t">${esc(d.label)}</span></button>`).join("");
+  $("#vs-dests").querySelectorAll("[data-vdest]").forEach((b) => b.addEventListener("click", () => {
+    V.dest = b.dataset.vdest || null;
+    syncFixedSheet();
+  }));
+  $("#vs-destnote").textContent = !V.dest
+    ? "Het geld verlaat je huishouden — een gewone uitgave."
+    : V.dest.startsWith("inv:")
+      ? "Inleg op deze belegging: het bedrag gaat van je potje af en komt bij de waarde van je belegging, dus je totale vermogen blijft gelijk."
+      : "Overboeking tussen je eigen potjes: je totale vermogen verandert niet.";
 
   $("#vs-cats").innerHTML = CAT_KEYS.map((k) => `<button type="button" class="opt" role="radio" aria-checked="${V.category === k}" data-vcat="${k}"><span aria-hidden="true">${CATS[k].icon}</span><span class="t">${CATS[k].label}</span></button>`).join("");
   $("#vs-cats").querySelectorAll("[data-vcat]").forEach((b) => b.addEventListener("click", () => { V.category = b.dataset.vcat; syncFixedSheet(); }));
@@ -1245,7 +1311,11 @@ $("#sh-vast").addEventListener("submit", (ev) => {
   if (!Number.isFinite(amount) || amount <= 0) return fail("Vul een geldig bedrag in.");
   if (!label) return fail("Vul een omschrijving in.");
   if (!V.potId) return fail("Kies een potje.");
-  if (V.kind === "move" && (!V.toPot || V.toPot === V.potId)) return fail("Kies een ander potje om naartoe te boeken.");
+  const destPot = V.dest?.startsWith("pot:") ? V.dest.slice(4) : null;
+  const destInv = V.dest?.startsWith("inv:") ? V.dest.slice(4) : null;
+  if (destPot && destPot === V.potId) return fail("Kies een ander potje om naartoe te boeken.");
+  if (destPot && !D.pots.some((p) => p.id === destPot)) return fail("Dat potje bestaat niet meer.");
+  if (destInv && !D.investments.some((i) => i.id === destInv)) return fail("Die belegging bestaat niet meer.");
 
   const nd = clone();
   const existing = V.id ? nd.recurring.find((r) => r.id === V.id) : null;
@@ -1257,13 +1327,19 @@ $("#sh-vast").addEventListener("submit", (ev) => {
   const startMonthOf = existing ? (existing.fromMonth || D.startMonth) : V.from;
   if (V.until && V.until < startMonthOf) return fail("De einddatum ligt vóór de startmaand van deze post.");
 
+  /* Het soort post volgt uit de bestemming: gaat het naar een eigen potje of
+     belegging, dan is het een overboeking (move); gaat het eruit, dan is het een
+     uitgave (out). Zo kan het soort nooit uit de pas lopen met de bestemming. */
+  const kind = V.kind === "in" ? "in" : (V.dest ? "move" : "out");
+
   if (!existing) {
     const rec = {
-      id: uid(), kind: V.kind, label, amount, day: V.day, potId: V.potId,
+      id: uid(), kind, label, amount, day: V.day, potId: V.potId,
+      toPot: destPot || undefined, toInvest: destInv || null,
       fromMonth: V.scope === "all" ? D.startMonth : V.from,
       untilMonth: V.until || null, changes: [],
     };
-    if (V.kind === "out") rec.category = V.category;
+    if (kind === "out") rec.category = V.category;
     if (V.over) rec.group = "over";
     if (V.review) rec.review = true;
     nd.recurring.push(rec);
@@ -1273,12 +1349,10 @@ $("#sh-vast").addEventListener("submit", (ev) => {
     existing.potId = V.potId;
     existing.untilMonth = V.until || null;
     if (V.review) existing.review = true; else delete existing.review;
-    if (existing.kind === "move") {
-      existing.toPot = V.toPot;
-    } else {
-      existing.kind = V.kind;
-      if (V.kind === "out") existing.category = V.category; else delete existing.category;
-    }
+    existing.kind = kind;
+    if (destPot) existing.toPot = destPot; else delete existing.toPot;
+    existing.toInvest = destInv || null;
+    if (kind === "out") existing.category = V.category; else delete existing.category;
     if (V.over) existing.group = "over"; else delete existing.group;
 
     const start = existing.fromMonth || D.startMonth;
@@ -1336,12 +1410,14 @@ $("#vs-del").addEventListener("click", () => {
 /* ---------- Vermogen ---------- */
 function renderWealth() {
   const nowK = clampMonth(todayKey());
-  const cash = end(nowK), inv = investTotal(), total = cash + inv;
+  const cash = end(nowK), inv = investTotalAt(nowK), total = cash + inv;
+  const perMonth = investMonthlyAt(nowK);
   setBig($("#w-amount"), total);
-  $("#w-sub").textContent = "Spaargeld + beleggingen · " + fmt(investMonthly()) + " per maand erbij";
+  $("#w-sub").textContent = "Spaargeld + beleggingen" +
+    (perMonth > 0 ? " · " + fmt(perMonth) + " inleg per maand" : "");
 
   const segs = D.pots.map((p, i) => ({ label: p.label, value: Math.max(0, end(nowK, p.id)), color: ALLOC_COLORS[i % ALLOC_COLORS.length] }))
-    .concat(D.investments.map((iv, i) => ({ label: iv.label, value: Math.max(0, Number(iv.value) || 0), color: i % 2 ? "var(--gold2)" : "var(--gold)" })))
+    .concat(D.investments.map((iv, i) => ({ label: iv.label, value: Math.max(0, investValueAt(iv, nowK)), color: i % 2 ? "var(--gold2)" : "var(--gold)" })))
     .filter((s) => s.value > 0);
   const sum = segs.reduce((s, x) => s + x.value, 0);
   $("#w-bar").innerHTML = sum > 0
@@ -1357,12 +1433,15 @@ function renderWealth() {
   // Beleggingen
   const il = $("#invest-list");
   il.innerHTML = D.investments.length ? D.investments.map((iv) => {
-    const pct = inv > 0 ? Math.round((iv.value / inv) * 100) : 0;
-    const meta = (iv.monthly ? fmt(iv.monthly) + " per maand" : "geen inleg") + (iv.updated ? " · bijgewerkt " + iv.updated : "");
+    const val = investValueAt(iv, nowK);
+    const pct = inv > 0 ? Math.round((val / inv) * 100) : 0;
+    const perM = investIn(iv.id, nowK);
+    const meta = (perM > 0 ? fmt(perM) + " inleg per maand" : "geen inleg ingericht") +
+      (iv.updated ? " · stand van " + formatDay(iv.updated) : "");
     return `<button type="button" class="irow" data-inv="${iv.id}">
       <span class="row-tile" aria-hidden="true">📈</span>
       <span class="irow-main"><span class="irow-lbl">${esc(iv.label)}</span><span class="irow-meta">${esc(meta)}</span></span>
-      <span class="irow-right"><span class="irow-amt tnum">${fmt(iv.value)}</span><span class="irow-pct">${pct}%</span></span>
+      <span class="irow-right"><span class="irow-amt tnum">${fmt(val)}</span><span class="irow-pct">${pct}%</span></span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
     </button>`;
   }).join("") : `<div class="group-empty">Nog geen beleggingen.</div>`;
@@ -1689,18 +1768,20 @@ $("#sh-transfer").addEventListener("submit", (ev) => {
 });
 
 /* ---------- Belegging ---------- */
-const IV = { id: null, label: "", value: "", monthly: "" };
+const IV = { id: null, label: "", value: "" };
 function openInvest(inv) {
   if (inv) {
-    IV.id = inv.id; IV.label = inv.label; IV.value = String(inv.value); IV.monthly = String(inv.monthly || 0);
+    IV.id = inv.id; IV.label = inv.label; IV.value = String(inv.value);
     $("#iv-title").textContent = "Belegging bewerken";
-    $("#iv-sub").textContent = inv.updated ? "Laatst bijgewerkt " + inv.updated : "Werk de waarde handmatig bij";
+    $("#iv-sub").textContent = inv.updated
+      ? "Stand van " + formatDay(inv.updated) + " · inleg daarna telt de app erbij"
+      : "Vul de stand in die je bij je broker ziet";
     $("#iv-del").hidden = false;
     $("#iv-save").textContent = "Opslaan";
   } else {
-    IV.id = null; IV.label = ""; IV.value = ""; IV.monthly = "";
+    IV.id = null; IV.label = ""; IV.value = "";
     $("#iv-title").textContent = "Belegging toevoegen";
-    $("#iv-sub").textContent = "Werk de waarde handmatig bij";
+    $("#iv-sub").textContent = "Vul de stand in die je bij je broker ziet";
     $("#iv-del").hidden = true;
     $("#iv-save").textContent = "Toevoegen";
   }
@@ -1711,7 +1792,6 @@ function openInvest(inv) {
 function syncInvest() {
   $("#iv-label").value = IV.label;
   $("#iv-value").value = IV.value;
-  $("#iv-monthly").value = IV.monthly;
   const cur = parseAmount(IV.value) || 0;
   const nudges = [-5, -1, 1, 5].map((pct) => ({ pct, v: Math.round(cur * (1 + pct / 100)) }));
   $("#iv-nudges").innerHTML = cur > 0
@@ -1719,36 +1799,30 @@ function syncInvest() {
     : "";
   $("#iv-nudges").querySelectorAll("[data-val]").forEach((b) => b.addEventListener("click", () => { IV.value = b.dataset.val; syncInvest(); }));
 
-  $("#iv-monthly-quick").innerHTML = [0, 100, 250, 500].map((a) => {
-    const on = String(a) === String(parseAmount(IV.monthly) || 0);
-    return `<button type="button" class="qbtn" data-m="${a}" style="${on ? "background:var(--hero);border-color:transparent;color:#fff" : ""}">${a === 0 ? "geen" : fmt(a)}</button>`;
-  }).join("");
-  $("#iv-monthly-quick").querySelectorAll("[data-m]").forEach((b) => b.addEventListener("click", () => { IV.monthly = b.dataset.m; syncInvest(); }));
-
-  const m = parseAmount(IV.monthly) || 0;
+  /* Afgeleid, niet ingevuld: de inleg komt uit de verdelingsposten die deze
+     belegging als bestemming hebben. */
+  const m = IV.id ? investIn(IV.id, clampMonth(todayKey())) : 0;
   $("#iv-hint").textContent = m > 0
-    ? `Met ${fmt(m)} per maand leg je er ${fmt(m * 12)} per jaar bij. Dit telt mee in je vermogen, niet in je spaargeld.`
-    : "Vul een maandelijkse inleg in om te zien hoeveel je er per jaar bij legt.";
+    ? `${fmt(m)} per maand (${fmt(m * 12)} per jaar), ingericht bij Vast. Die inleg telt de app automatisch bij de waarde hierboven op.`
+    : "Nog geen inleg ingericht. Voeg op de pagina Vast een verdelingspost toe en kies deze belegging als bestemming.";
 }
 $("#iv-label").addEventListener("input", (e) => { IV.label = e.target.value; });
 $("#iv-value").addEventListener("input", (e) => { IV.value = e.target.value; });
-$("#iv-monthly").addEventListener("input", (e) => { IV.monthly = e.target.value; });
 $("#add-invest").addEventListener("click", () => openInvest(null));
 $("#sh-invest").addEventListener("submit", (ev) => {
   ev.preventDefault();
   const label = IV.label.trim();
   const value = parseAmount(IV.value);
-  const monthly = parseAmount(IV.monthly);
   const err = $("#iv-error");
   if (!label) { err.textContent = "Vul een naam in."; err.hidden = false; return; }
   if (!Number.isFinite(value) || value < 0) { err.textContent = "Vul een geldige waarde in."; err.hidden = false; return; }
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDay();
   const nd = clone();
   if (IV.id) {
     const x = nd.investments.find((i) => i.id === IV.id);
-    if (x) { x.label = label; x.value = value; x.monthly = Number.isFinite(monthly) ? monthly : 0; x.updated = today; }
+    if (x) { x.label = label; x.value = value; x.updated = today; }
   } else {
-    nd.investments.push({ id: uid(), label, value, monthly: Number.isFinite(monthly) ? monthly : 0, updated: today });
+    nd.investments.push({ id: uid(), label, value, updated: today });
   }
   D = nd; save();
   closeSheets();
@@ -1897,6 +1971,16 @@ function renderSettings() {
     : `Laatste back-up: ${formatDay(D.lastBackup)}` +
       (age === 0 ? " (vandaag)" : age === 1 ? " (gisteren)" : ` (${age} dagen geleden)`);
   renderRestoreList();
+
+  const sp = spendPot();
+  $("#spend-pots").innerHTML = D.pots.map((p) => `<button type="button" class="opt" role="radio" aria-checked="${sp?.id === p.id}" data-spend="${p.id}"><span aria-hidden="true">${p.icon}</span><span class="t">${esc(p.label)}</span></button>`).join("");
+  $("#spend-pots").querySelectorAll("[data-spend]").forEach((b) => b.addEventListener("click", () => {
+    const nd = clone(); nd.spendPotId = b.dataset.spend;
+    D = nd; save(); haptic(8); renderSettings(); render();
+  }));
+  $("#spend-note").textContent = sp
+    ? `"Veilig" op Overzicht kijkt naar ${sp.label}: het laagste punt daar in de komende 45 dagen.`
+    : "Maak eerst een potje aan.";
 
   const box = $("#pot-manage");
   box.innerHTML = D.pots.map((p) => `<div class="pot-edit" data-pid="${p.id}">

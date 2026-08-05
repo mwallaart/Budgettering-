@@ -281,7 +281,7 @@
         <div class="alloc-rows" id="w-alloc"></div>
       </div>
 
-      <div class="sec"><div class="sec-title">Beleggingen</div><div class="sec-note">handmatig bijwerken</div></div>
+      <div class="sec"><div class="sec-title">Beleggingen</div><div class="sec-note">stand zelf bijwerken · inleg automatisch</div></div>
       <div class="ilist" id="invest-list"></div>
       <button type="button" class="btn-dashed" id="add-invest">+ Belegging toevoegen</button>
 
@@ -460,13 +460,10 @@
       </div>
       <div class="quickrow" id="iv-nudges"></div>
 
+      <!-- De maandelijkse inleg wordt niet hier ingevuld maar afgeleid uit je
+           verdeling op de pagina Vast. Eén bron van waarheid: zo kan het geld
+           dat je potjes verlaat niet afwijken van wat hier binnenkomt. -->
       <div class="fieldlbl">Maandelijkse inleg</div>
-      <div class="amount-box sm">
-        <span class="cur">€</span>
-        <input id="iv-monthly" inputmode="numeric" aria-label="Maandelijkse inleg" placeholder="0" />
-        <span class="suffix">per maand</span>
-      </div>
-      <div class="quickrow" id="iv-monthly-quick"></div>
       <div class="hintbox" id="iv-hint"></div>
 
       <button type="button" class="btn btn-danger btn-wide" id="iv-del" style="margin-top:18px;min-height:50px;border-radius:16px" hidden>Belegging verwijderen</button>
@@ -519,9 +516,13 @@
       <div class="fieldlbl">Potje</div>
       <div class="optrow" id="vs-pots" role="radiogroup" aria-label="Potje"></div>
 
-      <div id="vs-topot-wrap" hidden>
-        <div class="fieldlbl">Naar potje</div>
-        <div class="optrow" id="vs-topots" role="radiogroup" aria-label="Naar potje"></div>
+      <!-- Bestemming: gaat het geld het huis uit, naar een ander potje, of naar
+           een belegging? Bij een belegging telt de inleg automatisch mee in je
+           vermogen, zodat hij niet in het niets verdwijnt. -->
+      <div id="vs-dest-wrap" hidden>
+        <div class="fieldlbl">Waar gaat het naartoe?</div>
+        <div class="optrow" id="vs-dests" role="radiogroup" aria-label="Bestemming"></div>
+        <div class="sec-note" id="vs-destnote" style="margin-top:8px"></div>
       </div>
 
       <div id="vs-cat-wrap">
@@ -581,6 +582,12 @@
       </div>
       <div id="pot-manage"></div>
       <button type="button" class="btn-dashed" id="pot-add" style="margin-top:10px">+ Potje toevoegen</button>
+
+      <!-- Waar leef je uit? Daarover gaat de "Veilig"-melding op Overzicht.
+           Zonder keuze pakte de app stilzwijgend het eerste potje. -->
+      <div class="fieldlbl">Bestedingspotje</div>
+      <div class="optrow" id="spend-pots" role="radiogroup" aria-label="Bestedingspotje"></div>
+      <div class="sec-note" id="spend-note" style="margin-top:8px"></div>
 
       <div class="fieldlbl">Startmaand</div>
       <button type="button" class="bigrow" id="start-month">

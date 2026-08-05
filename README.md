@@ -35,8 +35,10 @@ Geen account, geen server — alle gegevens blijven lokaal op je apparaat
   zonder je historie te veranderen. Een peilmaand-stepper laat je vooruitkijken
   naar het effect van wat je hebt gepland.
 - **Vermogen-overzicht** — een aparte tab met je **totale vermogen**
-  (spaargeld + beleggingen) en een verdeling per onderdeel. Voeg beleggingen toe
-  en werk hun waarde handmatig bij.
+  (spaargeld + beleggingen) en een verdeling per onderdeel. De **stand** van een
+  belegging vul je zelf in (met de datum erbij); de **inleg** komt uit je
+  verdeling op de pagina Vast en telt de app er zelf bij op. Zo verlaat je
+  maandelijkse inleg wel je potjes, maar niet je vermogen.
 - **Back-up** — exporteer/importeer je gegevens als JSON. Op de telefoon gaat de
   export via de deelknop, zodat je hem in één tik in iCloud Drive of je mail zet.
   De app herinnert je opnieuw zodra je laatste back-up een maand oud is, en
@@ -71,9 +73,9 @@ node node_modules/playwright-core/cli.js install chromium   # eenmalig
 npm test
 ```
 
-- `npm run test:interactions` — 140 controles: elke animatie, veeg, sheet,
-  toetsenbordpad, PWA-robuustheid, databeveiliging en de vaste-maandpagina
-  met ingangsmaanden.
+- `npm run test:interactions` — 164 controles: elke animatie, veeg, sheet,
+  toetsenbordpad, PWA-robuustheid, databeveiliging, de vaste-maandpagina met
+  ingangsmaanden en de koppeling van je inleg aan je vermogen.
 - `npm run test:smoke` — alle vier de schermen, elke sheet op 320px, donker
   thema, navigatie zonder overlap.
 
@@ -107,7 +109,7 @@ python3 scripts/make-icons.py
 ## Techniek
 
 Vanilla HTML/CSS/JS, geen frameworks of build-tools. Gegevensmodel is versioned
-(`budget-glass-v1` in `localStorage`, nu v7); nieuwe velden krijgen defaults bij
+(`budget-glass-v1` in `localStorage`, nu v8); nieuwe velden krijgen defaults bij
 het laden, dus een oudere back-up blijft importeerbaar.
 
 Terugkerende posten zijn **effectief-gedateerd**: naast `amount` en `day` heeft
@@ -116,3 +118,11 @@ optionele `untilMonth`. `recAt(post, maand)` levert het bedrag zoals dat in die
 maand geldt; `recActive(post, maand)` zegt of de post er dan nog is. Alle
 berekeningen lopen via die twee functies, zodat een wijziging nooit met
 terugwerkende kracht je historie verandert.
+
+Een verdelingspost heeft één **bestemming**: niets (het geld gaat eruit, een
+`out` met een categorie), een ander potje (`toPot`) of een belegging
+(`toInvest`). Het soort post volgt daaruit, dus soort en bestemming kunnen niet
+uit de pas lopen. `investValueAt(belegging, maand)` is de zelf ingevoerde stand
+plus de inleg van de maanden ná `updated` — werk je de stand bij, dan begint dat
+optellen opnieuw, zodat niets dubbel wordt geteld. Invariant die in de tests
+staat: de som van de potjes plus de beleggingen is het totale vermogen.
